@@ -1,51 +1,100 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// src/App.jsx
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
-import SignIn from "./pages/SignIn";
-import OwnerView from "./pages/OwnerView";
-import CheckEmail from "./pages/CheckEmail";
-import BranchView from "./pages/BranchView";
-import WarehouseView from "./pages/WarehouseView";
 
-function App() {
+// Auth + layouts
+import SignIn from "./layouts/SignIn";
+import WarehouseLayout from "./layouts/WarehouseLayout";
+import OwnerLayout from "./layouts/OwnerLayout";
+import BranchLayout from "./layouts/BranchLayout";
+
+// Warehouse pages
+import WarehouseHome from "./pages/warehouse/Home";
+
+// Owner pages
+import OwnerHome from "./pages/owner/Home";
+
+// Branch pages
+import BranchHome from "./pages/branch/Home";
+
+// Reusable Profile page (same component for all roles)
+import Profile from "./pages/Profile";
+
+export default function App() {
   const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const getSession = async () => {
+    const init = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      setReady(true);
     };
-    getSession();
+    init();
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUser(s?.user ?? null);
     });
+
+    return () => sub.subscription?.unsubscribe?.();
   }, []);
+
+  // Prevent route flicker before we know session state
+  if (!ready) return null;
 
   return (
     <Router>
       <Routes>
+        {/* Public */}
         <Route path="/" element={<SignIn />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/check-email" element={<CheckEmail />} />
+
+        {/* OWNER */}
         <Route
           path="/owner"
-          element={user ? <OwnerView user={user} /> : <SignIn />}
-        />
-        <Route
-          path="/branch/:id"
-          element={user ? <BranchView user={user} /> : <SignIn />}
-        />
+          element={
+            user ? <OwnerLayout user={user} /> : <Navigate to="/" replace />
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<OwnerHome />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+
+        {/* WAREHOUSE */}
         <Route
           path="/warehouse"
-          element={user ? <WarehouseView user={user} /> : <SignIn />}
-        />
-        {/* Add /branch/:id and /warehouse routes if needed */}
+          element={
+            user ? <WarehouseLayout user={user} /> : <Navigate to="/" replace />
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<WarehouseHome />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+
+        {/* BRANCH (dynamic id) */}
+        <Route
+          path="/branch/:id"
+          element={
+            user ? <BranchLayout user={user} /> : <Navigate to="/" replace />
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<BranchHome />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
 }
-
-export default App;

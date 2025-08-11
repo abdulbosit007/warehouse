@@ -50,13 +50,13 @@ export default function SignIn() {
       // Redirect by role
       switch (allowedUser.role) {
         case 0:
-          navigate("/owner");
+          navigate("/owner/home");
           break;
         case 1:
-          navigate("/warehouse");
+          navigate("/warehouse/home");
           break;
         case 2:
-          navigate(`/branch/${allowedUser.branch}`);
+          navigate(`/branch/${allowedUser.branch}/home`);
           break;
         default:
           setError("Unknown role.");
