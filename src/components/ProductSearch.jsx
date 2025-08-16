@@ -1,4 +1,3 @@
-// src/components/ProductSearch.jsx
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -97,15 +96,15 @@ export default function ProductSearch({
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleEnter}
             placeholder="Type product name…"
-            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 pr-10 bg-white border border-gray-300 shadow-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {!selected && suggestions.length > 0 && (
-            <ul className="absolute z-20 mt-2 w-full divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+            <ul className="absolute z-20 w-full mt-2 overflow-hidden bg-white border border-gray-200 divide-y divide-gray-100 shadow-lg rounded-xl">
               {suggestions.map((s) => (
                 <li
                   key={s.id}
                   onClick={() => loadProduct(s)}
-                  className="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                  className="px-4 py-2 cursor-pointer hover:bg-gray-50"
                 >
                   {s.name}
                 </li>
@@ -118,12 +117,12 @@ export default function ProductSearch({
       {/* Selected product tag */}
       {selected && (
         <div className="flex items-center gap-3 mt-4">
-          <span className="inline-block rounded-lg bg-blue-100 text-blue-800 px-3 py-1 text-sm font-semibold">
+          <span className="inline-block px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-lg">
             {selected.name}
           </span>
           <button
             onClick={reset}
-            className="rounded-lg bg-gray-200 hover:bg-gray-300 px-3 py-1 text-sm"
+            className="px-3 py-1 text-sm bg-gray-200 rounded-lg hover:bg-gray-300"
           >
             Change
           </button>
@@ -133,20 +132,20 @@ export default function ProductSearch({
       {/* Results */}
       <div className="mt-4">
         {loading && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="h-5 w-40 animate-pulse rounded bg-gray-200" />
+          <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+            <div className="w-40 h-5 bg-gray-200 rounded animate-pulse" />
             <div className="mt-4 space-y-2">
-              <div className="h-10 w-full animate-pulse rounded bg-gray-100" />
-              <div className="h-10 w-full animate-pulse rounded bg-gray-100" />
+              <div className="w-full h-10 bg-gray-100 rounded animate-pulse" />
+              <div className="w-full h-10 bg-gray-100 rounded animate-pulse" />
             </div>
           </div>
         )}
 
         {!loading && selected && (
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-2xl">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left">
+                <tr className="text-left bg-gray-50">
                   <th className="px-6 py-3">Name</th>
                   <th className="px-6 py-3">Location</th>
                   <th className="px-6 py-3 text-right">Count</th>
