@@ -9,7 +9,7 @@ export default function Profile() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/");
+    window.location.assign("/signin");
   };
 
   // Optional: protect the page if not logged-in

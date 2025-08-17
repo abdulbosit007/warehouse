@@ -44,8 +44,8 @@ export const ownerLinks = [
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
-    to: "/owner/incoming-product-fix",
-    label: "Incoming Product Fix",
+    to: "/owner/incoming-product",
+    label: "Incoming Product",
     icon: <Wrench className="w-4 h-4" />,
   },
   {

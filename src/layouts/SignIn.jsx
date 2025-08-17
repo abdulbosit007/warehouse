@@ -9,7 +9,15 @@ export default function SignIn() {
 
   const handleGoogleLogin = async () => {
     setLoading(true); // Block UI during login
-    await supabase.auth.signInWithOAuth({ provider: "google" });
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // return to whatever origin you're using (localhost:5173 or your LAN IP)
+        redirectTo: window.location.origin,
+        // always open the Google account picker (prevents silent reuse)
+        queryParams: { prompt: "select_account" },
+      },
+    });
     setLoading(false); // In case of error
   };
 
