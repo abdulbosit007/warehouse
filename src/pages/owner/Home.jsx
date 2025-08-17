@@ -6,7 +6,7 @@ export default function OwnerHome() {
     <div>
       <h1 className="mb-4 text-2xl font-semibold">Owner — Home</h1>
       <ProductSearch scope="owner" countField="total_qty" />
-      <ProductsTable scope="owner"/>
+      <ProductsTable scope="owner" />
     </div>
   );
 }

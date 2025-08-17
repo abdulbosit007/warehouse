@@ -9,30 +9,7 @@ export default function Navbar({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-
-  const defaults = {
-    warehouse: [
-      { to: "/warehouse/home", label: "Home" },
-      { to: "/warehouse/branch-requests", label: "Branch" },
-      { to: "/warehouse/owner-requests", label: "Owner" },
-      { to: "/warehouse/history", label: "History" },
-      { to: "/warehouse/profile", label: "Profile" },
-    ],
-    owner: [
-      { to: "/owner/home", label: "Home" },
-      { to: "/owner/users", label: "Users" },
-      { to: "/owner/history", label: "History" },
-      { to: "/owner/profile", label: "Profile" },
-    ],
-    branch: [
-      { to: (id) => `/branch/${id}/home`, label: "Home" },
-      { to: (id) => `/branch/${id}/requests`, label: "Requests" },
-      { to: (id) => `/branch/${id}/history`, label: "History" },
-      { to: (id) => `/branch/${id}/profile`, label: "Profile" },
-    ],
-  };
-
-  const resolved = links.length > 0 ? links : role ? defaults[role] || [] : [];
+  const resolved = links.length > 0 ? links : role;
   const computedLinks = resolved.map((l) => ({
     ...l,
     to: typeof l.to === "function" ? l.to(branchId) : l.to,
