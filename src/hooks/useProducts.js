@@ -1,12 +1,7 @@
+// src/hooks/useProducts.js
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-/**
- * Base: product_list (INNER JOIN products)
- * Search:   search -> (products.name ILIKE OR products.sku ILIKE)
- * Filters:  name (ILIKE, products), sku (ILIKE, products), category (EQ, products),
- *           quantity (EQ), location (EQ), status (EQ)
- */
 export function useProducts({
   page,
   pageSize,
@@ -28,7 +23,6 @@ export function useProducts({
       const from = page * pageSize;
       const to = from + pageSize - 1;
 
-      // INNER JOIN so only rows with a matching product appear
       let q = supabase
         .from("product_list")
         .select(
@@ -49,41 +43,33 @@ export function useProducts({
           { count: "exact" }
         );
 
-      // --- SEARCH (OR across name/sku on related table) ---
+      // --- SEARCH: OR across (products.name, products.sku) SCOPED to related table
       if (search?.trim()) {
         const s = search.trim();
-        q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`, { foreignTable: "products" });
+        q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`, {
+          foreignTable: "products",
+        });
       }
 
-      // --- FILTERS (each optional; combine with AND) ---
+      // --- FILTERS (AND each present one) ---
       const { name, sku, category, quantity, location, status } = filters;
 
-      if (name?.trim()) {
-        q = q.ilike("name", `%${name.trim()}%`, { foreignTable: "products" });
-      }
-      if (sku?.trim()) {
-        q = q.ilike("sku", `%${sku.trim()}%`, { foreignTable: "products" });
-      }
-      if (category?.trim()) {
-        q = q.eq("category", category.trim(), { foreignTable: "products" });
-      }
+      if (name?.trim()) q = q.ilike("products.name", `%${name.trim()}%`);
+      if (sku?.trim()) q = q.ilike("products.sku", `%${sku.trim()}%`);
+      if (category?.trim()) q = q.eq("products.category", category.trim());
+
       if (quantity !== "" && quantity != null) {
         const qNum = Number(quantity);
         if (!Number.isNaN(qNum)) q = q.eq("quantity", qNum);
       }
-      if (location?.trim()) {
-        q = q.eq("location", location.trim());
-      }
-      if (status?.trim()) {
-        q = q.eq("status", status.trim());
-      }
+      if (location?.trim()) q = q.eq("location", location.trim());
+      if (status?.trim()) q = q.eq("status", status.trim());
 
-      // Pagination
       q = q.range(from, to);
 
       const { data, error: err, count } = await q;
-
       if (cancelled) return;
+
       if (err) {
         setError(err.message || "Failed to load");
         setRows([]);
