@@ -1,62 +1,118 @@
-// src/hooks/useProducts.js
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+/**
+ * Base: product_list (INNER JOIN products)
+ * Search:   search -> (products.name ILIKE OR products.sku ILIKE)
+ * Filters:  name (ILIKE, products), sku (ILIKE, products), category (EQ, products),
+ *           quantity (EQ), location (EQ), status (EQ)
+ */
 export function useProducts({
-  page = 0,
-  pageSize = 10,
+  page,
+  pageSize,
   search = "",
-  sortBy = "name",      // "id" | "name" | "sku" | "price"
-  sortDir = "asc",      // "asc" | "desc"
-} = {}) {
+  filters = {}, // { name, sku, category, quantity, location, status }
+}) {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
-
-  const orFilter = useMemo(() => {
-    const q = search.trim();
-    if (!q) return null;
-    // search by name or sku
-    return `name.ilike.%${q}%,sku.ilike.%${q}%`;
-  }, [search]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    const run = async () => {
       setLoading(true);
-      setError(null);
+      setError("");
 
-      let query = supabase
-        .from("products")
-        .select("id,name,sku,price", { count: "exact" });
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
 
-      if (orFilter) query = query.or(orFilter);
-      if (sortBy) query = query.order(sortBy, { ascending: sortDir === "asc" });
-      query = query.range(from, to);
+      // INNER JOIN so only rows with a matching product appear
+      let q = supabase
+        .from("product_list")
+        .select(
+          `
+          id,
+          quantity,
+          location,
+          status,
+          inserted_at,
+          products:product_id!inner (
+            id,
+            name,
+            sku,
+            category,
+            sale_price
+          )
+        `,
+          { count: "exact" }
+        );
 
-      const { data, count, error } = await query;
+      // --- SEARCH (OR across name/sku on related table) ---
+      if (search?.trim()) {
+        const s = search.trim();
+        q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`, { foreignTable: "products" });
+      }
+
+      // --- FILTERS (each optional; combine with AND) ---
+      const { name, sku, category, quantity, location, status } = filters;
+
+      if (name?.trim()) {
+        q = q.ilike("name", `%${name.trim()}%`, { foreignTable: "products" });
+      }
+      if (sku?.trim()) {
+        q = q.ilike("sku", `%${sku.trim()}%`, { foreignTable: "products" });
+      }
+      if (category?.trim()) {
+        q = q.eq("category", category.trim(), { foreignTable: "products" });
+      }
+      if (quantity !== "" && quantity != null) {
+        const qNum = Number(quantity);
+        if (!Number.isNaN(qNum)) q = q.eq("quantity", qNum);
+      }
+      if (location?.trim()) {
+        q = q.eq("location", location.trim());
+      }
+      if (status?.trim()) {
+        q = q.eq("status", status.trim());
+      }
+
+      // Pagination
+      q = q.range(from, to);
+
+      const { data, error: err, count } = await q;
 
       if (cancelled) return;
-      if (error) {
-        setError(error.message || "Failed to load products");
+      if (err) {
+        setError(err.message || "Failed to load");
         setRows([]);
         setTotal(0);
       } else {
-        setRows(data ?? []);
-        setTotal(count ?? 0);
+        const flat = (data || []).map((r) => ({
+          product_list_id: r.id,
+          quantity: r.quantity,
+          location: r.location,
+          status: r.status,
+          inserted_at: r.inserted_at,
+          product_id: r.products?.id ?? null,
+          name: r.products?.name ?? "",
+          sku: r.products?.sku ?? "",
+          category: r.products?.category ?? "",
+          sale_price: r.products?.sale_price ?? null,
+        }));
+        setRows(flat);
+        setTotal(count || 0);
       }
-      setLoading(false);
-    })();
 
+      setLoading(false);
+    };
+
+    run();
     return () => {
       cancelled = true;
     };
-  }, [from, to, orFilter, sortBy, sortDir]);
+  }, [page, pageSize, search, JSON.stringify(filters)]);
 
   return { rows, total, loading, error };
 }
