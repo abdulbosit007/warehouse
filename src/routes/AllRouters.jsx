@@ -18,6 +18,7 @@ import OwnerIncomingProducts from "../pages/owner/IncomingProducts";
 import OwnerHistory from "../pages/owner/History";
 import OwnerRequests from "../pages/owner/Requests";
 import OwnerUserManagement from "../pages/owner/UserManagement";
+import BatchDetail from "../pages/owner/BatchDetail";
 
 //Branch Pages
 import BranchHome from "../pages/branch/Home";
@@ -56,6 +57,7 @@ export default function AllRouters({ user }) {
           <Route path="requests" element={<OwnerRequests />} />
           <Route path="user-management" element={<OwnerUserManagement />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="/owner/batch/:id" element={<BatchDetail />} />
         </Route>
 
         {/* WAREHOUSE */}
