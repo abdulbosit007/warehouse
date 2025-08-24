@@ -3,20 +3,18 @@ import { supabase } from "../lib/supabaseClient";
 
 async function fetchAvailableQtyBySku(sku) {
   // get product.id first
-  const { data: prod, error: prodErr } = await supabase
+  const { data: prod } = await supabase
     .from("products")
     .select("id")
     .eq("sku", sku)
     .maybeSingle();
-
-  if (prodErr || !prod?.id) return 0;
+  if (!prod?.id) return 0;
 
   const { data: invRows, error: invErr } = await supabase
     .from("product_list")
     .select("quantity")
     .eq("product_id", prod.id)
     .eq("status", "available");
-
   if (invErr || !Array.isArray(invRows)) return 0;
 
   return invRows.reduce((acc, r) => acc + (Number(r.quantity) || 0), 0);
@@ -34,16 +32,17 @@ export default function SearchAndEditProduct() {
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // --- Load previously saved rows (status='saved') on mount and reconstruct UI ---
+  // Load previously saved rows (status='saved') on mount and reconstruct UI
   useEffect(() => {
     const loadSaved = async () => {
       setLoadingSaved(true);
       setMsg("");
 
-      // Pull all 'saved' rows
       const { data: saved, error } = await supabase
         .from("incoming_products")
-        .select("sku, product_name, category, price, quantity") // saved.quantity was base+add at save time
+        .select(
+          "sku, product_name, category, price, recommended_price, quantity"
+        )
         .eq("status", "saved");
 
       if (error) {
@@ -52,7 +51,6 @@ export default function SearchAndEditProduct() {
         return;
       }
 
-      // Recompute current available quantity for each sku
       const staged = [];
       for (const r of saved || []) {
         const currentAvail = await fetchAvailableQtyBySku(r.sku);
@@ -63,10 +61,10 @@ export default function SearchAndEditProduct() {
 
         staged.push({
           sku: r.sku,
-          name: r.product_name ?? "", // name optional
+          name: r.product_name ?? "",
           category: r.category ?? "",
           price: r.price ?? "",
-          recommended_price: "", // not in incoming_products; keep editable
+          recommended_price: r.recommended_price ?? "",
           quantity: currentAvail, // view-only (current available)
           new_added_quantity: inferredAdd || "",
         });
@@ -79,7 +77,7 @@ export default function SearchAndEditProduct() {
     loadSaved();
   }, []);
 
-  // --- search suggestions ---
+  // search suggestions (SKU)
   const debRef = useRef(null);
   useEffect(() => {
     if (!q) {
@@ -110,7 +108,6 @@ export default function SearchAndEditProduct() {
     return () => clearTimeout(debRef.current);
   }, [q]);
 
-  // Uniqueness in staged table
   const isSkuStaged = (sku) => rows.some((r) => r.sku === sku);
 
   const addSku = async (sku) => {
@@ -134,7 +131,6 @@ export default function SearchAndEditProduct() {
       return;
     }
 
-    // current available quantity only
     const currentAvail = await fetchAvailableQtyBySku(prod.sku);
 
     setRows((prev) => [
@@ -187,7 +183,7 @@ export default function SearchAndEditProduct() {
         category: "",
         price: "",
         recommended_price: "",
-        quantity: 0, // nothing available in product_list for a brand-new product
+        quantity: 0,
         new_added_quantity: "",
       },
     ]);
@@ -211,22 +207,21 @@ export default function SearchAndEditProduct() {
   };
 
   // Validation:
-  // - Only name optional
-  // - last column (new_added_quantity) required for Send
+  // Save: everything except name is required; quantity can be blank (depends on your DB constraint)
   const canSave = useMemo(() => {
     if (rows.length === 0) return false;
     for (const r of rows) {
       if (!r.sku) return false;
       if (!r.category) return false;
       if (r.price === "" || isNaN(Number(r.price))) return false;
-      if (r.quantity !== "" && isNaN(Number(r.quantity))) return false; // should be numeric
-      // new_added_quantity can be blank for Save (not Send)
+      if (r.quantity !== "" && isNaN(Number(r.quantity))) return false;
       if (r.new_added_quantity !== "" && isNaN(Number(r.new_added_quantity)))
         return false;
     }
     return true;
   }, [rows]);
 
+  // Send: last column must be filled and > 0
   const canSend = useMemo(() => {
     if (rows.length === 0) return false;
     for (const r of rows) {
@@ -234,7 +229,6 @@ export default function SearchAndEditProduct() {
       if (!r.category) return false;
       if (r.price === "" || isNaN(Number(r.price))) return false;
       if (r.quantity !== "" && isNaN(Number(r.quantity))) return false;
-      // last column must be filled and > 0
       if (r.new_added_quantity === "") return false;
       const add = Number(r.new_added_quantity);
       if (isNaN(add) || add <= 0) return false;
@@ -242,7 +236,7 @@ export default function SearchAndEditProduct() {
     return true;
   }, [rows]);
 
-  // Save (status = 'saved'): insert all rows (quantity = available + new_added_quantity)
+  // Save (status=saved) — quantity = available + new_added_quantity
   const saveAll = async () => {
     try {
       setSaving(true);
@@ -256,15 +250,36 @@ export default function SearchAndEditProduct() {
           sku: (r.sku ?? "").trim(),
           category: (r.category ?? "").trim(),
           price: Number(r.price),
+          recommended_price:
+            r.recommended_price === "" ? null : Number(r.recommended_price),
           quantity: baseQty + addQty,
           status: "saved",
         };
       });
 
-      const { error } = await supabase
-        .from("incoming_products")
-        .insert(payload);
-      if (error) throw error;
+      // avoid duplicates on saved+sku
+      for (const item of payload) {
+        const { data: existing } = await supabase
+          .from("incoming_products")
+          .select("id")
+          .eq("sku", item.sku)
+          .eq("status", "saved")
+          .maybeSingle();
+
+        if (existing?.id) {
+          // update instead of inserting a second copy
+          const { error: updErr } = await supabase
+            .from("incoming_products")
+            .update(item)
+            .eq("id", existing.id);
+          if (updErr) throw updErr;
+        } else {
+          const { error: insErr } = await supabase
+            .from("incoming_products")
+            .insert(item);
+          if (insErr) throw insErr;
+        }
+      }
 
       setMsg(`Saved ${payload.length} item(s) to incoming_products ✅`);
     } catch (e) {
@@ -275,12 +290,22 @@ export default function SearchAndEditProduct() {
     }
   };
 
-  // Send (status -> 'available'): for each row, update saved→available if exists, else insert available
+  // Send (status → pending) with a numeric batch number
   const sendAll = async () => {
     try {
       setSending(true);
       setMsg("");
 
+      // 1) Create one batch row; its id is the batch number
+      const { data: batch, error: bErr } = await supabase
+        .from("incoming_batches")
+        .insert({})
+        .select("id")
+        .single();
+      if (bErr) throw bErr;
+      const batchNo = batch.id;
+
+      // 2) For each row: update saved→pending or insert pending, stamping batch_no
       for (const r of rows) {
         const sku = (r.sku ?? "").trim();
         const name = (r.name ?? "").trim();
@@ -290,50 +315,45 @@ export default function SearchAndEditProduct() {
         const addQty = Number(r.new_added_quantity || 0);
         const newTotal = baseQty + addQty;
 
-        // try to find a 'saved' row for this sku
         const { data: existing, error: selErr } = await supabase
           .from("incoming_products")
           .select("id")
           .eq("sku", sku)
           .eq("status", "saved")
-          .limit(1)
           .maybeSingle();
 
         if (selErr) throw selErr;
 
+        const body = {
+          product_name: name,
+          sku,
+          category,
+          price,
+          recommended_price:
+            r.recommended_price === "" ? null : Number(r.recommended_price),
+          quantity: newTotal,
+          status: "pending",
+          batch_no: batchNo,
+        };
+
         if (existing?.id) {
-          // update saved -> pending
           const { error: updErr } = await supabase
             .from("incoming_products")
-            .update({
-              product_name: name,
-              category,
-              price,
-              quantity: newTotal,
-              status: "pending",
-            })
+            .update(body)
             .eq("id", existing.id);
           if (updErr) throw updErr;
         } else {
-          // insert directly as pending
           const { error: insErr } = await supabase
             .from("incoming_products")
-            .insert({
-              product_name: name,
-              sku,
-              category,
-              price,
-              quantity: newTotal,
-              status: "pending",
-            });
+            .insert(body);
           if (insErr) throw insErr;
         }
       }
 
-      setMsg(`Sent ${rows.length} item(s): status → pending ✅`);
-      setRows([]); // 👈 clear UI after send
-      setQ(""); // optional: clear search box too
-      setSuggestions([]); // optional: clear suggestions
+      setMsg(`Sent ${rows.length} item(s): batch #${batchNo} → pending ✅`);
+      setRows([]); // clear UI after send
+      setQ("");
+      setSuggestions([]);
     } catch (e) {
       console.error(e);
       setMsg(e?.message || "Failed to send");
@@ -344,7 +364,9 @@ export default function SearchAndEditProduct() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <h2 className="text-xl font-semibold mb-3">Incoming Products — Batch</h2>
+      <h2 className="text-xl font-semibold mb-3">
+        Incoming Products — Batch Insert
+      </h2>
 
       {/* Search by SKU + Add New SKU */}
       <div className="relative mb-4 flex gap-2">
@@ -400,9 +422,8 @@ export default function SearchAndEditProduct() {
           <div className="p-2">Category</div>
           <div className="p-2">Price</div>
           <div className="p-2">Recommended Price</div>
-          <div className="p-2">Quantity (available)</div> {/* view-only */}
-          <div className="p-2">New Added Quantity</div>{" "}
-          {/* required for Send */}
+          <div className="p-2">Quantity (available)</div>
+          <div className="p-2">New Added Quantity</div>
         </div>
 
         {rows.length === 0 ? (
@@ -427,7 +448,7 @@ export default function SearchAndEditProduct() {
                 </button>
               </div>
 
-              {/* Name (editable, optional) */}
+              {/* Name (optional) */}
               <div className="p-2">
                 <input
                   value={r.name}
@@ -457,7 +478,7 @@ export default function SearchAndEditProduct() {
                 />
               </div>
 
-              {/* Recommended Price (editable, not saved) */}
+              {/* Recommended Price (editable, saved) */}
               <div className="p-2">
                 <input
                   value={r.recommended_price}
@@ -510,7 +531,7 @@ export default function SearchAndEditProduct() {
           disabled={!canSend || sending || rows.length === 0}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-60"
         >
-          {sending ? "Sending…" : "Send (status: pending)"}
+          {sending ? "Sending…" : "Send (status: pending + batch)"}
         </button>
 
         <button
