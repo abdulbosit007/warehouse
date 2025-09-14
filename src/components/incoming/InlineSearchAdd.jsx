@@ -1,3 +1,4 @@
+// FILE: src/components/incoming/InlineSearchAdd.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDraftFromProduct,
@@ -8,8 +9,7 @@ import {
 export default function InlineSearchAdd({
   batchId,
   requestedBy,
-  onAdded,
-  defaultQuantity = 1,
+  onAdded, // ignored when we want blank; we pass null
   existingSkus = [],
 }) {
   const [query, setQuery] = useState("");
@@ -78,8 +78,7 @@ export default function InlineSearchAdd({
     return (existingSkus || []).some((x) => (x || "").toLowerCase() === s);
   };
 
-  // Create a BLANK row but pre-fill the SKU with typed value.
-  // IMPORTANT: quantity must be >0 (DB constraint), so we store 1 as a placeholder.
+  // Create a BLANK row, pre-fill only SKU, leave quantity NULL for UI blank
   const createBlankRow = async () => {
     setErr("");
     const typed = query.trim();
@@ -96,8 +95,8 @@ export default function InlineSearchAdd({
         product_name: "",
         sku: typed,
         category: null,
-        quantity: 1, // placeholder for DB; UI will show blank
-        price: 0, // placeholder (NOT NULL in DB)
+        quantity: null, // keep NULL so it looks blank
+        price: 0, // DB not-null placeholder
         requested_by: requestedBy ?? null,
         recommended_price: null,
       });
@@ -112,7 +111,7 @@ export default function InlineSearchAdd({
     }
   };
 
-  // Instant add from suggestion (qty = defaultQuantity)
+  // Instant add from suggestion — leave quantity NULL for blank UI
   const instantAdd = async (product) => {
     setErr("");
     if (skuAlreadyInBatch(product?.sku)) {
@@ -123,7 +122,7 @@ export default function InlineSearchAdd({
       const { error } = await addDraftFromProduct({
         batch_id: batchId,
         product,
-        quantity: defaultQuantity || 1,
+        quantity: null, // keep it blank in UI
         requested_by: requestedBy ?? null,
       });
       if (error) throw error;
@@ -137,7 +136,7 @@ export default function InlineSearchAdd({
     }
   };
 
-  // Keyboard navigation & Enter to add blank when no suggestions
+  // Keyboard nav & Enter to add blank when no suggestions
   const onKeyDown = (e) => {
     if (openList && suggestions.length > 0) {
       if (e.key === "ArrowDown") {

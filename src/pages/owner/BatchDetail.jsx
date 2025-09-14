@@ -1,8 +1,10 @@
+// FILE: src/pages/owner/BatchDetail.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   getBatch,
   getBatchItems,
+  getDraftItems, // NEW: fresh draft fetch for validation
   updateDraftItem,
   removeDraftItem,
   sendAllDraftItems,
@@ -46,10 +48,9 @@ function StatusChip({ status }) {
   );
 }
 
-/** Draft/ReadOnly row */
+/** Draft / ReadOnly row */
 function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
-  // A fresh blank row we created has empty name/category and price 0 (placeholder).
-  // We'll treat that as "blank-looking" in the UI.
+  // "Fresh blank" if typical placeholders are still there
   const isFreshBlank =
     !row.product_name && !row.category && Number(row.price) === 0;
 
@@ -57,21 +58,35 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
     product_name: row.product_name ?? "",
     sku: row.sku ?? "",
     category: row.category ?? "",
-    // keep the underlying value, but we can show "" when isFreshBlank
-    quantity: row.quantity ?? 1,
     price: Number(row.price ?? 0),
     recommended_price: row.recommended_price ?? null,
+    // quantity is shown as blank if null or (fresh & 1)
+    quantity:
+      row.quantity == null
+        ? ""
+        : isFreshBlank && row.quantity === 1
+        ? ""
+        : row.quantity,
   });
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false); // to anchor a tiny spinner in-place
 
   useEffect(() => {
     setForm({
       product_name: row.product_name ?? "",
       sku: row.sku ?? "",
       category: row.category ?? "",
-      quantity: row.quantity ?? 1,
       price: Number(row.price ?? 0),
       recommended_price: row.recommended_price ?? null,
+      quantity:
+        row.quantity == null
+          ? ""
+          : !row.product_name &&
+            !row.category &&
+            Number(row.price) === 0 &&
+            row.quantity === 1
+          ? ""
+          : row.quantity,
     });
   }, [
     row.id,
@@ -83,18 +98,18 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
     row.recommended_price,
   ]);
 
-  // debounced autosave on edit (only when editable)
+  // Debounced autosave (only when editable)
   useDebouncedEffect(
     () => {
       if (readonly) return;
       const payload = {
-        product_name: form.product_name || null, // optional
+        product_name: form.product_name || null,
         sku: form.sku || null,
-        category: (form.category || "").trim() || null, // must be filled before send
-        // keep DB-safe values; if user clears qty/price, we keep placeholders (1/0)
+        category: (form.category || "").trim() || null,
+        // For drafts we can store NULL; if user clears → null; else >=1
         quantity:
           form.quantity === "" || form.quantity == null
-            ? 1
+            ? null
             : Math.max(1, Number(form.quantity) || 1),
         price:
           form.price === "" || form.price == null
@@ -119,6 +134,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
 
   return (
     <tr className="hover:bg-gray-50">
+      {/* Product */}
       {cell(
         readonly ? (
           row.product_name || <span className="text-gray-400">—</span>
@@ -133,6 +149,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
+      {/* SKU */}
       {cell(
         readonly ? (
           row.sku || <span className="text-gray-400">—</span>
@@ -145,6 +162,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
+      {/* Category */}
       {cell(
         readonly ? (
           row.category || <span className="text-red-500">required</span>
@@ -159,29 +177,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
-      {cell(
-        readonly ? (
-          row.quantity
-        ) : (
-          <input
-            type="number"
-            min={1}
-            value={
-              isFreshBlank && (form.quantity === 1 || form.quantity === "")
-                ? ""
-                : form.quantity
-            }
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                quantity: e.target.value === "" ? "" : Number(e.target.value),
-              }))
-            }
-            className="w-24 rounded border px-2 py-1"
-            placeholder="Qty"
-          />
-        )
-      )}
+      {/* Price */}
       {showPrices &&
         cell(
           readonly ? (
@@ -206,6 +202,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
             />
           )
         )}
+      {/* Recommended price */}
       {showPrices &&
         cell(
           readonly ? (
@@ -231,21 +228,62 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
             />
           )
         )}
-      {!showPrices
-        ? null
-        : cell(
-            <span className="inline-flex items-center gap-2">
-              <StatusChip
-                status={saving && !readonly ? "saving…" : row.status}
-              />
-            </span>
-          )}
+      {/* Quantity (last editable column before Delete) */}
+      {cell(
+        readonly ? (
+          row.quantity ?? <span className="text-gray-400">—</span>
+        ) : (
+          <input
+            type="number"
+            min={1}
+            value={form.quantity}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                quantity: e.target.value === "" ? "" : Number(e.target.value),
+              }))
+            }
+            className="w-24 rounded border px-2 py-1"
+            placeholder="Qty"
+          />
+        )
+      )}
+      {/* Delete / Locked / Tiny anchored loader */}
       <td className="px-4 py-2 text-right">
         {row.status === "draft" ? (
           <button
-            onClick={() => onDelete?.(row)}
-            className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+            disabled={deleting}
+            onClick={async () => {
+              try {
+                setDeleting(true);
+                await onDelete?.(row); // optimistic outside will remove the row
+              } finally {
+                setDeleting(false);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded bg-red-600 px-3 py-1 text-sm text-white disabled:opacity-60"
           >
+            {deleting ? (
+              <svg
+                className="h-4 w-4 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                />
+              </svg>
+            ) : null}
             Delete
           </button>
         ) : (
@@ -303,33 +341,46 @@ export default function BatchDetail() {
     await updateDraftItem(id_, patch);
   };
 
+  // Optimistic delete — no global loading flash
   const onDeleteDraft = async (row) => {
-    await removeDraftItem(row.id);
-    await load();
+    setItems((prev) => prev.filter((r) => r.id !== row.id)); // optimistic
+    try {
+      await removeDraftItem(row.id);
+    } catch {
+      // revert on failure
+      await load();
+    }
   };
 
-  // Send all draft rows (with validation)
+  // Send all draft rows (validate with fresh fetch to avoid "first send" error)
   const onSendAll = async () => {
     setSendErr("");
-    if (drafts.length === 0) return;
 
-    // reload to avoid stale values if autosave still in-flight
-    await load();
-    const latestDrafts = (items || []).filter((i) => i.status === "draft");
+    // fetch current drafts from DB (not state) to avoid racing autosave
+    const { data: freshDrafts, error } = await getDraftItems(id);
+    if (error) {
+      setSendErr(error.message || "Failed to fetch draft items.");
+      return;
+    }
 
-    const invalid = latestDrafts.filter(
+    if (!freshDrafts || freshDrafts.length === 0) return;
+
+    // Validation: category required; quantity must be >0 (not null/blank)
+    const invalid = freshDrafts.filter(
       (d) =>
         !String(d.category || "").trim() ||
-        !Number(d.quantity || 0) ||
+        d.quantity == null ||
         Number(d.quantity) <= 0 ||
         Number(d.price) < 0
     );
+
     if (invalid.length > 0) {
       setSendErr(
-        `Please fill Category and valid Qty/Price for all draft rows before sending. (${invalid.length} row(s) invalid)`
+        "Please fill Category and a valid Quantity (>0) for all draft rows before sending."
       );
       return;
     }
+
     await sendAllDraftItems(id);
     await load();
   };
@@ -351,6 +402,7 @@ export default function BatchDetail() {
       )}
       {loading && <div className="mb-4 text-sm">Loading...</div>}
 
+      {/* Search + add (only when open) */}
       {isOpen && (
         <div className="mb-6">
           <InlineSearchAdd
@@ -363,7 +415,7 @@ export default function BatchDetail() {
         </div>
       )}
 
-      {/* DRAFT TABLE (prices visible) */}
+      {/* DRAFT TABLE (no Status col; Quantity is last before Delete) */}
       {drafts.length > 0 && (
         <>
           <div className="mb-4 text-sm font-semibold text-gray-700">
@@ -376,10 +428,9 @@ export default function BatchDetail() {
                   <Th>Product</Th>
                   <Th>SKU</Th>
                   <Th>Category</Th>
-                  <Th>Qty</Th>
                   <Th>Price</Th>
                   <Th>Recommended price</Th>
-                  <Th>Status</Th>
+                  <Th>Qty</Th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
@@ -441,14 +492,23 @@ export default function BatchDetail() {
               </thead>
               <tbody className="divide-y">
                 {others.map((row) => (
-                  <Row
-                    key={row.id}
-                    row={row}
-                    readonly
-                    onAutoSave={() => {}}
-                    onDelete={() => {}}
-                    showPrices={false}
-                  />
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2">
+                      {row.product_name || (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {row.sku || <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-2">
+                      {row.category || <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-2">{row.quantity ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <StatusChip status={row.status} />
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
