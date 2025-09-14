@@ -15,7 +15,6 @@ export default function Navbar({
     to: typeof l.to === "function" ? l.to(branchId) : l.to,
   }));
 
-  // Lock body scroll when drawer open (mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = open ? "hidden" : prev || "";
@@ -25,17 +24,17 @@ export default function Navbar({
   return (
     <Fragment>
       {/* HEADER */}
-      <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 md:px-6">
+      <header className="sticky top-0 z-40 text-black bg-white border-b border-neutral-200">
+        <div className="flex items-center justify-between px-3 mx-auto h-14 max-w-7xl md:px-6">
           {/* Left: hamburger (mobile) + logo */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOpen(true)}
-              className="rounded-lg p-2 hover:bg-gray-100 md:hidden"
+              className="p-2 rounded-lg hover:bg-neutral-100 md:hidden"
               aria-label="Open menu"
             >
               <svg
-                className="h-6 w-6"
+                className="w-6 h-6"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 fill="none"
@@ -54,7 +53,7 @@ export default function Navbar({
               className="flex items-center gap-2"
               aria-label="Go to home"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+              <div className="flex items-center justify-center w-8 h-8 text-white bg-black shadow-sm rounded-xl">
                 {brand.code}
               </div>
               <span className="hidden text-[15px] font-semibold md:inline">
@@ -64,17 +63,18 @@ export default function Navbar({
           </div>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="items-center hidden gap-1 md:flex">
             {computedLinks.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors ${
+                  [
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
                     isActive
-                      ? "bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-100"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`
+                      ? "bg-black text-white font-semibold"
+                      : "text-black hover:bg-neutral-100",
+                  ].join(" ")
                 }
               >
                 {l.icon ?? null}
@@ -85,28 +85,27 @@ export default function Navbar({
         </div>
       </header>
 
-      {/* MOBILE: overlay + drawer */}
+      {/* MOBILE: overlay */}
       <div
-        className={`fixed inset-0 z-[60] bg-black/35 backdrop-blur-sm transition-opacity md:hidden ${
-          open
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
+        className={`fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] transition-opacity md:hidden ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
         aria-hidden="true"
       />
 
+      {/* MOBILE: drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white shadow-2xl rounded-r-2xl transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white text-black shadow-2xl rounded-r-2xl transition-transform duration-200 md:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         role="dialog"
         aria-modal="true"
       >
         {/* Drawer header */}
-        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 border-b">
+        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 border-b border-neutral-200">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <div className="flex items-center justify-center text-white bg-black h-9 w-9 rounded-xl">
               {brand.code}
             </div>
             <div className="flex flex-col">
@@ -116,10 +115,10 @@ export default function Navbar({
           <button
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="rounded-lg p-2 hover:bg-gray-100"
+            className="p-2 rounded-lg hover:bg-neutral-100"
           >
             <svg
-              className="h-6 w-6"
+              className="w-6 h-6"
               viewBox="0 0 24 24"
               stroke="currentColor"
               fill="none"
@@ -143,15 +142,16 @@ export default function Navbar({
                 to={l.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors ${
+                  [
+                    "flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors",
                     isActive
-                      ? "bg-blue-50 text-blue-700 font-semibold ring-1 ring-blue-100"
-                      : "text-gray-800 hover:bg-gray-100"
-                  }`
+                      ? "bg-black text-white font-semibold"
+                      : "text-black hover:bg-neutral-100",
+                  ].join(" ")
                 }
               >
                 {l.icon ?? (
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-neutral-400" />
                 )}
                 <span>{l.label}</span>
               </NavLink>
