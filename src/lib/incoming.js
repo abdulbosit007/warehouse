@@ -53,7 +53,7 @@ export async function addDraftItem({
   product_name,
   sku,
   category,
-  quantity,
+  quantity, // allow null for 'draft'
   price,
   requested_by,
   recommended_price = null,
@@ -66,7 +66,7 @@ export async function addDraftItem({
         product_name,
         sku,
         category,
-        quantity,
+        quantity, // may be null when status = 'draft' (enforced by DB check)
         price,
         requested_by,
         recommended_price,
@@ -137,29 +137,21 @@ export async function rejectItem(itemId, warehouseUserId, reason) {
  * QUERIES
  * ============================ */
 
-/**
- * Summarized list of batches FROM VIEW + merge `origin` from `incoming_batches`.
- * We also pass through created_at so the caller can sort newest → oldest.
- */
+/** Summary + origin merge (view lacks origin) */
 export async function getBatchesSummaryWithOrigin() {
-  // 1) Pull summary rows from the view (no origin)
   const v = await supabase.from("v_incoming_batches_summary").select("*");
   if (v.error) return { data: null, error: v.error };
 
   const rows = v.data || [];
   if (rows.length === 0) return { data: [], error: null };
 
-  // 2) Fetch origins by ids from incoming_batches
   const ids = rows.map((r) => r.id).filter(Boolean);
   const b = await supabase
     .from("incoming_batches")
-    .select("id, origin, created_at") // include created_at for consistent sort if needed
+    .select("id, origin, created_at")
     .in("id", ids);
 
-  if (b.error) {
-    // still return summary rows if origin fetch failed
-    return { data: rows, error: b.error };
-  }
+  if (b.error) return { data: rows, error: b.error };
 
   const originById = new Map(
     (b.data || []).map((x) => [x.id, normalizeOrigin(x.origin) ?? null])
@@ -168,7 +160,6 @@ export async function getBatchesSummaryWithOrigin() {
     (b.data || []).map((x) => [x.id, x.created_at])
   );
 
-  // 3) Merge and return
   const merged = rows.map((r) => ({
     ...r,
     origin: originById.get(r.id) ?? null,
@@ -204,6 +195,16 @@ export async function getBatchItems(batchId) {
     .order("created_at", { ascending: false });
 }
 
+/** Fresh drafts only — used to validate before sending */
+export async function getDraftItems(batchId) {
+  return supabase
+    .from("incoming_batch_items")
+    .select("*")
+    .eq("batch_id", batchId)
+    .eq("status", "draft")
+    .order("created_at", { ascending: true });
+}
+
 export async function getItemsToReview() {
   return supabase
     .from("incoming_batch_items")
@@ -212,7 +213,7 @@ export async function getItemsToReview() {
     .order("sent_at", { ascending: true });
 }
 
-/** Find a catalog product by exact SKU (from `products` table) */
+/** Find a catalog product by exact SKU */
 export async function findProductBySKU(sku) {
   const clean = String(sku ?? "").trim();
   if (!clean) return { data: null, error: null };
@@ -235,11 +236,11 @@ export async function searchProducts(q) {
     .limit(10);
 }
 
-/** Create a draft item directly from a product row */
+/** Create a draft item directly from a product row (quantity left NULL for UI blank) */
 export async function addDraftFromProduct({
   batch_id,
   product,
-  quantity,
+  quantity = null, // keep null so the UI shows blank
   requested_by = null,
 }) {
   if (!product) throw new Error("Product not provided");
@@ -248,7 +249,7 @@ export async function addDraftFromProduct({
     product_name: product.name,
     sku: product.sku,
     category: product.category,
-    quantity,
+    quantity, // null → blank in UI; DB allows null for 'draft'
     price: Number(product.price) || 0,
     recommended_price: product.recommended_price ?? null,
     requested_by,
