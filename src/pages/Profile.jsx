@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import useCurrentUser from "../hooks/useCurrentUser";
 import ProfileCard from "../components/ProfileCard";
+import { CircularProgress } from "@mui/material";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -26,19 +27,9 @@ export default function Profile() {
         </div>
 
         {loading && (
-          <div className="w-full max-w-3xl p-6 mx-auto bg-white border border-gray-200 shadow-sm rounded-2xl">
-            <div className="animate-pulse">
-              <div className="w-40 h-8 mb-6 bg-gray-200 rounded" />
-              <div className="flex gap-8">
-                <div className="w-40 h-40 bg-gray-200 rounded-full" />
-                <div className="flex-1 space-y-4">
-                  <div className="w-3/4 h-6 bg-gray-200 rounded" />
-                  <div className="w-2/3 h-6 bg-gray-200 rounded" />
-                  <div className="w-1/2 h-6 bg-gray-200 rounded" />
-                  <div className="w-1/2 h-6 bg-gray-200 rounded" />
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <CircularProgress style={{ color: "black" }} />
+            <p className="font-medium text-gray-700">Loading profile...</p>
           </div>
         )}
 

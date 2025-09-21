@@ -76,20 +76,21 @@ export default function SignIn() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow w-full max-w-md">
-        <h2 className="text-2xl font-semibold mb-6 text-center">Sign In</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="w-full max-w-md p-8 bg-white shadow rounded-xl">
+        <h2 className="mb-6 text-2xl font-semibold text-center">Sign In</h2>
         {loading ? (
-          <div className="text-center py-4">Checking authentication...</div>
+          <div className="py-4 text-center">Checking authentication...</div>
         ) : (
           <button
             onClick={handleGoogleLogin}
-            className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition"
+            className="w-full py-2 font-medium text-white transition bg-black rounded hover:bg-neutral-800"
           >
             Sign in with Google
-          </button>
+        </button>
+
         )}
-        {error && <div className="text-red-500 mt-4">{error}</div>}
+        {error && <div className="mt-4 text-red-500">{error}</div>}
       </div>
     </div>
   );
