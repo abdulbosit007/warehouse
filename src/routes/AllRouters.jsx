@@ -70,7 +70,7 @@ export default function AllRouters({ user }) {
           }
         >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<WarehouseHome />} />
+          <Route path="home" element={<OwnerHome />} />
           <Route path="history" element={<WarehouseHistory />} />
           <Route path="branch-requests" element={<WarehouseBranchRequests />} />
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
@@ -87,7 +87,7 @@ export default function AllRouters({ user }) {
           }
         >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<BranchHome />} />
+          <Route path="home" element={<OwnerHome />} />
           <Route path="history" element={<BranchHistory />} />
           <Route path="branch-requests" element={<BranchBranchRequests />} />
           <Route path="requests" element={<BranchRequests />} />

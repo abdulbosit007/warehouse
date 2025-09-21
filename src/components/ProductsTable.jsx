@@ -31,10 +31,12 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { useProducts } from "../hooks/useProducts";
 import { useProductFilterMeta } from "../hooks/useProductFilterMeta";
+import useCurrentUser from "../hooks/useCurrentUser";
 
-const nfQty = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }); // quantity display only
+// Number formatting
+const nfQty = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
-// --- Black & White field styles (consistent outlines & focus) ---
+// Black & White field styles
 const bwFieldSx = {
   "& .MuiOutlinedInput-root": { borderRadius: 2 },
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "black !important" },
@@ -53,7 +55,26 @@ const sectionBoxSx = {
   bgcolor: "common.white",
 };
 
+// Role mapping (adjust numbers if yours differ)
+const ROLE = {
+  WAREHOUSE: 1,
+  BRANCH: 2,
+  OWNER: 0,
+};
+
+// Map role/branch → EXACT location strings from DB
+const warehouseLocationName = "warehouse";
+function branchIdToLocationName(branchId) {
+  if (branchId === 0) return "warehouse";
+  return `branch${branchId}`;
+}
+
 export default function ProductsTable() {
+  // Current user
+  const { error: userErr, userRow } = useCurrentUser();
+  const role = userRow?.role ?? null;
+  const branch = userRow?.branch ?? null;
+
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -74,7 +95,6 @@ export default function ProductsTable() {
     name: "",
     sku: "",
     category: "",
-    // string forms parsed by hook: =90, >=50, <=120, 50-120
     sale_price: "",
     quantity: "",
     quantityOp: "",
@@ -87,18 +107,37 @@ export default function ProductsTable() {
     status: "",
   });
 
+  // Enforced scope based on role
+  const enforced = useMemo(() => {
+    if (role === ROLE.OWNER) return {};
+    if (role === ROLE.WAREHOUSE) return { location: warehouseLocationName };
+    if (role === ROLE.BRANCH) return { location: branchIdToLocationName(branch) };
+    return {}; // unknown role yet
+  }, [role, branch]);
+
+  // Effective filters passed to API
+  const effectiveFilters = useMemo(
+    () => ({ ...filters, ...enforced }),
+    [filters, enforced]
+  );
+
   // Data + totals
-  const { rows, loading, error, total } = useProducts({
+  const { rows = [], loading, error, total } = useProducts({
     page: page - 1,
     pageSize,
     search,
-    filters,
+    filters: effectiveFilters,
   });
 
-  // Meta options for selects
-  const { categories, locations, statuses, loading: metaLoading } = useProductFilterMeta();
+  // Meta options
+  const {
+    categories = [],
+    locations = [],
+    statuses = [],
+    loading: metaLoading,
+  } = useProductFilterMeta();
 
-  // Filter dialog local state (for controlled UI)
+  // Filter dialog UI state
   const [dialogOpen, setDialogOpen] = useState(false);
   const openFilters = () => setDialogOpen(true);
   const closeFilters = () => setDialogOpen(false);
@@ -117,12 +156,25 @@ export default function ProductsTable() {
   const [spMin, setSpMin] = useState(filters.salePriceMin || "");
   const [spMax, setSpMax] = useState(filters.salePriceMax || "");
 
+  // Non-owner?
+  const isScoped = role !== ROLE.OWNER;
+
+  // For scoped users, seed fixed location into filters (no UI)
+  useEffect(() => {
+    if (!isScoped) return;
+    const enforcedLocation = enforced.location || "";
+    setFilters((f) => ({ ...f, location: enforcedLocation }));
+    // locationRef is not rendered for scoped users, so no need to sync its value
+  }, [isScoped, enforced.location]);
+
+  // Active filters indicator (don’t count enforced location)
   const hasActiveFilters = useMemo(() => {
     return Boolean(
-      filters.category || filters.location || filters.status ||
-      filters.quantity || filters.sale_price
+      filters.category || filters.status ||
+      filters.quantity || filters.sale_price ||
+      (!isScoped && filters.location)
     );
-  }, [filters]);
+  }, [filters, isScoped]);
 
   // Build filter strings for API
   const buildQuantityString = () => {
@@ -140,12 +192,13 @@ export default function ProductsTable() {
     return "";
   };
 
-  // Apply filters
+  // Apply filters (keep enforced location for non-owners)
   const applyFilters = () => {
+    const nextLocation = isScoped ? (enforced.location || "") : (locationRef.current?.value || "");
     setFilters((prev) => ({
       ...prev,
       category: categoryRef.current?.value || "",
-      location: locationRef.current?.value || "",
+      location: nextLocation,
       status: statusRef.current?.value || "",
       quantityOp: qtyOp,
       quantityMin: qtyMin,
@@ -160,13 +213,17 @@ export default function ProductsTable() {
     closeFilters();
   };
 
-  // Clear all filters
+  // Clear filters (keep enforced location for non-owners)
   const clearFilters = () => {
     if (categoryRef.current) categoryRef.current.value = "";
-    if (locationRef.current) locationRef.current.value = "";
     if (statusRef.current)   statusRef.current.value = "";
+
+    const resetLocation = isScoped ? (enforced.location || "") : "";
+    if (locationRef.current) locationRef.current.value = resetLocation; // only exists for owner
+
     setQtyOp(""); setQtyMin(""); setQtyMax("");
     setSpOp(""); setSpMin(""); setSpMax("");
+
     setFilters({
       name: "",
       sku: "",
@@ -179,22 +236,22 @@ export default function ProductsTable() {
       salePriceOp: "",
       salePriceMin: "",
       salePriceMax: "",
-      location: "",
+      location: resetLocation,
       status: "",
     });
     setPage(1);
   };
 
-  // Filter chips
+  // Filter chips (don’t show enforced location for non-owners)
   const chips = useMemo(() => {
     const list = [];
     if (filters.category) list.push(["category", `Category: ${filters.category}`]);
-    if (filters.location) list.push(["location", `Location: ${filters.location}`]);
+    if (!isScoped && filters.location) list.push(["location", `Location: ${filters.location}`]);
     if (filters.status)   list.push(["status",   `Status: ${filters.status}`]);
     if (filters.quantity) list.push(["quantity", `Qty: ${filters.quantity.replace("-", "–")}`]);
     if (filters.sale_price) list.push(["sale_price", `Price: $${filters.sale_price.replace("-", "–$")}`]);
     return list;
-  }, [filters]);
+  }, [filters, isScoped]);
 
   const filterChips = chips.length ? (
     <Stack direction="row" spacing={1} flexWrap="wrap" aria-label="Active filters">
@@ -211,6 +268,10 @@ export default function ProductsTable() {
             } else if (k === "sale_price") {
               setSpOp(""); setSpMin(""); setSpMax("");
               setFilters((f) => ({ ...f, sale_price: "" }));
+            } else if (k === "location") {
+              const newLoc = isScoped ? (enforced.location || "") : "";
+              setFilters((f) => ({ ...f, location: newLoc }));
+              if (locationRef.current) locationRef.current.value = newLoc;
             } else {
               setFilters((f) => ({ ...f, [k]: "" }));
             }
@@ -235,6 +296,9 @@ export default function ProductsTable() {
 
   return (
     <Stack spacing={2}>
+     
+      {userErr && <Alert severity="error">{userErr}</Alert>}
+
       {/* Toolbar */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap">
         <Typography variant="h6" sx={{ minWidth: 120 }}>Products</Typography>
@@ -365,7 +429,7 @@ export default function ProductsTable() {
                     <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.sku ?? "—"}</TableCell>
                     <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.category ?? "—"}</TableCell>
 
-                    {/* $ with no decimals as you wanted */}
+                    {/* $ with no decimals */}
                     <TableCell align="left" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {r.sale_price != null ? `$${Number(r.sale_price)}` : "—"}
                     </TableCell>
@@ -403,7 +467,7 @@ export default function ProductsTable() {
         />
       </Box>
 
-      {/* ===== Filter Dialog (Black & White, User-Friendly) ===== */}
+      {/* ===== Filter Dialog ===== */}
       <Dialog
         open={dialogOpen}
         onClose={closeFilters}
@@ -411,7 +475,6 @@ export default function ProductsTable() {
         maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        {/* Black header */}
         <DialogTitle
           sx={{
             bgcolor: "common.white",
@@ -440,7 +503,7 @@ export default function ProductsTable() {
                   size="small"
                   value={qtyOp}
                   onChange={(e) => setQtyOp(e.target.value)}
-                  sx={{ minWidth: 160, ...bwFieldSx }}
+                sx={{ minWidth: 160, ...bwFieldSx }}
                 >
                   <MenuItem value="">Any</MenuItem>
                   <MenuItem value="eq">=</MenuItem>
@@ -552,21 +615,24 @@ export default function ProductsTable() {
                   ))}
                 </TextField>
 
-                <TextField
-                  inputRef={locationRef}
-                  label="Location"
-                  select
-                  defaultValue={filters.location}
-                  size="small"
-                  fullWidth
-                  disabled={metaLoading}
-                  sx={bwFieldSx}
-                >
-                  <MenuItem value="">Any</MenuItem>
-                  {locations.map((l) => (
-                    <MenuItem key={l} value={l}>{l}</MenuItem>
-                  ))}
-                </TextField>
+                {/* Location filter is ONLY visible for Owner */}
+                {role === ROLE.OWNER && (
+                  <TextField
+                    inputRef={locationRef}
+                    label="Location"
+                    select
+                    defaultValue={filters.location}
+                    size="small"
+                    fullWidth
+                    disabled={metaLoading}
+                    sx={bwFieldSx}
+                  >
+                    <MenuItem value="">Any</MenuItem>
+                    {locations.map((l) => (
+                      <MenuItem key={l} value={l}>{l}</MenuItem>
+                    ))}
+                  </TextField>
+                )}
 
                 <TextField
                   inputRef={statusRef}
@@ -588,7 +654,7 @@ export default function ProductsTable() {
           </Stack>
         </DialogContent>
 
-        {/* Sticky black/white footer */}
+        {/* Sticky footer */}
         <DialogActions
           sx={{
             position: "sticky",
