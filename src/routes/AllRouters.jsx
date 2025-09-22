@@ -11,6 +11,7 @@ import WarehouseHome from "../pages/warehouse/Home";
 import WarehouseBranchRequests from "../pages/warehouse/BranchRequests";
 import WarehouseHistory from "../pages/warehouse/History";
 import WarehouseOwnerRequests from "../pages/warehouse/OwnerRequests";
+import WarehouseBatchReview from "../pages/warehouse/BatchDetail";
 
 //Owner Pages
 import OwnerHome from "../pages/owner/Home";
@@ -74,6 +75,10 @@ export default function AllRouters({ user }) {
           <Route path="history" element={<WarehouseHistory />} />
           <Route path="branch-requests" element={<WarehouseBranchRequests />} />
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
+          <Route
+            path="/warehouse/batch/:id"
+            element={<WarehouseBatchReview />}
+          />
           <Route path="profile" element={<Profile />} />
         </Route>
 

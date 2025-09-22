@@ -1,4 +1,4 @@
-// FILE: src/lib/incoming.js
+// src/lib/incoming.js
 import { supabase } from "../lib/supabaseClient";
 
 /** Normalize origin to 'chinese' | 'uzbek' or null */
@@ -13,10 +13,6 @@ function normalizeOrigin(v) {
  * OWNER ACTIONS
  * ============================ */
 
-/**
- * Create an incoming batch.
- * @param {{created_by?: string|null, note?: string|null, origin?: 'chinese'|'uzbek'}} args
- */
 export async function createBatch({
   created_by = null,
   note = null,
@@ -30,7 +26,6 @@ export async function createBatch({
   return supabase.from("incoming_batches").insert([payload]).select().single();
 }
 
-/** Update batch (e.g., change origin/note) */
 export async function updateBatch(batchId, patch = {}) {
   const p = { ...patch };
   if (p.origin !== undefined) p.origin = normalizeOrigin(p.origin) ?? "uzbek";
@@ -42,21 +37,19 @@ export async function updateBatch(batchId, patch = {}) {
     .single();
 }
 
-/** Delete a batch */
 export async function deleteBatch(batchId) {
   return supabase.from("incoming_batches").delete().eq("id", batchId);
 }
 
-/** Add a draft item into the current batch */
+/** Add draft row (category_id only; quantity may be null in draft) */
 export async function addDraftItem({
   batch_id,
   product_name,
   sku,
-  category,
-  quantity, // allow null for 'draft'
-  price,
+  category_id = null,
+  quantity = null,
+  price = 0,
   requested_by,
-  recommended_price = null,
 }) {
   return supabase
     .from("incoming_batch_items")
@@ -65,33 +58,61 @@ export async function addDraftItem({
         batch_id,
         product_name,
         sku,
-        category,
-        quantity, // may be null when status = 'draft' (enforced by DB check)
+        category_id: category_id || null,
+        quantity: quantity == null ? null : Number(quantity),
         price,
         requested_by,
-        recommended_price,
       },
     ])
     .select()
     .single();
 }
 
-/** Edit a draft item */
+/** Generic updater – works for any status (triggers enforce rules) */
 export async function updateDraftItem(itemId, patch) {
-  return supabase
+  // Only include columns we intend to change
+  const clean = {};
+
+  if ("product_name" in patch) clean.product_name = patch.product_name ?? null;
+  if ("sku" in patch) clean.sku = patch.sku ?? null;
+  if ("category_id" in patch) clean.category_id = patch.category_id ?? null;
+
+  if ("quantity" in patch) {
+    clean.quantity =
+      patch.quantity === "" || patch.quantity == null
+        ? null
+        : Math.max(1, Number(patch.quantity) || 1);
+  }
+
+  // review flow fields – only pass when you intend to change them
+  if ("status" in patch) clean.status = patch.status;
+  if ("reviewed_by" in patch) clean.reviewed_by = patch.reviewed_by;
+  if ("reviewed_at" in patch) clean.reviewed_at = patch.reviewed_at;
+  if ("rejection_code" in patch) clean.rejection_code = patch.rejection_code;
+
+  if ("corrected_quantity" in patch) {
+    clean.corrected_quantity =
+      patch.corrected_quantity === undefined
+        ? undefined
+        : patch.corrected_quantity ?? null;
+  }
+
+  const res = await supabase
     .from("incoming_batch_items")
-    .update(patch)
+    .update(clean)
     .eq("id", itemId)
     .select()
     .single();
+
+  if (res.error)
+    console.error("updateDraftItem error", { itemId, clean, error: res.error });
+  return res;
 }
 
-/** Remove a draft item */
 export async function removeDraftItem(itemId) {
   return supabase.from("incoming_batch_items").delete().eq("id", itemId);
 }
 
-/** Mark all DRAFT items of a batch as SENT */
 export async function sendAllDraftItems(batchId) {
   return supabase
     .from("incoming_batch_items")
@@ -111,6 +132,8 @@ export async function approveItem(itemId, warehouseUserId) {
       status: "approved",
       reviewed_by: warehouseUserId,
       reviewed_at: new Date().toISOString(),
+      rejection_code: null,
+      corrected_quantity: null,
     })
     .eq("id", itemId)
     .eq("status", "sent")
@@ -118,14 +141,31 @@ export async function approveItem(itemId, warehouseUserId) {
     .single();
 }
 
-export async function rejectItem(itemId, warehouseUserId, reason) {
+/** Reject with strict shape: reasonCode = 'qty_mismatch' | 'no_such_product' */
+export async function rejectItemWithCode(
+  itemId,
+  warehouseUserId,
+  { reasonCode, fixQuantity }
+) {
+  if (reasonCode === "qty_mismatch") {
+    const fixed = Number(fixQuantity);
+    if (!Number.isFinite(fixed) || fixed <= 0) {
+      return {
+        data: null,
+        error: { message: "Fixed quantity must be a positive number." },
+      };
+    }
+  }
+
   return supabase
     .from("incoming_batch_items")
     .update({
       status: "rejected",
       reviewed_by: warehouseUserId,
       reviewed_at: new Date().toISOString(),
-      rejection_reason: reason || "No reason",
+      rejection_code: reasonCode,
+      corrected_quantity:
+        reasonCode === "qty_mismatch" ? Number(fixQuantity) : null,
     })
     .eq("id", itemId)
     .eq("status", "sent")
@@ -134,10 +174,77 @@ export async function rejectItem(itemId, warehouseUserId, reason) {
 }
 
 /* ============================
+ * OWNER – respond to warehouse rejection
+ * ============================ */
+
+/** Accept warehouse fix:
+ * - qty_mismatch  -> copy corrected_quantity to quantity and approve
+ * - no_such_product -> keep rejected, just clear corrected_quantity
+ */
+export async function ownerAcceptWarehouseDecision(item) {
+  const isQtyFix =
+    item.rejection_code === "qty_mismatch" &&
+    Number(item.corrected_quantity) > 0;
+
+  if (isQtyFix) {
+    return supabase
+      .from("incoming_batch_items")
+      .update({
+        quantity: Number(item.corrected_quantity),
+        status: "approved",
+        rejection_code: null,
+        corrected_quantity: null,
+      })
+      .eq("id", item.id)
+      .eq("status", "rejected")
+      .select()
+      .single();
+  }
+
+  // no_such_product -> acknowledge; keep rejected but clear stray corrected qty
+  return supabase
+    .from("incoming_batch_items")
+    .update({ corrected_quantity: null })
+    .eq("id", item.id)
+    .eq("status", "rejected")
+    .select()
+    .single();
+}
+
+/** Owner approves "no_such_product" -> delete the item row */
+export async function ownerApproveNoSuchProduct(itemId) {
+  return supabase
+    .from("incoming_batch_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("status", "rejected")
+    .eq("rejection_code", "no_such_product")
+    .select()
+    .single();
+}
+
+/** Owner disputes warehouse decision -> resend to warehouse */
+export async function ownerResendRejected(itemId) {
+  return supabase
+    .from("incoming_batch_items")
+    .update({
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      rejection_code: null,
+      corrected_quantity: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    })
+    .eq("id", itemId)
+    .eq("status", "rejected")
+    .select()
+    .single();
+}
+
+/* ============================
  * QUERIES
  * ============================ */
 
-/** Summary + origin merge (view lacks origin) */
 export async function getBatchesSummaryWithOrigin() {
   const v = await supabase.from("v_incoming_batches_summary").select("*");
   if (v.error) return { data: null, error: v.error };
@@ -192,10 +299,9 @@ export async function getBatchItems(batchId) {
     .from("incoming_batch_items")
     .select("*")
     .eq("batch_id", batchId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: true });
 }
 
-/** Fresh drafts only — used to validate before sending */
 export async function getDraftItems(batchId) {
   return supabase
     .from("incoming_batch_items")
@@ -205,42 +311,38 @@ export async function getDraftItems(batchId) {
     .order("created_at", { ascending: true });
 }
 
-export async function getItemsToReview() {
-  return supabase
-    .from("incoming_batch_items")
-    .select("*, incoming_batches!inner(*)")
-    .eq("status", "sent")
-    .order("sent_at", { ascending: true });
+/** Lookups */
+export async function getCategories() {
+  const res = await supabase.from("categories").select("id,name").order("name");
+  if (res.error) return { data: [], error: null };
+  return res;
 }
 
-/** Find a catalog product by exact SKU */
+/** Product helpers */
 export async function findProductBySKU(sku) {
   const clean = String(sku ?? "").trim();
   if (!clean) return { data: null, error: null };
   return supabase
     .from("products")
-    .select("id, name, sku, category, price, recommended_price")
+    .select("id, name, sku, category, category_id, price, recommended_price")
     .eq("sku", clean)
     .maybeSingle();
 }
 
-/** Typeahead search (sku/name) */
 export async function searchProducts(q) {
   const query = String(q ?? "").trim();
   if (!query) return { data: [], error: null };
   return supabase
     .from("products")
-    .select("id, name, sku, category, price, recommended_price")
+    .select("id, name, sku, category_id, price")
     .or(`sku.ilike.%${query}%,name.ilike.%${query}%`)
     .order("name", { ascending: true })
     .limit(10);
 }
 
-/** Create a draft item directly from a product row (quantity left NULL for UI blank) */
 export async function addDraftFromProduct({
   batch_id,
   product,
-  quantity = null, // keep null so the UI shows blank
   requested_by = null,
 }) {
   if (!product) throw new Error("Product not provided");
@@ -248,10 +350,9 @@ export async function addDraftFromProduct({
     batch_id,
     product_name: product.name,
     sku: product.sku,
-    category: product.category,
-    quantity, // null → blank in UI; DB allows null for 'draft'
-    price: Number(product.price) || 0,
-    recommended_price: product.recommended_price ?? null,
+    category_id: product.category_id ?? null,
+    quantity: null,
+    price: 0,
     requested_by,
   });
 }
