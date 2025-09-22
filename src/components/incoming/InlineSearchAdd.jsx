@@ -1,4 +1,4 @@
-// FILE: src/components/incoming/InlineSearchAdd.jsx
+// src/components/incoming/InlineSearchAdd.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDraftFromProduct,
@@ -9,7 +9,7 @@ import {
 export default function InlineSearchAdd({
   batchId,
   requestedBy,
-  onAdded, // ignored when we want blank; we pass null
+  onAdded, // call after successful add
   existingSkus = [],
 }) {
   const [query, setQuery] = useState("");
@@ -78,7 +78,7 @@ export default function InlineSearchAdd({
     return (existingSkus || []).some((x) => (x || "").toLowerCase() === s);
   };
 
-  // Create a BLANK row, pre-fill only SKU, leave quantity NULL for UI blank
+  // Create a BLANK row, pre-fill only SKU; leave quantity NULL for blank UI
   const createBlankRow = async () => {
     setErr("");
     const typed = query.trim();
@@ -94,12 +94,12 @@ export default function InlineSearchAdd({
         batch_id: batchId,
         product_name: "",
         sku: typed,
-        category: null,
-        quantity: null, // keep NULL so it looks blank
-        price: 0, // DB not-null placeholder
+        category_id: null,
+        quantity: null,
+        price: 0,
         requested_by: requestedBy ?? null,
-        recommended_price: null,
       });
+
       if (error) throw error;
       setQuery("");
       setSuggestions([]);
@@ -122,7 +122,6 @@ export default function InlineSearchAdd({
       const { error } = await addDraftFromProduct({
         batch_id: batchId,
         product,
-        quantity: null, // keep it blank in UI
         requested_by: requestedBy ?? null,
       });
       if (error) throw error;
@@ -213,10 +212,13 @@ export default function InlineSearchAdd({
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{p.name}</div>
                   <div className="truncate text-xs text-gray-500">
-                    SKU: {p.sku || "—"} • {p.category || "No category"}
+                    SKU: {p.sku || "—"} •{" "}
+                    {/* Show legacy category if that’s all we have */}
+                    {p.category || "No category"}
                   </div>
                 </div>
-                <div className="whitespace-nowrap text-sm">
+                <div className="whitespace-nowrap text-xs text-gray-500">
+                  {/* price is hidden in draft table, but showing here helps selection */}
                   {Number(p.price ?? 0).toLocaleString()}
                 </div>
               </li>

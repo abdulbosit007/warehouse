@@ -1,21 +1,27 @@
-// FILE: src/pages/owner/BatchDetail.jsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+// src/pages/owner/BatchDetail.jsx
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   getBatch,
   getBatchItems,
-  getDraftItems, // NEW: fresh draft fetch for validation
+  getDraftItems,
+  getCategories,
   updateDraftItem,
   removeDraftItem,
   sendAllDraftItems,
+  ownerAcceptWarehouseDecision,
+  ownerResendRejected,
+  ownerApproveNoSuchProduct,
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
 
-/* -------- small debounce for autosave ---------- */
+/* ---------- tiny debounce helper ---------- */
 function useDebouncedEffect(effect, deps, delay) {
+  const saved = useRef(effect);
+  useEffect(() => void (saved.current = effect), [effect]);
   useEffect(() => {
-    const t = setTimeout(() => effect(), delay);
+    const t = setTimeout(() => saved.current(), delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, delay]);
@@ -48,43 +54,146 @@ function StatusChip({ status }) {
   );
 }
 
-/** Draft / ReadOnly row */
-function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
-  // "Fresh blank" if typical placeholders are still there
+/** Pretty icon mini */
+const Dot = ({ tone }) => {
+  const map = {
+    blue: "bg-blue-500",
+    red: "bg-red-500",
+    green: "bg-emerald-500",
+    gray: "bg-gray-400",
+  };
+  return <span className={`inline-block h-2 w-2 rounded-full ${map[tone]}`} />;
+};
+
+/** Owner popup to respond to warehouse rejection (cleaner look, mobile-first) */
+function OwnerReviewModal({
+  item,
+  onClose,
+  onAcceptFix,
+  onApproveRemoval,
+  onResend,
+}) {
+  if (!item) return null;
+  const isQty = item.rejection_code === "qty_mismatch";
+  const isNoSuch = item.rejection_code === "no_such_product";
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute left-1/2 top-1/2 w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Dot tone="red" />
+            <h3 className="text-lg font-semibold">Warehouse response</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <div className="text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Product</span>
+              <span className="font-medium">{item.product_name || "—"}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-gray-500">SKU</span>
+              <span className="font-medium">{item.sku || "—"}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-gray-500">Requested qty</span>
+              <span className="font-medium">{item.quantity ?? "—"}</span>
+            </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-gray-500">Reason</span>
+              <span className="font-medium">{item.rejection_code || "—"}</span>
+            </div>
+            {isQty && (
+              <div className="mt-1 flex justify-between">
+                <span className="text-gray-500">Corrected qty</span>
+                <span className="font-semibold">
+                  {item.corrected_quantity ?? "—"}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          {isQty ? (
+            <button
+              onClick={onAcceptFix}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-white"
+            >
+              Accept fix & approve
+            </button>
+          ) : isNoSuch ? (
+            <button
+              onClick={onApproveRemoval}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-white"
+              title="Approve warehouse decision and remove this item from the batch"
+            >
+              Approve removal
+            </button>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
+
+          <button
+            onClick={onResend}
+            className="rounded-xl bg-blue-600 px-4 py-2 text-white"
+            title="Disagree with the warehouse decision and resend this item for review"
+          >
+            Resend to warehouse
+          </button>
+
+          {/* Safe note */}
+          <div className="sm:col-span-2 text-xs text-gray-500">
+            Actions are validated by database triggers; if something fails
+            you’ll see an error in the page.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Row (editable only for drafts; rejected rows clickable) */
+function Row({ row, readonly, onDelete, categories, onClickRejected }) {
   const isFreshBlank =
-    !row.product_name && !row.category && Number(row.price) === 0;
+    !row.product_name &&
+    !row.category_id &&
+    Number(row.price ?? 0) === 0 &&
+    (row.quantity == null || row.quantity === 1);
 
   const [form, setForm] = useState({
     product_name: row.product_name ?? "",
     sku: row.sku ?? "",
-    category: row.category ?? "",
-    price: Number(row.price ?? 0),
-    recommended_price: row.recommended_price ?? null,
-    // quantity is shown as blank if null or (fresh & 1)
+    category_id: row.category_id ?? "",
     quantity:
-      row.quantity == null
-        ? ""
-        : isFreshBlank && row.quantity === 1
+      row.quantity == null || (isFreshBlank && row.quantity === 1)
         ? ""
         : row.quantity,
   });
-  const [, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false); // to anchor a tiny spinner in-place
 
   useEffect(() => {
+    const fresh =
+      !row.product_name &&
+      !row.category_id &&
+      Number(row.price ?? 0) === 0 &&
+      (row.quantity == null || row.quantity === 1);
+
     setForm({
       product_name: row.product_name ?? "",
       sku: row.sku ?? "",
-      category: row.category ?? "",
-      price: Number(row.price ?? 0),
-      recommended_price: row.recommended_price ?? null,
+      category_id: row.category_id ?? "",
       quantity:
-        row.quantity == null
-          ? ""
-          : !row.product_name &&
-            !row.category &&
-            Number(row.price) === 0 &&
-            row.quantity === 1
+        row.quantity == null || (fresh && row.quantity === 1)
           ? ""
           : row.quantity,
     });
@@ -92,39 +201,31 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
     row.id,
     row.product_name,
     row.sku,
-    row.category,
+    row.category_id,
     row.quantity,
     row.price,
-    row.recommended_price,
   ]);
 
-  // Debounced autosave (only when editable)
   useDebouncedEffect(
     () => {
       if (readonly) return;
+      const qty =
+        form.quantity === "" || form.quantity == null
+          ? null
+          : Math.max(1, Number(form.quantity) || 1);
       const payload = {
-        product_name: form.product_name || null,
-        sku: form.sku || null,
-        category: (form.category || "").trim() || null,
-        // For drafts we can store NULL; if user clears → null; else >=1
-        quantity:
-          form.quantity === "" || form.quantity == null
-            ? null
-            : Math.max(1, Number(form.quantity) || 1),
-        price:
-          form.price === "" || form.price == null
-            ? 0
-            : Math.max(0, Number(form.price) || 0),
-        recommended_price:
-          form.recommended_price === "" || form.recommended_price == null
-            ? null
-            : Number(form.recommended_price),
+        product_name: form.product_name?.trim() || null,
+        sku: form.sku?.trim() || null,
+        category_id: form.category_id || null,
+        quantity: qty,
       };
-      (async () => {
-        setSaving(true);
-        await onAutoSave?.(row.id, payload);
-        setSaving(false);
-      })();
+      updateDraftItem(row.id, payload).catch((e) =>
+        console.error("updateDraftItem error", {
+          itemId: row.id,
+          clean: payload,
+          error: e,
+        })
+      );
     },
     [form, readonly],
     300
@@ -133,8 +234,14 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
   const cell = (children) => <td className="px-4 py-2">{children}</td>;
 
   return (
-    <tr className="hover:bg-gray-50">
-      {/* Product */}
+    <tr
+      className={`hover:bg-gray-50 ${
+        row.status === "rejected" ? "cursor-pointer" : ""
+      }`}
+      onClick={() =>
+        row.status === "rejected" ? onClickRejected?.(row) : undefined
+      }
+    >
       {cell(
         readonly ? (
           row.product_name || <span className="text-gray-400">—</span>
@@ -149,7 +256,7 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
-      {/* SKU */}
+
       {cell(
         readonly ? (
           row.sku || <span className="text-gray-400">—</span>
@@ -162,73 +269,30 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
-      {/* Category */}
+
       {cell(
         readonly ? (
-          row.category || <span className="text-red-500">required</span>
+          categories.find((c) => c.id === row.category_id)?.name || (
+            <span className="text-red-500">required</span>
+          )
         ) : (
-          <input
-            value={form.category}
+          <select
+            value={form.category_id}
             onChange={(e) =>
-              setForm((f) => ({ ...f, category: e.target.value }))
+              setForm((f) => ({ ...f, category_id: e.target.value || "" }))
             }
             className="w-full rounded border px-2 py-1"
-            placeholder="Category (required before send)"
-          />
+          >
+            <option value="">Select category…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         )
       )}
-      {/* Price */}
-      {showPrices &&
-        cell(
-          readonly ? (
-            Number(row.price ?? 0).toLocaleString()
-          ) : (
-            <input
-              type="number"
-              min={0}
-              value={
-                isFreshBlank && (form.price === 0 || form.price === "")
-                  ? ""
-                  : form.price
-              }
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  price: e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-              className="w-28 rounded border px-2 py-1"
-              placeholder="Price"
-            />
-          )
-        )}
-      {/* Recommended price */}
-      {showPrices &&
-        cell(
-          readonly ? (
-            row.recommended_price == null || row.recommended_price === "" ? (
-              <span className="text-gray-400">—</span>
-            ) : (
-              Number(row.recommended_price).toLocaleString()
-            )
-          ) : (
-            <input
-              type="number"
-              min={0}
-              value={form.recommended_price ?? ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  recommended_price:
-                    e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-              className="w-32 rounded border px-2 py-1"
-              placeholder="(optional)"
-            />
-          )
-        )}
-      {/* Quantity (last editable column before Delete) */}
+
       {cell(
         readonly ? (
           row.quantity ?? <span className="text-gray-400">—</span>
@@ -248,46 +312,17 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
           />
         )
       )}
-      {/* Delete / Locked / Tiny anchored loader */}
+
       <td className="px-4 py-2 text-right">
         {row.status === "draft" ? (
           <button
-            disabled={deleting}
-            onClick={async () => {
-              try {
-                setDeleting(true);
-                await onDelete?.(row); // optimistic outside will remove the row
-              } finally {
-                setDeleting(false);
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded bg-red-600 px-3 py-1 text-sm text-white disabled:opacity-60"
+            onClick={() => onDelete?.(row)}
+            className="rounded bg-red-600 px-3 py-1 text-sm text-white"
           >
-            {deleting ? (
-              <svg
-                className="h-4 w-4 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                />
-              </svg>
-            ) : null}
             Delete
           </button>
         ) : (
-          <span className="text-xs text-gray-400">Locked</span>
+          <StatusChip status={row.status} />
         )}
       </td>
     </tr>
@@ -297,13 +332,16 @@ function Row({ row, readonly, onAutoSave, onDelete, showPrices }) {
 export default function BatchDetail() {
   const { id } = useParams();
   const { userRow } = useCurrentUser();
+
   const [batch, setBatch] = useState(null);
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [sendErr, setSendErr] = useState("");
+  const [reviewing, setReviewing] = useState(null); // rejected row owner is reviewing
 
-  const isOpen = batch?.status === "open";
+  const isOpen = (batch?.status || "").toLowerCase() === "open";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -313,71 +351,79 @@ export default function BatchDetail() {
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
 
-    const sorted = (it || []).slice().sort((a, b) => {
-      const ta = new Date(a.created_at || 0).getTime();
-      const tb = new Date(b.created_at || 0).getTime();
-      return ta - tb; // newest last
-    });
-
     setBatch(b || null);
-    setItems(sorted);
+    setItems(
+      (it || [])
+        .slice()
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    );
     setLoading(false);
   }, [id]);
 
+  useEffect(() => void load(), [load]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    (async () => {
+      const { data: cats } = await getCategories();
+      setCategories(cats || []);
+    })();
+  }, []);
 
   const drafts = useMemo(
     () => items.filter((i) => i.status === "draft"),
     [items]
   );
-  const others = useMemo(
-    () => items.filter((i) => i.status !== "draft"),
-    [items]
-  );
 
-  const onAutoSave = async (id_, patch) => {
-    await updateDraftItem(id_, patch);
-  };
+  // sort non-drafts by status: sent → approved → rejected
+  const others = useMemo(() => {
+    const order = { sent: 0, approved: 1, rejected: 2 };
+    return items
+      .filter((i) => i.status !== "draft")
+      .slice()
+      .sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
+  }, [items]);
 
-  // Optimistic delete — no global loading flash
   const onDeleteDraft = async (row) => {
-    setItems((prev) => prev.filter((r) => r.id !== row.id)); // optimistic
+    setItems((prev) => prev.filter((r) => r.id !== row.id));
     try {
       await removeDraftItem(row.id);
     } catch {
-      // revert on failure
       await load();
     }
   };
 
-  // Send all draft rows (validate with fresh fetch to avoid "first send" error)
   const onSendAll = async () => {
     setSendErr("");
-
-    // fetch current drafts from DB (not state) to avoid racing autosave
+    await new Promise((r) => setTimeout(r, 350));
     const { data: freshDrafts, error } = await getDraftItems(id);
     if (error) {
       setSendErr(error.message || "Failed to fetch draft items.");
       return;
     }
-
     if (!freshDrafts || freshDrafts.length === 0) return;
 
-    // Validation: category required; quantity must be >0 (not null/blank)
-    const invalid = freshDrafts.filter(
-      (d) =>
-        !String(d.category || "").trim() ||
-        d.quantity == null ||
-        Number(d.quantity) <= 0 ||
-        Number(d.price) < 0
-    );
+    const invalids = freshDrafts
+      .map((d) => {
+        const hasCat = !!d.category_id;
+        const hasQty = d.quantity != null && Number(d.quantity) > 0;
+        return {
+          id: d.id,
+          sku: d.sku || "—",
+          name: d.product_name || "—",
+          missingCategory: !hasCat,
+          badQty: !hasQty,
+        };
+      })
+      .filter((x) => x.missingCategory || x.badQty);
 
-    if (invalid.length > 0) {
-      setSendErr(
-        "Please fill Category and a valid Quantity (>0) for all draft rows before sending."
-      );
+    if (invalids.length > 0) {
+      const lines = invalids.map((x) => {
+        const r = [];
+        if (x.missingCategory) r.push("category");
+        if (x.badQty) r.push("quantity");
+        return `• ${x.sku} (${x.name}) → ${r.join(" & ")}`;
+      });
+      setSendErr(`Fix these draft row(s) before sending:\n${lines.join("\n")}`);
       return;
     }
 
@@ -402,20 +448,18 @@ export default function BatchDetail() {
       )}
       {loading && <div className="mb-4 text-sm">Loading...</div>}
 
-      {/* Search + add (only when open) */}
       {isOpen && (
         <div className="mb-6">
           <InlineSearchAdd
             batchId={id}
             requestedBy={userRow?.id ?? null}
             onAdded={load}
-            defaultQuantity={1}
             existingSkus={existingSkus}
           />
         </div>
       )}
 
-      {/* DRAFT TABLE (no Status col; Quantity is last before Delete) */}
+      {/* Drafts */}
       {drafts.length > 0 && (
         <>
           <div className="mb-4 text-sm font-semibold text-gray-700">
@@ -428,8 +472,6 @@ export default function BatchDetail() {
                   <Th>Product</Th>
                   <Th>SKU</Th>
                   <Th>Category</Th>
-                  <Th>Price</Th>
-                  <Th>Recommended price</Th>
                   <Th>Qty</Th>
                   <th className="px-4 py-2" />
                 </tr>
@@ -440,9 +482,8 @@ export default function BatchDetail() {
                     key={row.id}
                     row={row}
                     readonly={!isOpen}
-                    onAutoSave={onAutoSave}
                     onDelete={onDeleteDraft}
-                    showPrices
+                    categories={categories}
                   />
                 ))}
               </tbody>
@@ -472,7 +513,7 @@ export default function BatchDetail() {
         </>
       )}
 
-      {/* OTHERS TABLE (no prices) */}
+      {/* Others (sorted: sent → approved → rejected). Rejected rows are clickable to review */}
       {others.length > 0 && (
         <>
           <div className="mb-4 text-sm font-semibold text-gray-700">
@@ -487,34 +528,47 @@ export default function BatchDetail() {
                   <Th>Category</Th>
                   <Th>Qty</Th>
                   <Th>Status</Th>
-                  <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {others.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      {row.product_name || (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {row.sku || <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2">
-                      {row.category || <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2">{row.quantity ?? "—"}</td>
-                    <td className="px-4 py-2">
-                      <StatusChip status={row.status} />
-                    </td>
-                  </tr>
+                  <Row
+                    key={row.id}
+                    row={row}
+                    readonly
+                    categories={categories}
+                    onClickRejected={(r) => setReviewing(r)}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
         </>
       )}
+
+      {/* Owner review modal for rejected items */}
+      <OwnerReviewModal
+        item={reviewing}
+        onClose={() => setReviewing(null)}
+        onAcceptFix={async () => {
+          if (!reviewing) return;
+          await ownerAcceptWarehouseDecision(reviewing);
+          setReviewing(null);
+          await load();
+        }}
+        onApproveRemoval={async () => {
+          if (!reviewing) return;
+          await ownerApproveNoSuchProduct(reviewing.id);
+          setReviewing(null);
+          await load();
+        }}
+        onResend={async () => {
+          if (!reviewing) return;
+          await ownerResendRejected(reviewing.id);
+          setReviewing(null);
+          await load();
+        }}
+      />
     </div>
   );
 }
