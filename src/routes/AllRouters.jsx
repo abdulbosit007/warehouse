@@ -7,13 +7,11 @@ import OwnerLayout from "../layouts/OwnerLayout";
 import BranchLayout from "../layouts/BranchLayout";
 
 //Warehouse Pages
-import WarehouseHome from "../pages/warehouse/Home";
 import WarehouseBranchRequests from "../pages/warehouse/BranchRequests";
 import WarehouseHistory from "../pages/warehouse/History";
 import WarehouseOwnerRequests from "../pages/warehouse/OwnerRequests";
 
 //Owner Pages
-import OwnerHome from "../pages/owner/Home";
 import OwnerIncomingProducts from "../pages/owner/IncomingProducts";
 import OwnerHistory from "../pages/owner/History";
 import OwnerRequests from "../pages/owner/Requests";
@@ -21,12 +19,12 @@ import OwnerUserManagement from "../pages/owner/UserManagement";
 import BatchDetail from "../pages/owner/BatchDetail";
 
 //Branch Pages
-import BranchHome from "../pages/branch/Home";
 import BranchRequests from "../pages/branch/Requests";
 import BranchHistory from "../pages/branch/History";
 import BranchBranchRequests from "../pages/branch/BranchRequests";
 
-//Profile Page
+//Profile and Home Page
+import Home from "../pages/Home";
 import Profile from "../pages/Profile";
 
 // Route guard
@@ -51,7 +49,7 @@ export default function AllRouters({ user }) {
           }
         >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<OwnerHome />} />
+          <Route path="home" element={<Home />} />
           <Route path="incoming-product" element={<OwnerIncomingProducts />} />
           <Route path="history" element={<OwnerHistory />} />
           <Route path="requests" element={<OwnerRequests />} />
@@ -70,7 +68,7 @@ export default function AllRouters({ user }) {
           }
         >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<OwnerHome />} />
+          <Route path="home" element={<Home />} />
           <Route path="history" element={<WarehouseHistory />} />
           <Route path="branch-requests" element={<WarehouseBranchRequests />} />
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
@@ -87,7 +85,7 @@ export default function AllRouters({ user }) {
           }
         >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<OwnerHome />} />
+          <Route path="home" element={<Home />} />
           <Route path="history" element={<BranchHistory />} />
           <Route path="branch-requests" element={<BranchBranchRequests />} />
           <Route path="requests" element={<BranchRequests />} />
