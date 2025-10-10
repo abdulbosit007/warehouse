@@ -1,96 +1,164 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
+
+// Parse "Branch-3" → { type:'branch', branchId:'3' }
+function parseRoleName(name = "") {
+  const n = String(name || "").trim();
+  if (/^owner$/i.test(n)) return { type: "owner" };
+  if (/^warehouse$/i.test(n)) return { type: "warehouse" };
+  const m = n.match(/^branch[-_ ]?(\d+)$/i);
+  if (m) return { type: "branch", branchId: m[1] };
+  return { type: "unknown" };
+}
 
 export default function SignIn() {
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true); // <-- loading state
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const effectOnceRef = useRef(false);
+  const routedRef = useRef(false);
+
   const handleGoogleLogin = async () => {
-    setLoading(true); // Block UI during login
-    await supabase.auth.signInWithOAuth({
+    console.log("[SIGNIN] Clicked Sign in with Google");
+    setError("");
+    setLoading(true);
+    const { error: oauthErr } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        // return to whatever origin you're using (localhost:5173 or your LAN IP)
-        redirectTo: window.location.origin,
-        // always open the Google account picker (prevents silent reuse)
-        queryParams: { prompt: "select_account" },
-      },
     });
-    setLoading(false); // In case of error
+    if (oauthErr) {
+      console.error("[SIGNIN] OAuth error:", oauthErr);
+      setError(oauthErr.message || "Login failed");
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    const checkUser = async () => {
-      setLoading(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+  const routeByRole = (roleName) => {
+    const parsed = parseRoleName(roleName || "");
+    console.log("[SIGNIN] Routing by role:", roleName, parsed);
+    if (routedRef.current) {
+      console.log("[SIGNIN] Already routed once → skip");
+      return;
+    }
+
+    if (parsed.type === "owner") {
+      routedRef.current = true;
+      console.log("[SIGNIN] → /owner");
+      navigate("/owner", { replace: true });
+    } else if (parsed.type === "warehouse") {
+      routedRef.current = true;
+      console.log("[SIGNIN] → /warehouse");
+      navigate("/warehouse", { replace: true });
+    } else if (parsed.type === "branch") {
+      routedRef.current = true;
+      console.log("[SIGNIN] → /branch/" + parsed.branchId);
+      navigate(`/branch/${parsed.branchId}`, { replace: true });
+    } else {
+      console.warn("[SIGNIN] Unknown role:", roleName);
+      setError("Unknown role. Please contact the owner.");
+    }
+  };
+
+  const checkAndRoute = async () => {
+    console.log("[SIGNIN] checkAndRoute() start -------------------");
+    try {
+      const { data: sessionData, error: sessErr } =
+        await supabase.auth.getSession();
+      if (sessErr) console.error("[SIGNIN] getSession error:", sessErr);
+
+      const authUser = sessionData?.session?.user;
+      console.log("[SIGNIN] Session user:", authUser?.email, authUser?.id);
+
+      if (!authUser) {
+        console.log("[SIGNIN] No authenticated user, showing login button");
         setLoading(false);
         return;
       }
-      const { data: allowedUser } = await supabase
-        .from("user")
-        .select("*")
-        .eq("email", user.email)
-        .eq("is_approved", true)
-        .single();
 
-      if (!allowedUser) {
+      // Check users_list
+      const { data: row, error: qErr } = await supabase
+        .from("users_list")
+        .select("row_id,name,is_approved,user_id,user_role:roles(id,name)")
+        .eq("user_id", authUser.id)
+        .eq("is_approved", true)
+        .maybeSingle();
+
+      if (qErr) {
+        console.error("[SIGNIN] users_list query error:", qErr);
+        setError(qErr.message || "Lookup failed");
+        setLoading(false);
+        return;
+      }
+
+      if (!row) {
+        console.warn("[SIGNIN] No approved users_list row found; signing out");
         await supabase.auth.signOut();
         setError(
-          "You are not allowed to access this system. Please contact the admin."
+          "You are not allowed to access this system. Please contact the owner."
         );
         setLoading(false);
         return;
       }
 
-      // (Optional) Update id
-      if (!allowedUser.id) {
-        await supabase
-          .from("user")
-          .update({ id: user.id })
-          .eq("email", user.email);
-      }
+      console.log("[SIGNIN] Found row:", row);
+      routeByRole(row.user_role?.name);
+    } catch (e) {
+      console.error("[SIGNIN] Unexpected error:", e);
+      setError(e.message || "Unexpected error");
+    } finally {
+      setLoading(false);
+      console.log("[SIGNIN] checkAndRoute() end -------------------");
+    }
+  };
 
-      // Redirect by role
-      switch (allowedUser.role) {
-        case 0:
-          navigate("/owner/home");
-          break;
-        case 1:
-          navigate("/warehouse/home");
-          break;
-        case 2:
-          navigate(`/branch/${allowedUser.branch}/home`);
-          break;
-        default:
-          setError("Unknown role.");
+  useEffect(() => {
+    if (effectOnceRef.current) return;
+    effectOnceRef.current = true;
+
+    console.log("[SIGNIN] useEffect → initial load");
+    checkAndRoute();
+
+    // Listen only for SIGNED_IN / SIGNED_OUT
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[SIGNIN] Auth event:", event, session?.user?.email);
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        routedRef.current = false; // reset navigation permission
+        checkAndRoute();
       }
-      // No need to setLoading(false) here, as user will be redirected
+    });
+
+    const timeout = setTimeout(() => {
+      console.log("[SIGNIN] Safety timeout reached; stop spinner");
+      setLoading(false);
+    }, 7000);
+
+    return () => {
+      console.log("[SIGNIN] cleanup");
+      clearTimeout(timeout);
+      sub?.subscription?.unsubscribe?.();
     };
-
-    checkUser();
   }, [navigate]);
 
+  console.log("[SIGNIN] Render", { loading, error });
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 bg-white shadow rounded-xl">
-        <h2 className="mb-6 text-2xl font-semibold text-center">Sign In</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-2xl shadow w-full max-w-md">
+        <h2 className="text-2xl font-semibold mb-6 text-center">Sign In</h2>
+
         {loading ? (
-          <div className="py-4 text-center">Checking authentication...</div>
+          <div className="text-center py-4">Checking authentication...</div>
         ) : (
           <button
             onClick={handleGoogleLogin}
-            className="w-full py-2 font-medium text-white transition bg-black rounded hover:bg-neutral-800"
+            className="w-full bg-red-600 text-white py-2 rounded-xl hover:bg-red-700 transition"
           >
             Sign in with Google
-        </button>
-
+          </button>
         )}
-        {error && <div className="mt-4 text-red-500">{error}</div>}
+
+        {error && <div className="text-red-500 mt-4 text-center">{error}</div>}
       </div>
     </div>
   );

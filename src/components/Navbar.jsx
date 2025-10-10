@@ -4,17 +4,37 @@ import { NavLink, useNavigate } from "react-router-dom";
 export default function Navbar({
   links = [],
   brand = { code: "W", title: "Warehouse" },
-  role,
+  role, // can be string, array, or a function that returns links
   branchId,
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const resolved = links.length > 0 ? links : role;
+
+  // --- FIXED: always normalize to an array ---
+  const resolved = (() => {
+    if (Array.isArray(links) && links.length) return links;
+
+    if (typeof role === "function") {
+      try {
+        const result = role({ branchId, roleName: role?.name ?? role });
+        return Array.isArray(result) ? result : [];
+      } catch (e) {
+        console.warn("[Navbar] role() threw error:", e);
+        return [];
+      }
+    }
+
+    if (Array.isArray(role)) return role; // support direct array
+    // role is string or undefined → ignore
+    return [];
+  })();
+
   const computedLinks = resolved.map((l) => ({
     ...l,
     to: typeof l.to === "function" ? l.to(branchId) : l.to,
   }));
 
+  // --- prevent background scroll when mobile menu open ---
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = open ? "hidden" : prev || "";
@@ -88,7 +108,9 @@ export default function Navbar({
       {/* MOBILE: overlay */}
       <div
         className={`fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] transition-opacity md:hidden ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          open
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
         aria-hidden="true"

@@ -2,73 +2,50 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 /**
- * Loads distinct lists for: categories (from products),
- * locations and statuses (from product_list).
+ * Provides:
+ *  - categories: string[]
+ *  - locations: { id, name, location_name, kind }[]
+ *  - loading
  */
 export function useProductFilterMeta() {
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); // optional if you want to surface it
 
   useEffect(() => {
-    let cancelled = false;
+    let cancel = false;
 
-    const run = async () => {
+    (async () => {
       setLoading(true);
-      setError(null);
 
-      const [
-        { data: catRows, error: catErr },
-        { data: locRows, error: locErr },
-        { data: statRows, error: statErr },
-      ] = await Promise.all([
-        supabase
-          .from("products")
-          .select("category")
-          .not("category", "is", null)
-          .neq("category", ""),
-        supabase
-          .from("product_list")
-          .select("location")
-          .not("location", "is", null)
-          .neq("location", ""),
-        supabase
-          .from("product_list")
-          .select("status")
-          .not("status", "is", null)
-          .neq("status", ""),
-      ]);
+      // Categories
+      const { data: cat, error: catErr } = await supabase
+        .from("categories")
+        .select("name")
+        .order("name");
 
-      if (cancelled) return;
-
-      if (catErr || locErr || statErr) {
-        setError(catErr?.message || locErr?.message || statErr?.message || "Failed to load filter metadata");
+      if (!cancel) {
+        setCategories(
+          catErr ? [] : (cat || []).map((c) => c.name).filter(Boolean)
+        );
       }
 
-      const clean = (arr, key) =>
-        Array.from(
-          new Set(
-            (arr || [])
-              .map((r) => (key ? r[key] : r))
-              .map((v) => (typeof v === "string" ? v.trim() : v))
-              .filter((v) => v !== undefined && v !== null && v !== "")
-          )
-        ).sort((a, b) => String(a).localeCompare(String(b)));
+      // Locations: we need `kind` so we can keep only warehouses in the Warehouse view
+      const { data: locs, error: locErr } = await supabase
+        .from("locations")
+        .select("id, name, location_name, kind")
+        .order("name");
 
-      setCategories(clean(catRows, "category"));
-      setLocations(clean(locRows, "location"));
-      setStatuses(clean(statRows, "status"));
+      if (!cancel) {
+        setLocations(locs && !locErr ? locs : []);
+        setLoading(false);
+      }
+    })();
 
-      setLoading(false);
-    };
-
-    run();
     return () => {
-      cancelled = true;
+      cancel = true;
     };
   }, []);
 
-  return { categories, locations, statuses, loading, error };
+  return { categories, locations, loading };
 }

@@ -1,16 +1,30 @@
-// src/components/ProfileCard.jsx
 import { useState } from "react";
 
+/**
+ * Props:
+ *  - name: string
+ *  - email: string
+ *  - role: string (normalized, e.g. "owner", "warehouse", "branch-1")
+ *  - branch: optional branch name/number
+ *  - onLogout: function
+ */
 export default function ProfileCard({ name, email, role, branch, onLogout }) {
-  const roleLabel =
-    role === 0 ? "Owner" : role === 1 ? "Warehouse" : role === 2 ? "Branch" : "Unknown";
+  // derive readable labels
+  const roleLabel = role?.toLowerCase().startsWith("branch")
+    ? "Branch"
+    : role?.toLowerCase() === "owner"
+    ? "Owner"
+    : role?.toLowerCase() === "warehouse"
+    ? "Warehouse"
+    : "Unknown";
 
-  const branchLabel =
-    role === 2
-      ? typeof branch === "number"
-        ? `Branch #${branch}`
-        : branch || "Branch"
-      : "—";
+  const branchLabel = role?.toLowerCase().startsWith("branch")
+    ? branch ||
+      (() => {
+        const suffix = role.split("-")[1];
+        return suffix ? `Branch #${suffix}` : "Branch";
+      })()
+    : "—";
 
   const initials = (name || email || "U")
     .split(" ")
@@ -19,11 +33,11 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
     .join("");
 
   const roleBadgeClass =
-    role === 0
+    role?.toLowerCase() === "owner"
       ? "bg-black text-white"
-      : role === 1
+      : role?.toLowerCase() === "warehouse"
       ? "bg-gray-900 text-white"
-      : role === 2
+      : role?.toLowerCase().startsWith("branch")
       ? "bg-gray-800 text-white"
       : "bg-gray-200 text-gray-800";
 
@@ -35,12 +49,12 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     } catch {
-      console.log()
+      console.warn("Clipboard write failed");
     }
   };
 
   return (
-    <section className="w-full max-w-3xl mx-auto mb-12"> {/* ⬅ added bottom margin */}
+    <section className="w-full max-w-3xl mx-auto mb-12">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -57,7 +71,7 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
               >
                 {roleLabel}
               </span>
-              {role === 2 && (
+              {role?.toLowerCase().startsWith("branch") && (
                 <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-medium bg-gray-100 text-gray-800 border border-gray-300">
                   {branchLabel}
                 </span>

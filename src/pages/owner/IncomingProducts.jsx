@@ -1,11 +1,11 @@
-// FILE: src/pages/owner/IncomingBatches.jsx
+// src/pages/owner/IncomingBatches.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createBatch,
   deleteBatch,
   getBatchesSummaryWithOrigin,
-  updateBatch, // NEW: to auto-close clean open batch
+  updateBatch,
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 
@@ -126,7 +126,7 @@ export default function IncomingBatches() {
     const sorted = (data || []).slice().sort((a, b) => {
       const ta = new Date(a.created_at || 0).getTime();
       const tb = new Date(b.created_at || 0).getTime();
-      return tb - ta; // newest first
+      return tb - ta;
     });
     setRows(sorted);
     setLoading(false);
@@ -136,7 +136,6 @@ export default function IncomingBatches() {
     load();
   }, [load]);
 
-  // helpers about the latest batch
   const latest = rows[0] ?? null;
   const latestCounts = useMemo(() => {
     if (!latest) return { approved: 0, sent: 0, rejected: 0, draft: 0 };
@@ -153,10 +152,8 @@ export default function IncomingBatches() {
     return approved > 0 && sent === 0 && rejected === 0 && draft === 0;
   }, [latestCounts]);
 
-  // ✅ New rule: allow creating a new batch when latest is "clean & approved"
-  // (even if its status is still 'open'; we'll auto-close it on create)
   const canCreateBatch = useMemo(() => {
-    if (!rows.length) return true; // no batches yet
+    if (!rows.length) return true;
     return latestIsCleanAndApproved;
   }, [rows.length, latestIsCleanAndApproved]);
 
@@ -169,7 +166,6 @@ export default function IncomingBatches() {
     try {
       setModalOpen(false);
 
-      // If latest batch is open but already "clean & approved", close it first.
       if (
         latest &&
         (latest.status || "").toLowerCase() === "open" &&
@@ -179,8 +175,8 @@ export default function IncomingBatches() {
       }
 
       await createBatch({
-        created_by: userRow?.id ?? null,
-        note: null,
+        // ✅ use Auth UUID stored in users_list.user_id
+        created_by: userRow?.user_id ?? null,
         origin, // 'chinese' | 'uzbek'
       });
       await load();

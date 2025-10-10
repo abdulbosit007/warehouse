@@ -4,6 +4,7 @@ import {
   addDraftFromProduct,
   addDraftItem,
   searchProducts,
+  getCategories, // ⬅️ load names for category_id
 } from "../../lib/incoming";
 
 export default function InlineSearchAdd({
@@ -19,7 +20,23 @@ export default function InlineSearchAdd({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  const [catById, setCatById] = useState({}); // id -> name
   const inputRef = useRef(null);
+
+  // Load categories once for name lookups
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await getCategories();
+      if (!cancelled) {
+        const map = Object.fromEntries((data || []).map((c) => [c.id, c.name]));
+        setCatById(map);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Debounce
   const [debounced, setDebounced] = useState("");
@@ -41,7 +58,7 @@ export default function InlineSearchAdd({
       }
       setLoading(true);
       try {
-        const { data, error } = await searchProducts(q);
+        const { data, error } = await searchProducts(q); // id, name, sku, category_id, price
         if (!cancelled) {
           if (error) {
             setErr(error.message);
@@ -198,31 +215,33 @@ export default function InlineSearchAdd({
 
         {openList && suggestions.length > 0 && (
           <ul className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow">
-            {suggestions.map((p, idx) => (
-              <li
-                key={p.id}
-                className={`flex cursor-pointer items-center justify-between gap-4 px-3 py-2 hover:bg-gray-50 ${
-                  idx === activeIndex ? "bg-gray-50" : ""
-                }`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  instantAdd(p);
-                }}
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{p.name}</div>
-                  <div className="truncate text-xs text-gray-500">
-                    SKU: {p.sku || "—"} •{" "}
-                    {/* Show legacy category if that’s all we have */}
-                    {p.category || "No category"}
+            {suggestions.map((p, idx) => {
+              const catName = p.category_id
+                ? catById[p.category_id] || "Unknown category"
+                : "No category";
+              return (
+                <li
+                  key={p.id}
+                  className={`flex cursor-pointer items-center justify-between gap-4 px-3 py-2 hover:bg-gray-50 ${
+                    idx === activeIndex ? "bg-gray-50" : ""
+                  }`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    instantAdd(p);
+                  }}
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{p.name}</div>
+                    <div className="truncate text-xs text-gray-500">
+                      SKU: {p.sku || "—"} • {catName}
+                    </div>
                   </div>
-                </div>
-                <div className="whitespace-nowrap text-xs text-gray-500">
-                  {/* price is hidden in draft table, but showing here helps selection */}
-                  {Number(p.price ?? 0).toLocaleString()}
-                </div>
-              </li>
-            ))}
+                  <div className="whitespace-nowrap text-xs text-gray-500">
+                    {Number(p.price ?? 0).toLocaleString()}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
