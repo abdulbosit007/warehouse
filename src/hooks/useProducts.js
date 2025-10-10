@@ -1,138 +1,105 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+/**
+ * filters:
+ *   - category (string exact)
+ *   - status   (string exact)
+ *   - location (string; = locations.name in your view)
+ *   - location_in (string[]; list of names)
+ *   - quantity: "", ">=N", "<=N", "=N", "A-B"
+ *   - sale_price: "", ">=N", "<=N", "=N", "A-B"
+ */
 export function useProducts({
-  page,
-  pageSize,
+  page = 0,
+  pageSize = 10,
   search = "",
-  filters = {}, // { name, sku, category, quantity, sale_price, location, status }
+  filters = {},
 }) {
   const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    let cancel = false;
 
-    const run = async () => {
+    (async () => {
       setLoading(true);
       setError("");
 
+      let q = supabase
+        .from("v_products_browser")
+        .select("*", { count: "exact" });
+
+      // Search on name or sku
+      const s = (search || "").trim();
+      if (s) q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`);
+
+      // Exact filters
+      if (filters.category) q = q.eq("category", filters.category);
+      if (filters.status) q = q.eq("status", filters.status);
+
+      // Location (single equality or `in` list)
+      if (
+        Array.isArray(filters.location_in) &&
+        filters.location_in.length > 0
+      ) {
+        q = q.in("location", filters.location_in);
+      } else if (filters.location) {
+        q = q.eq("location", filters.location);
+      }
+
+      // Quantity operators
+      if (filters.quantity) {
+        const v = String(filters.quantity);
+        if (v.startsWith(">=")) q = q.gte("quantity", Number(v.slice(2)));
+        else if (v.startsWith("<=")) q = q.lte("quantity", Number(v.slice(2)));
+        else if (v.startsWith("=")) q = q.eq("quantity", Number(v.slice(1)));
+        else if (v.includes("-")) {
+          const [a, b] = v.split("-").map(Number);
+          if (!isNaN(a)) q = q.gte("quantity", a);
+          if (!isNaN(b)) q = q.lte("quantity", b);
+        }
+      }
+
+      // Sale price operators
+      if (filters.sale_price) {
+        const v = String(filters.sale_price);
+        if (v.startsWith(">=")) q = q.gte("sale_price", Number(v.slice(2)));
+        else if (v.startsWith("<="))
+          q = q.lte("sale_price", Number(v.slice(2)));
+        else if (v.startsWith("=")) q = q.eq("sale_price", Number(v.slice(1)));
+        else if (v.includes("-")) {
+          const [a, b] = v.split("-").map(Number);
+          if (!isNaN(a)) q = q.gte("sale_price", a);
+          if (!isNaN(b)) q = q.lte("sale_price", b);
+        }
+      }
+
+      // Paging + stable order
       const from = page * pageSize;
       const to = from + pageSize - 1;
-
-      let q = supabase
-        .from("product_list")
-        .select(
-          `
-          id,
-          quantity,
-          location,
-          status,
-          inserted_at,
-          products:product_id!inner (
-            id,
-            name,
-            sku,
-            category,
-            sale_price
-          )
-        `,
-          { count: "exact" }
-        );
-
-      // --- SEARCH across related table ---
-      if (search?.trim()) {
-        const s = search.trim();
-        q = q.or(`name.ilike.%${s}%,sku.ilike.%${s}%`, {
-          foreignTable: "products",
-        });
-      }
-
-      // --- FILTERS ---
-      const { name, sku, category, quantity, sale_price, location, status } = filters;
-
-      if (name?.trim()) q = q.ilike("products.name", `%${name.trim()}%`);
-      if (sku?.trim()) q = q.ilike("products.sku", `%${sku.trim()}%`);
-      if (category?.trim()) q = q.eq("products.category", category.trim());
-
-      // ✅ Quantity parser
-      if (quantity) {
-        if (quantity.startsWith(">=")) {
-          const n = Number(quantity.slice(2));
-          if (!isNaN(n)) q = q.gte("quantity", n);
-        } else if (quantity.startsWith("<=")) {
-          const n = Number(quantity.slice(2));
-          if (!isNaN(n)) q = q.lte("quantity", n);
-        } else if (quantity.startsWith("=")) {
-          const n = Number(quantity.slice(1));
-          if (!isNaN(n)) q = q.eq("quantity", n);
-        } else if (quantity.includes("-")) {
-          const [min, max] = quantity.split("-").map((v) => Number(v));
-          if (!isNaN(min) && !isNaN(max)) q = q.gte("quantity", min).lte("quantity", max);
-        } else {
-          const n = Number(quantity);
-          if (!isNaN(n)) q = q.eq("quantity", n);
-        }
-      }
-
-      // ✅ Sale price parser (on related table)
-      if (sale_price) {
-        if (sale_price.startsWith(">=")) {
-          const n = Number(sale_price.slice(2));
-          if (!isNaN(n)) q = q.gte("products.sale_price", n);
-        } else if (sale_price.startsWith("<=")) {
-          const n = Number(sale_price.slice(2));
-          if (!isNaN(n)) q = q.lte("products.sale_price", n);
-        } else if (sale_price.startsWith("=")) {
-          const n = Number(sale_price.slice(1));
-          if (!isNaN(n)) q = q.eq("products.sale_price", n);
-        } else if (sale_price.includes("-")) {
-          const [min, max] = sale_price.split("-").map((v) => Number(v));
-          if (!isNaN(min) && !isNaN(max)) q = q.gte("products.sale_price", min).lte("products.sale_price", max);
-        } else {
-          const n = Number(sale_price);
-          if (!isNaN(n)) q = q.eq("products.sale_price", n);
-        }
-      }
-
-      if (location?.trim()) q = q.eq("location", location.trim());
-      if (status?.trim()) q = q.eq("status", status.trim());
-
-      q = q.range(from, to);
+      q = q.order("name", { ascending: true }).range(from, to);
 
       const { data, error: err, count } = await q;
-      if (cancelled) return;
+      if (cancel) return;
 
       if (err) {
-        setError(err.message || "Failed to load");
+        setError(err.message);
         setRows([]);
         setTotal(0);
       } else {
-        const flat = (data || []).map((r) => ({
-          product_list_id: r.id,
-          quantity: r.quantity,
-          location: r.location,
-          status: r.status,
-          inserted_at: r.inserted_at,
-          product_id: r.products?.id ?? null,
-          name: r.products?.name ?? "",
-          sku: r.products?.sku ?? "",
-          category: r.products?.category ?? "",
-          sale_price: r.products?.sale_price ?? null,
-        }));
-        setRows(flat);
-        setTotal(count || 0);
+        setRows(data || []);
+        setTotal(typeof count === "number" ? count : undefined);
       }
-
       setLoading(false);
-    };
+    })();
 
-    run();
     return () => {
-      cancelled = true;
+      cancel = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, search, JSON.stringify(filters)]);
 
   return { rows, total, loading, error };

@@ -1,6 +1,22 @@
 // src/lib/incoming.js
 import { supabase } from "../lib/supabaseClient";
 
+/* UUID v4 generator (no deps) */
+function newId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID)
+    return crypto.randomUUID();
+  // fallback
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
 /** Normalize origin to 'chinese' | 'uzbek' or null */
 function normalizeOrigin(v) {
   const s = String(v ?? "")
@@ -14,13 +30,14 @@ function normalizeOrigin(v) {
  * ============================ */
 
 export async function createBatch({
-  created_by = null,
-  note = null,
+  created_by = null, // users_list.user_id (Auth UUID)
   origin = "uzbek",
 }) {
   const payload = {
+    id: newId(),
     created_by,
-    note,
+    created_at: nowIso(),
+    status: "open",
     origin: normalizeOrigin(origin) ?? "uzbek",
   };
   return supabase.from("incoming_batches").insert([payload]).select().single();
@@ -41,7 +58,7 @@ export async function deleteBatch(batchId) {
   return supabase.from("incoming_batches").delete().eq("id", batchId);
 }
 
-/** Add draft row (category_id only; quantity may be null in draft) */
+/** Add draft row */
 export async function addDraftItem({
   batch_id,
   product_name,
@@ -49,30 +66,26 @@ export async function addDraftItem({
   category_id = null,
   quantity = null,
   price = 0,
-  requested_by,
+  requested_by, // users_list.user_id
 }) {
-  return supabase
-    .from("incoming_batch_items")
-    .insert([
-      {
-        batch_id,
-        product_name,
-        sku,
-        category_id: category_id || null,
-        quantity: quantity == null ? null : Number(quantity),
-        price,
-        requested_by,
-      },
-    ])
-    .select()
-    .single();
+  const row = {
+    id: newId(),
+    created_at: nowIso(),
+    status: "draft",
+    batch_id,
+    product_name,
+    sku,
+    category_id: category_id || null,
+    quantity: quantity == null ? null : Number(quantity),
+    price,
+    requested_by,
+  };
+  return supabase.from("incoming_batch_items").insert([row]).select().single();
 }
 
-/** Generic updater – works for any status (triggers enforce rules) */
+/** Generic updater */
 export async function updateDraftItem(itemId, patch) {
-  // Only include columns we intend to change
   const clean = {};
-
   if ("product_name" in patch) clean.product_name = patch.product_name ?? null;
   if ("sku" in patch) clean.sku = patch.sku ?? null;
   if ("category_id" in patch) clean.category_id = patch.category_id ?? null;
@@ -84,7 +97,6 @@ export async function updateDraftItem(itemId, patch) {
         : Math.max(1, Number(patch.quantity) || 1);
   }
 
-  // review flow fields – only pass when you intend to change them
   if ("status" in patch) clean.status = patch.status;
   if ("reviewed_by" in patch) clean.reviewed_by = patch.reviewed_by;
   if ("reviewed_at" in patch) clean.reviewed_at = patch.reviewed_at;
@@ -116,7 +128,7 @@ export async function removeDraftItem(itemId) {
 export async function sendAllDraftItems(batchId) {
   return supabase
     .from("incoming_batch_items")
-    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .update({ status: "sent", sent_at: nowIso() })
     .eq("batch_id", batchId)
     .eq("status", "draft");
 }
@@ -131,7 +143,7 @@ export async function approveItem(itemId, warehouseUserId) {
     .update({
       status: "approved",
       reviewed_by: warehouseUserId,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: nowIso(),
       rejection_code: null,
       corrected_quantity: null,
     })
@@ -141,7 +153,7 @@ export async function approveItem(itemId, warehouseUserId) {
     .single();
 }
 
-/** Reject with strict shape: reasonCode = 'qty_mismatch' | 'no_such_product' */
+/** Reject with strict shape */
 export async function rejectItemWithCode(
   itemId,
   warehouseUserId,
@@ -162,7 +174,7 @@ export async function rejectItemWithCode(
     .update({
       status: "rejected",
       reviewed_by: warehouseUserId,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: nowIso(),
       rejection_code: reasonCode,
       corrected_quantity:
         reasonCode === "qty_mismatch" ? Number(fixQuantity) : null,
@@ -174,13 +186,9 @@ export async function rejectItemWithCode(
 }
 
 /* ============================
- * OWNER – respond to warehouse rejection
+ * OWNER RESPONSES
  * ============================ */
 
-/** Accept warehouse fix:
- * - qty_mismatch  -> copy corrected_quantity to quantity and approve
- * - no_such_product -> keep rejected, just clear corrected_quantity
- */
 export async function ownerAcceptWarehouseDecision(item) {
   const isQtyFix =
     item.rejection_code === "qty_mismatch" &&
@@ -201,7 +209,6 @@ export async function ownerAcceptWarehouseDecision(item) {
       .single();
   }
 
-  // no_such_product -> acknowledge; keep rejected but clear stray corrected qty
   return supabase
     .from("incoming_batch_items")
     .update({ corrected_quantity: null })
@@ -211,7 +218,6 @@ export async function ownerAcceptWarehouseDecision(item) {
     .single();
 }
 
-/** Owner approves "no_such_product" -> delete the item row */
 export async function ownerApproveNoSuchProduct(itemId) {
   return supabase
     .from("incoming_batch_items")
@@ -223,13 +229,12 @@ export async function ownerApproveNoSuchProduct(itemId) {
     .single();
 }
 
-/** Owner disputes warehouse decision -> resend to warehouse */
 export async function ownerResendRejected(itemId) {
   return supabase
     .from("incoming_batch_items")
     .update({
       status: "sent",
-      sent_at: new Date().toISOString(),
+      sent_at: nowIso(),
       rejection_code: null,
       corrected_quantity: null,
       reviewed_by: null,
@@ -324,7 +329,7 @@ export async function findProductBySKU(sku) {
   if (!clean) return { data: null, error: null };
   return supabase
     .from("products")
-    .select("id, name, sku, category, category_id, price, recommended_price")
+    .select("id, name, sku, category_id, price, recommended_price")
     .eq("sku", clean)
     .maybeSingle();
 }

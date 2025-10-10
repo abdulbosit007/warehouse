@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -23,30 +23,32 @@ import {
   TextField,
   Tooltip,
   Typography,
-  CircularProgress,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+
 import { useProducts } from "../hooks/useProducts";
 import { useProductFilterMeta } from "../hooks/useProductFilterMeta";
 import useCurrentUser from "../hooks/useCurrentUser";
 
-// Number formatting
 const nfQty = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const nfMoney = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
-// Black & White field styles
 const bwFieldSx = {
   "& .MuiOutlinedInput-root": { borderRadius: 2 },
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "black !important" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "black !important" },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "black !important",
+  },
   "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: "black !important",
     borderWidth: 1,
   },
   "& .MuiInputLabel-root.Mui-focused": { color: "black !important" },
 };
+
 const sectionBoxSx = {
   border: "1px solid",
   borderColor: "common.black",
@@ -55,31 +57,21 @@ const sectionBoxSx = {
   bgcolor: "common.white",
 };
 
-// Role mapping (adjust numbers if yours differ)
-const ROLE = {
-  WAREHOUSE: 1,
-  BRANCH: 2,
-  OWNER: 0,
-};
-
-// Map role/branch → EXACT location strings from DB
-const warehouseLocationName = "warehouse";
-function branchIdToLocationName(branchId) {
-  if (branchId === 0) return "warehouse";
-  return `branch${branchId}`;
-}
-
 export default function ProductsTable() {
-  // Current user
-  const { error: userErr, userRow } = useCurrentUser();
-  const role = userRow?.role ?? null;
-  const branch = userRow?.branch ?? null;
+  // who am I
+  const {
+    loading: userLoading,
+    error: userErr,
+    roleBase,
+    locationName,
+  } = useCurrentUser();
+  const isOwner = roleBase === "owner";
+  const isBranch = roleBase === "branch";
+  const isWarehouse = roleBase === "warehouse";
 
-  // Pagination
+  // search / pagination
   const [page, setPage] = useState(1);
   const pageSize = 10;
-
-  // Search (debounced)
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   useEffect(() => {
@@ -90,220 +82,266 @@ export default function ProductsTable() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Filters persisted state
+  // filters state (location = locations.name)
   const [filters, setFilters] = useState({
-    name: "",
-    sku: "",
     category: "",
-    sale_price: "",
+    status: "available",
+    location: "",
+    location_in: undefined,
     quantity: "",
     quantityOp: "",
     quantityMin: "",
     quantityMax: "",
+    sale_price: "",
     salePriceOp: "",
     salePriceMin: "",
     salePriceMax: "",
-    location: "",
-    status: "",
   });
 
-  // Enforced scope based on role
-  const enforced = useMemo(() => {
-    if (role === ROLE.OWNER) return {};
-    if (role === ROLE.WAREHOUSE) return { location: warehouseLocationName };
-    if (role === ROLE.BRANCH) return { location: branchIdToLocationName(branch) };
-    return {}; // unknown role yet
-  }, [role, branch]);
-
-  // Effective filters passed to API
-  const effectiveFilters = useMemo(
-    () => ({ ...filters, ...enforced }),
-    [filters, enforced]
-  );
-
-  // Data + totals
-  const { rows = [], loading, error, total } = useProducts({
-    page: page - 1,
-    pageSize,
-    search,
-    filters: effectiveFilters,
-  });
-
-  // Meta options
+  // meta: categories + locations(kind) to map labels and limit warehouses
   const {
     categories = [],
     locations = [],
-    statuses = [],
     loading: metaLoading,
   } = useProductFilterMeta();
 
-  // Filter dialog UI state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const openFilters = () => setDialogOpen(true);
-  const closeFilters = () => setDialogOpen(false);
+  // name <-> label
+  const nameToLabel = useMemo(() => {
+    const m = new Map();
+    for (const l of locations) m.set(l.name, l.location_name || l.name);
+    return m;
+  }, [locations]);
+  const labelToName = useMemo(() => {
+    const m = new Map();
+    for (const l of locations) m.set(l.location_name || l.name, l.name);
+    return m;
+  }, [locations]);
 
-  const categoryRef = useRef(null);
-  const locationRef = useRef(null);
-  const statusRef   = useRef(null);
+  // warehouses only set
+  const warehouseOnlyLocations = useMemo(
+    () => locations.filter((l) => (l.kind || "").toLowerCase() === "warehouse"),
+    [locations]
+  );
+  const warehouseNames = useMemo(
+    () => warehouseOnlyLocations.map((l) => l.name),
+    [warehouseOnlyLocations]
+  );
 
-  // Quantity UI local
-  const [qtyOp, setQtyOp] = useState(filters.quantityOp || "");
-  const [qtyMin, setQtyMin] = useState(filters.quantityMin || "");
-  const [qtyMax, setQtyMax] = useState(filters.quantityMax || "");
-
-  // Sale price UI local
-  const [spOp, setSpOp] = useState(filters.salePriceOp || "");
-  const [spMin, setSpMin] = useState(filters.salePriceMin || "");
-  const [spMax, setSpMax] = useState(filters.salePriceMax || "");
-
-  // Non-owner?
-  const isScoped = role !== ROLE.OWNER;
-
-  // For scoped users, seed fixed location into filters (no UI)
+  // UI selects (role-aware)
+  const [locationLabelSel, setLocationLabelSel] = useState("");
   useEffect(() => {
-    if (!isScoped) return;
-    const enforcedLocation = enforced.location || "";
-    setFilters((f) => ({ ...f, location: enforcedLocation }));
-    // locationRef is not rendered for scoped users, so no need to sync its value
-  }, [isScoped, enforced.location]);
+    if (!roleBase) return;
+    if (isBranch) setLocationLabelSel(locationName || "");
+    else setLocationLabelSel("");
+  }, [roleBase, isBranch, locationName]);
 
-  // Active filters indicator (don’t count enforced location)
-  const hasActiveFilters = useMemo(() => {
-    return Boolean(
-      filters.category || filters.status ||
-      filters.quantity || filters.sale_price ||
-      (!isScoped && filters.location)
-    );
-  }, [filters, isScoped]);
+  const [categorySel, setCategorySel] = useState("");
+  const [qtyOp, setQtyOp] = useState("");
+  const [qtyMin, setQtyMin] = useState("");
+  const [qtyMax, setQtyMax] = useState("");
+  const [spOp, setSpOp] = useState("");
+  const [spMin, setSpMin] = useState("");
+  const [spMax, setSpMax] = useState("");
 
-  // Build filter strings for API
+  // build operators
   const buildQuantityString = () => {
     if (qtyOp === "between" && qtyMin && qtyMax) return `${qtyMin}-${qtyMax}`;
     if (qtyOp === "gte" && qtyMin) return `>=${qtyMin}`;
     if (qtyOp === "lte" && qtyMin) return `<=${qtyMin}`;
-    if (qtyOp === "eq"  && qtyMin) return `=${qtyMin}`;
+    if (qtyOp === "eq" && qtyMin) return `=${qtyMin}`;
     return "";
   };
   const buildSalePriceString = () => {
     if (spOp === "between" && spMin && spMax) return `${spMin}-${spMax}`;
     if (spOp === "gte" && spMin) return `>=${spMin}`;
     if (spOp === "lte" && spMin) return `<=${spMin}`;
-    if (spOp === "eq"  && spMin) return `=${spMin}`;
+    if (spOp === "eq" && spMin) return `=${spMin}`;
     return "";
   };
 
-  // Apply filters (keep enforced location for non-owners)
+  // effective filters used by hook
+  const effectiveFilters = useMemo(() => {
+    const base = { ...filters, status: "available" };
+
+    if (isBranch) {
+      const enforcedName = labelToName.get(locationName || "") || "";
+      return { ...base, location: enforcedName, location_in: undefined };
+    }
+
+    if (isWarehouse) {
+      const pickedName = labelToName.get(locationLabelSel || "") || "";
+      console.log(base);
+      // eslint-disable-next-line no-unused-vars
+      const { sale_price, salePriceOp, salePriceMin, salePriceMax, ...rest } =
+        base; // hide price filter for WH
+      if (pickedName) {
+        return { ...rest, location: pickedName, location_in: undefined };
+      }
+      return { ...rest, location: "", location_in: warehouseNames };
+    }
+
+    return base; // owner
+  }, [
+    filters,
+    isBranch,
+    isWarehouse,
+    locationName,
+    labelToName,
+    warehouseNames,
+    locationLabelSel,
+  ]);
+
+  // data
+  const {
+    rows = [],
+    loading,
+    error,
+    total,
+  } = useProducts({
+    page: page - 1,
+    pageSize,
+    search,
+    filters: effectiveFilters,
+  });
+
+  // visible rows: only warehouses for WH view (страховка, если view вернёт лишнее)
+  const visibleRows = useMemo(() => {
+    if (!isWarehouse) return rows;
+    const allow = new Set(warehouseNames);
+    return rows.filter((r) => allow.has(r.location));
+  }, [rows, isWarehouse, warehouseNames]);
+
+  // single “global” loading: пока не готовы роль, мета, данные — показываем один экран
+  const ready = !!roleBase && !userLoading && !metaLoading && !loading;
+
+  // apply/clear
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const applyFilters = () => {
-    const nextLocation = isScoped ? (enforced.location || "") : (locationRef.current?.value || "");
+    let nextLocationName = filters.location;
+    if (isOwner || isWarehouse) {
+      nextLocationName = labelToName.get(locationLabelSel || "") || "";
+    }
     setFilters((prev) => ({
       ...prev,
-      category: categoryRef.current?.value || "",
-      location: nextLocation,
-      status: statusRef.current?.value || "",
+      category: categorySel || "",
+      location: nextLocationName,
+      status: "available",
       quantityOp: qtyOp,
       quantityMin: qtyMin,
       quantityMax: qtyMax,
       quantity: buildQuantityString(),
-      salePriceOp: spOp,
-      salePriceMin: spMin,
-      salePriceMax: spMax,
-      sale_price: buildSalePriceString(),
+      salePriceOp: isWarehouse ? "" : spOp,
+      salePriceMin: isWarehouse ? "" : spMin,
+      salePriceMax: isWarehouse ? "" : spMax,
+      sale_price: isWarehouse ? "" : buildSalePriceString(),
     }));
     setPage(1);
-    closeFilters();
+    setDialogOpen(false);
   };
 
-  // Clear filters (keep enforced location for non-owners)
   const clearFilters = () => {
-    if (categoryRef.current) categoryRef.current.value = "";
-    if (statusRef.current)   statusRef.current.value = "";
-
-    const resetLocation = isScoped ? (enforced.location || "") : "";
-    if (locationRef.current) locationRef.current.value = resetLocation; // only exists for owner
-
-    setQtyOp(""); setQtyMin(""); setQtyMax("");
-    setSpOp(""); setSpMin(""); setSpMax("");
-
+    setCategorySel("");
+    setQtyOp("");
+    setQtyMin("");
+    setQtyMax("");
+    setSpOp("");
+    setSpMin("");
+    setSpMax("");
+    setLocationLabelSel(isBranch ? locationName || "" : "");
     setFilters({
-      name: "",
-      sku: "",
       category: "",
-      sale_price: "",
+      status: "available",
+      location: "",
+      location_in: undefined,
       quantity: "",
       quantityOp: "",
       quantityMin: "",
       quantityMax: "",
+      sale_price: "",
       salePriceOp: "",
       salePriceMin: "",
       salePriceMax: "",
-      location: resetLocation,
-      status: "",
     });
     setPage(1);
   };
 
-  // Filter chips (don’t show enforced location for non-owners)
   const chips = useMemo(() => {
     const list = [];
-    if (filters.category) list.push(["category", `Category: ${filters.category}`]);
-    if (!isScoped && filters.location) list.push(["location", `Location: ${filters.location}`]);
-    if (filters.status)   list.push(["status",   `Status: ${filters.status}`]);
-    if (filters.quantity) list.push(["quantity", `Qty: ${filters.quantity.replace("-", "–")}`]);
-    if (filters.sale_price) list.push(["sale_price", `Price: $${filters.sale_price.replace("-", "–$")}`]);
+    if (categorySel) list.push(["category", `Category: ${categorySel}`]);
+    const showLocationChip = isOwner || isWarehouse;
+    if (showLocationChip && (filters.location || locationLabelSel)) {
+      const label = nameToLabel.get(filters.location) || locationLabelSel || "";
+      if (label) list.push(["location", `Location: ${label}`]);
+    }
+    if (filters.quantity)
+      list.push(["quantity", `Qty: ${filters.quantity.replace("-", "–")}`]);
+    if (!isWarehouse && filters.sale_price)
+      list.push([
+        "sale_price",
+        `Price: ${filters.sale_price.replace("-", "–")}`,
+      ]);
     return list;
-  }, [filters, isScoped]);
+  }, [
+    categorySel,
+    filters,
+    isOwner,
+    isWarehouse,
+    nameToLabel,
+    locationLabelSel,
+  ]);
 
-  const filterChips = chips.length ? (
-    <Stack direction="row" spacing={1} flexWrap="wrap" aria-label="Active filters">
-      {chips.map(([k, label]) => (
-        <Chip
-          key={k}
-          size="small"
-          variant="outlined"
-          label={label}
-          onDelete={() => {
-            if (k === "quantity") {
-              setQtyOp(""); setQtyMin(""); setQtyMax("");
-              setFilters((f) => ({ ...f, quantity: "" }));
-            } else if (k === "sale_price") {
-              setSpOp(""); setSpMin(""); setSpMax("");
-              setFilters((f) => ({ ...f, sale_price: "" }));
-            } else if (k === "location") {
-              const newLoc = isScoped ? (enforced.location || "") : "";
-              setFilters((f) => ({ ...f, location: newLoc }));
-              if (locationRef.current) locationRef.current.value = newLoc;
-            } else {
-              setFilters((f) => ({ ...f, [k]: "" }));
-            }
-            setPage(1);
-          }}
-        />
-      ))}
-      <Chip
-        size="small"
-        label="Clear all"
-        onClick={clearFilters}
-        onDelete={clearFilters}
-        deleteIcon={<CloseRoundedIcon />}
-        variant="outlined"
-      />
-    </Stack>
-  ) : null;
+  const hasAnyFilter =
+    !!categorySel ||
+    !!filters.quantity ||
+    (!!filters.sale_price && !isWarehouse) ||
+    ((isOwner || isWarehouse) && !!(filters.location || locationLabelSel));
 
-  const pageCount = typeof total === "number"
-    ? Math.max(1, Math.ceil(total / pageSize))
-    : 10;
+  // columns per role
+  const showPriceCol = !isWarehouse;
+  const showLocationCol = !isBranch;
+  const columns = [
+    "Name",
+    "SKU",
+    "Category",
+    ...(showPriceCol ? ["Sale price"] : []),
+    "Quantity",
+    ...(showLocationCol ? ["Location"] : []),
+  ];
+  const colCount = columns.length;
 
+  // --- SINGLE GLOBAL LOADING SCREEN ---
+  if (!ready) {
+    return (
+      <div className="min-h-[50vh] grid place-items-center">
+        <div className="text-sm text-neutral-800">Loading…</div>
+      </div>
+    );
+  }
+
+  // --- MAIN RENDER (once everything is ready) ---
   return (
     <Stack spacing={2}>
-     
       {userErr && <Alert severity="error">{userErr}</Alert>}
 
       {/* Toolbar */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} flexWrap="wrap">
-        <Typography variant="h6" sx={{ minWidth: 120 }}>Products</Typography>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={2}
+        flexWrap="wrap"
+      >
+        <Typography variant="h6" sx={{ minWidth: 120 }}>
+          Products
+        </Typography>
 
-        <Stack direction="row" alignItems="center" gap={1.25} sx={{ minWidth: 280 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap={1.25}
+          sx={{ minWidth: 280 }}
+        >
           <TextField
             size="small"
             placeholder="Search name or SKU"
@@ -318,26 +356,37 @@ export default function ProductsTable() {
               ),
               endAdornment: searchInput ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" aria-label="Clear search" onClick={() => setSearchInput("")}>
+                  <IconButton
+                    size="small"
+                    aria-label="Clear search"
+                    onClick={() => setSearchInput("")}
+                  >
                     <ClearRoundedIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
               ) : null,
             }}
-            sx={{ width: { xs: "100%", sm: 320 }, "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+            sx={{
+              width: { xs: "100%", sm: 320 },
+              "& .MuiOutlinedInput-root": { borderRadius: 2 },
+            }}
           />
 
           <Tooltip title="Filters">
             <IconButton
-              onClick={openFilters}
+              onClick={() => setDialogOpen(true)}
               aria-label="Open filters"
               sx={{
                 border: "1px solid",
                 borderColor: "common.black",
-                bgcolor: hasActiveFilters ? "common.black" : "transparent",
-                color: hasActiveFilters ? "common.white" : "common.black",
+                bgcolor: hasAnyFilter ? "common.black" : "transparent",
+                color: hasAnyFilter ? "common.white" : "common.black",
                 borderRadius: 2,
-                "&:hover": { bgcolor: "common.black", color: "common.white", borderColor: "common.black" },
+                "&:hover": {
+                  bgcolor: "common.black",
+                  color: "common.white",
+                  borderColor: "common.black",
+                },
               }}
             >
               <TuneRoundedIcon />
@@ -346,12 +395,75 @@ export default function ProductsTable() {
         </Stack>
       </Stack>
 
-      {/* Active filter chips */}
-      {filterChips && <Box mt={0.5}>{filterChips}</Box>}
+      {/* Active chips */}
+      {chips.length > 0 && (
+        <Box mt={0.5}>
+          <Stack
+            direction="row"
+            spacing={1}
+            flexWrap="wrap"
+            aria-label="Active filters"
+          >
+            {chips.map(([k, label]) => (
+              <Chip
+                key={k}
+                size="small"
+                variant="outlined"
+                label={label}
+                onDelete={() => {
+                  if (k === "quantity") {
+                    setQtyOp("");
+                    setQtyMin("");
+                    setQtyMax("");
+                    setFilters((f) => ({ ...f, quantity: "" }));
+                  } else if (k === "sale_price") {
+                    setSpOp("");
+                    setSpMin("");
+                    setSpMax("");
+                    setFilters((f) => ({ ...f, sale_price: "" }));
+                  } else if (k === "location") {
+                    setLocationLabelSel("");
+                    setFilters((f) => ({
+                      ...f,
+                      location: "",
+                      location_in: undefined,
+                    }));
+                  } else if (k === "category") {
+                    setCategorySel("");
+                    setFilters((f) => ({ ...f, category: "" }));
+                  }
+                  setPage(1);
+                }}
+              />
+            ))}
+            <Chip
+              size="small"
+              label="Clear all"
+              onClick={clearFilters}
+              onDelete={clearFilters}
+              deleteIcon={<CloseRoundedIcon />}
+              variant="outlined"
+            />
+          </Stack>
+        </Box>
+      )}
 
       {/* Table */}
-      <Paper elevation={0} sx={{ p: 0, border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
-        {error && <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 0,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        {error && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <TableContainer>
           <Table
@@ -364,10 +476,9 @@ export default function ProductsTable() {
               "& th, & td": { p: "10px 16px" },
             }}
           >
-            {/* 7 equal columns */}
             <colgroup>
-              {Array.from({ length: 7 }).map((_, i) => (
-                <col key={i} style={{ width: "calc(100% / 7)" }} />
+              {Array.from({ length: colCount }).map((_, i) => (
+                <col key={i} style={{ width: `calc(100% / ${colCount})` }} />
               ))}
             </colgroup>
 
@@ -386,31 +497,16 @@ export default function ProductsTable() {
                   },
                 }}
               >
-                <TableCell>Name</TableCell>
-                <TableCell>SKU</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Sale price</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Status</TableCell>
+                {columns.map((c) => (
+                  <TableCell key={c}>{c}</TableCell>
+                ))}
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {loading ? (
+              {visibleRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ bgcolor: "white", py: 6 }}>
-                    <Stack alignItems="center" justifyContent="center" spacing={1}>
-                      <CircularProgress size={28} sx={{ color: "common.black" }} />
-                      <Typography variant="body2" color="text.secondary">
-                        Loading…
-                      </Typography>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} sx={{ bgcolor: "white" }}>
+                  <TableCell colSpan={colCount} sx={{ bgcolor: "white" }}>
                     <Stack alignItems="center" sx={{ py: 2 }}>
                       <Typography variant="subtitle1" color="text.primary">
                         Result not found
@@ -419,27 +515,84 @@ export default function ProductsTable() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((r) => (
+                visibleRows.map((r) => (
                   <TableRow
-                    key={r.product_list_id || `${r.sku}-${r.name}-${Math.random()}`}
+                    key={
+                      r.product_list_id || `${r.sku}-${r.name}-${Math.random()}`
+                    }
                     hover
-                    sx={{ bgcolor: "white", "&:hover": { bgcolor: "grey.100" } }}
+                    sx={{
+                      bgcolor: "white",
+                      "&:hover": { bgcolor: "grey.100" },
+                    }}
                   >
-                    <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name ?? "—"}</TableCell>
-                    <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.sku ?? "—"}</TableCell>
-                    <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.category ?? "—"}</TableCell>
-
-                    {/* $ with no decimals */}
-                    <TableCell align="left" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.sale_price != null ? `$${Number(r.sale_price)}` : "—"}
+                    <TableCell
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {r.name ?? "—"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {r.sku ?? "—"}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {r.category ?? "—"}
                     </TableCell>
 
-                    <TableCell align="left" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.quantity != null ? nfQty.format(Number(r.quantity)) : "—"}
+                    {!isWarehouse && (
+                      <TableCell
+                        align="left"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {r.sale_price != null
+                          ? nfMoney.format(Number(r.sale_price))
+                          : "—"}
+                      </TableCell>
+                    )}
+
+                    <TableCell
+                      align="left"
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {r.quantity != null
+                        ? nfQty.format(Number(r.quantity))
+                        : "—"}
                     </TableCell>
 
-                    <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.location ?? "—"}</TableCell>
-                    <TableCell sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.status ?? "—"}</TableCell>
+                    {!isBranch && (
+                      <TableCell
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {nameToLabel.get(r.location) || r.location || "—"}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -449,15 +602,30 @@ export default function ProductsTable() {
       </Paper>
 
       {/* Pagination */}
-      <Box sx={{ mt: 2, display: "flex", justifyContent: "center", alignItems: "center", p: 1.25 }}>
+      <Box
+        sx={{
+          mt: 2,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          p: 1.25,
+        }}
+      >
         <Pagination
-          count={pageCount}
+          count={
+            typeof total === "number"
+              ? Math.max(1, Math.ceil(total / pageSize))
+              : 10
+          }
           page={page}
           onChange={(_, p) => setPage(p)}
           variant="outlined"
           shape="rounded"
           sx={{
-            "& .MuiPaginationItem-root": { color: "black", borderColor: "black" },
+            "& .MuiPaginationItem-root": {
+              color: "black",
+              borderColor: "black",
+            },
             "& .Mui-selected": {
               bgcolor: "black !important",
               color: "white !important",
@@ -467,10 +635,10 @@ export default function ProductsTable() {
         />
       </Box>
 
-      {/* ===== Filter Dialog ===== */}
+      {/* Filters dialog (same design) */}
       <Dialog
         open={dialogOpen}
-        onClose={closeFilters}
+        onClose={() => setDialogOpen(false)}
         fullWidth
         maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -489,21 +657,24 @@ export default function ProductsTable() {
 
         <DialogContent dividers sx={{ bgcolor: "common.white", p: 2.5 }}>
           <Stack spacing={2.5}>
-            {/* Section: Inventory */}
             <Box sx={sectionBoxSx}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                 Inventory
               </Typography>
 
               {/* Quantity */}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} sx={{ mb: 1.5 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.25}
+                sx={{ mb: 1.5 }}
+              >
                 <TextField
                   select
                   label="Qty operator"
                   size="small"
                   value={qtyOp}
                   onChange={(e) => setQtyOp(e.target.value)}
-                sx={{ minWidth: 160, ...bwFieldSx }}
+                  sx={{ minWidth: 160, ...bwFieldSx }}
                 >
                   <MenuItem value="">Any</MenuItem>
                   <MenuItem value="eq">=</MenuItem>
@@ -543,56 +714,58 @@ export default function ProductsTable() {
                 )}
               </Stack>
 
-              {/* Sale price */}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-                <TextField
-                  select
-                  label="Price operator"
-                  size="small"
-                  value={spOp}
-                  onChange={(e) => setSpOp(e.target.value)}
-                  sx={{ minWidth: 160, ...bwFieldSx }}
-                >
-                  <MenuItem value="">Any</MenuItem>
-                  <MenuItem value="eq">=</MenuItem>
-                  <MenuItem value="gte">≥</MenuItem>
-                  <MenuItem value="lte">≤</MenuItem>
-                  <MenuItem value="between">Between</MenuItem>
-                </TextField>
+              {/* Price – hidden for warehouse */}
+              {!isWarehouse && (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
+                  <TextField
+                    select
+                    label="Price operator"
+                    size="small"
+                    value={spOp}
+                    onChange={(e) => setSpOp(e.target.value)}
+                    sx={{ minWidth: 160, ...bwFieldSx }}
+                  >
+                    <MenuItem value="">Any</MenuItem>
+                    <MenuItem value="eq">=</MenuItem>
+                    <MenuItem value="gte">≥</MenuItem>
+                    <MenuItem value="lte">≤</MenuItem>
+                    <MenuItem value="between">Between</MenuItem>
+                  </TextField>
 
-                {spOp === "between" ? (
-                  <>
+                  {spOp === "between" ? (
+                    <>
+                      <TextField
+                        label="Min"
+                        type="number"
+                        size="small"
+                        value={spMin}
+                        onChange={(e) => setSpMin(e.target.value)}
+                        sx={bwFieldSx}
+                      />
+                      <TextField
+                        label="Max"
+                        type="number"
+                        size="small"
+                        value={spMax}
+                        onChange={(e) => setSpMax(e.target.value)}
+                        sx={bwFieldSx}
+                      />
+                    </>
+                  ) : (
                     <TextField
-                      label="Min $"
+                      label="Price"
                       type="number"
                       size="small"
                       value={spMin}
                       onChange={(e) => setSpMin(e.target.value)}
                       sx={bwFieldSx}
                     />
-                    <TextField
-                      label="Max $"
-                      type="number"
-                      size="small"
-                      value={spMax}
-                      onChange={(e) => setSpMax(e.target.value)}
-                      sx={bwFieldSx}
-                    />
-                  </>
-                ) : (
-                  <TextField
-                    label="Price $"
-                    type="number"
-                    size="small"
-                    value={spMin}
-                    onChange={(e) => setSpMin(e.target.value)}
-                    sx={bwFieldSx}
-                  />
-                )}
-              </Stack>
+                  )}
+                </Stack>
+              )}
             </Box>
 
-            {/* Section: Attributes */}
+            {/* Attributes */}
             <Box sx={sectionBoxSx}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                 Attributes
@@ -600,10 +773,10 @@ export default function ProductsTable() {
 
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
                 <TextField
-                  inputRef={categoryRef}
                   label="Category"
                   select
-                  defaultValue={filters.category}
+                  value={categorySel}
+                  onChange={(e) => setCategorySel(e.target.value)}
                   size="small"
                   fullWidth
                   disabled={metaLoading}
@@ -611,50 +784,36 @@ export default function ProductsTable() {
                 >
                   <MenuItem value="">Any</MenuItem>
                   {categories.map((c) => (
-                    <MenuItem key={c} value={c}>{c}</MenuItem>
+                    <MenuItem key={c} value={c}>
+                      {c}
+                    </MenuItem>
                   ))}
                 </TextField>
 
-                {/* Location filter is ONLY visible for Owner */}
-                {role === ROLE.OWNER && (
+                {(isOwner || isWarehouse) && (
                   <TextField
-                    inputRef={locationRef}
                     label="Location"
                     select
-                    defaultValue={filters.location}
+                    value={locationLabelSel}
+                    onChange={(e) => setLocationLabelSel(e.target.value)}
                     size="small"
                     fullWidth
                     disabled={metaLoading}
                     sx={bwFieldSx}
                   >
                     <MenuItem value="">Any</MenuItem>
-                    {locations.map((l) => (
-                      <MenuItem key={l} value={l}>{l}</MenuItem>
+                    {(isOwner ? locations : warehouseOnlyLocations).map((l) => (
+                      <MenuItem key={l.name} value={l.location_name || l.name}>
+                        {l.location_name || l.name}
+                      </MenuItem>
                     ))}
                   </TextField>
                 )}
-
-                <TextField
-                  inputRef={statusRef}
-                  label="Status"
-                  select
-                  defaultValue={filters.status}
-                  size="small"
-                  fullWidth
-                  disabled={metaLoading}
-                  sx={bwFieldSx}
-                >
-                  <MenuItem value="">Any</MenuItem>
-                  {statuses.map((s) => (
-                    <MenuItem key={s} value={s}>{s}</MenuItem>
-                  ))}
-                </TextField>
               </Stack>
             </Box>
           </Stack>
         </DialogContent>
 
-        {/* Sticky footer */}
         <DialogActions
           sx={{
             position: "sticky",
@@ -682,7 +841,7 @@ export default function ProductsTable() {
           </Button>
           <Box sx={{ flex: 1 }} />
           <Button
-            onClick={closeFilters}
+            onClick={() => setDialogOpen(false)}
             color="inherit"
             variant="outlined"
             sx={{

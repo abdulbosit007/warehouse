@@ -5,15 +5,20 @@ import {
   ClipboardList,
   Clock,
   Users,
-  Package,
   User,
   UserCircle,
   Wrench,
 } from "lucide-react";
 
-// WAREHOUSE LINKS
+/* -----------------------------
+   WAREHOUSE LINKS
+----------------------------- */
 export const warehouseLinks = [
-  { to: "/warehouse/home", label: "Home", icon: <Home className="w-4 h-4" /> },
+  {
+    to: "/warehouse/home",
+    label: "Home",
+    icon: <Home className="w-4 h-4" />,
+  },
   {
     to: "/warehouse/branch-requests",
     label: "Branch Requests",
@@ -36,8 +41,15 @@ export const warehouseLinks = [
   },
 ];
 
+/* -----------------------------
+   OWNER LINKS
+----------------------------- */
 export const ownerLinks = [
-  { to: "/owner/home", label: "Home", icon: <Home className="w-4 h-4" /> },
+  {
+    to: "/owner/home",
+    label: "Home",
+    icon: <Home className="w-4 h-4" />,
+  },
   {
     to: "/owner/requests",
     label: "Requests",
@@ -65,31 +77,39 @@ export const ownerLinks = [
   },
 ];
 
-// BRANCH LINKS — pass branchId
-export const branchLinks = (branchId) => [
-  {
-    to: `/branch/${branchId}/home`,
-    label: "Home",
-    icon: <Home className="w-4 h-4" />,
-  },
-  {
-    to: `/branch/${branchId}/requests`,
-    label: "Requests",
-    icon: <ClipboardList className="w-4 h-4" />,
-  },
-  {
-    to: `/branch/${branchId}/branch-requests`,
-    label: "Branch Requests",
-    icon: <GitBranch className="w-4 h-4" />,
-  },
-  {
-    to: `/branch/${branchId}/history`,
-    label: "History",
-    icon: <Clock className="w-4 h-4" />,
-  },
-  {
-    to: `/branch/${branchId}/profile`,
-    label: "Profile",
-    icon: <UserCircle className="w-4 h-4" />,
-  },
-];
+/* -----------------------------
+   BRANCH LINKS
+   - Accepts optional branchId
+   - Safely falls back to `/branch` if undefined
+----------------------------- */
+export const branchLinks = (branchId) => {
+  // ensure we never render links like "undefined/home"
+  const base = branchId ? `/branch/${branchId}` : "/branch";
+  return [
+    {
+      to: `${base}/home`,
+      label: "Home",
+      icon: <Home className="w-4 h-4" />,
+    },
+    {
+      to: `${base}/requests`,
+      label: "Requests",
+      icon: <ClipboardList className="w-4 h-4" />,
+    },
+    {
+      to: `${base}/branch-requests`,
+      label: "Branch Requests",
+      icon: <GitBranch className="w-4 h-4" />,
+    },
+    {
+      to: `${base}/history`,
+      label: "History",
+      icon: <Clock className="w-4 h-4" />,
+    },
+    {
+      to: `${base}/profile`,
+      label: "Profile",
+      icon: <UserCircle className="w-4 h-4" />,
+    },
+  ];
+};

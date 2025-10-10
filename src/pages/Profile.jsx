@@ -1,3 +1,4 @@
+// src/pages/Profile.jsx
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
@@ -7,17 +8,27 @@ import { CircularProgress } from "@mui/material";
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { loading, error, authUser, userRow } = useCurrentUser();
+  const { loading, error, authUser, userRow, roleBase, locationName } =
+    useCurrentUser();
 
-  // Redirect if not logged in (after loading)
   useEffect(() => {
-    if (!loading && !authUser) navigate("/");
+    if (!loading && !authUser) navigate("/signin", { replace: true });
   }, [loading, authUser, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/signin", { replace: true });
   };
+
+  // prettify role label for card
+  const roleLabel =
+    roleBase === "owner"
+      ? "Owner"
+      : roleBase === "warehouse"
+      ? "Warehouse"
+      : roleBase === "branch"
+      ? "Branch"
+      : "Unknown";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -42,10 +53,10 @@ export default function Profile() {
         {!loading && !error && authUser && (
           <div className="flex justify-center">
             <ProfileCard
-              name={userRow?.name}
+              name={userRow?.name || authUser?.user_metadata?.full_name}
               email={authUser?.email}
-              role={userRow?.role}
-              branch={userRow?.branch ?? null}
+              role={roleLabel} // Owner / Warehouse / Branch
+              branch={locationName || "—"} // from roles.actual_name
               onLogout={handleLogout}
             />
           </div>

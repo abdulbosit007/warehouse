@@ -1,1 +1,1 @@
-export default function OwnerRequests() {}
+export default function BranchRequests() {}
