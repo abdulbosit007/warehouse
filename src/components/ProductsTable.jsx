@@ -170,7 +170,6 @@ export default function ProductsTable() {
 
     if (isWarehouse) {
       const pickedName = labelToName.get(locationLabelSel || "") || "";
-      console.log(base);
       // eslint-disable-next-line no-unused-vars
       const { sale_price, salePriceOp, salePriceMin, salePriceMax, ...rest } =
         base; // hide price filter for WH
@@ -211,8 +210,14 @@ export default function ProductsTable() {
     return rows.filter((r) => allow.has(r.location));
   }, [rows, isWarehouse, warehouseNames]);
 
-  // single “global” loading: пока не готовы роль, мета, данные — показываем один экран
-  const ready = !!roleBase && !userLoading && !metaLoading && !loading;
+  // keep the table on screen after the first successful load
+  const [hasDataOnce, setHasDataOnce] = useState(false);
+  useEffect(() => {
+    if (!loading) setHasDataOnce(true);
+  }, [loading]);
+
+  // single “global” loading only once (first render). Afterwards keep table visible even while loading new data
+  const ready = !!roleBase && !userLoading && !metaLoading && hasDataOnce;
 
   // apply/clear
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -310,7 +315,7 @@ export default function ProductsTable() {
   ];
   const colCount = columns.length;
 
-  // --- SINGLE GLOBAL LOADING SCREEN ---
+  // --- SINGLE GLOBAL LOADING SCREEN (only on first mount) ---
   if (!ready) {
     return (
       <div className="min-h-[50vh] grid place-items-center">
@@ -319,7 +324,7 @@ export default function ProductsTable() {
     );
   }
 
-  // --- MAIN RENDER (once everything is ready) ---
+  // --- MAIN RENDER (kept visible while subsequent searches load) ---
   return (
     <Stack spacing={2}>
       {userErr && <Alert severity="error">{userErr}</Alert>}

@@ -1,3 +1,4 @@
+// src/pages/owner/UserManagement.jsx
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -52,8 +53,8 @@ function BWSelect({ value, onChange, children }) {
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState([]); // rows to show
-  const [roles, setRoles] = useState([]); // [{id, name, actual_name}]
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]); // [{id,name,actual_name}]
   const [loading, setLoading] = useState(true);
 
   const [newUser, setNewUser] = useState({
@@ -68,6 +69,7 @@ export default function UserManagement() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // ---------- Load data ----------
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -105,7 +107,7 @@ export default function UserManagement() {
       (res.data || []).map((r) => ({
         user_id: r.user_id,
         name: r.name,
-        email: null, // not exposed from auth on client; keep UI column but show "—"
+        email: null, // not exposed here
         is_approved: r.is_approved,
         role_id: r.roles?.id ?? null,
         role_name: r.roles?.name ?? null,
@@ -114,12 +116,84 @@ export default function UserManagement() {
     );
   };
 
+  // ---------- Helpers ----------
+  const inputClass =
+    "w-full rounded-lg border border-black px-3 py-2 text-gray-900 placeholder-gray-500 " +
+    "focus:outline-none focus:ring-0 focus:border-black hover:border-gray-500 transition-colors";
+  const labelClass = "text-sm text-gray-600";
+
+  const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
+  const selectedRole = roleById.get(newUser.roleId);
+  const isBranchRole = (selectedRole?.name || "")
+    .toLowerCase()
+    .startsWith("branch");
+
+  const ownerOptions = useMemo(
+    () => roles.filter((r) => r.name.toLowerCase() === "owner"),
+    [roles]
+  );
+  const warehouseOptions = useMemo(
+    () => roles.filter((r) => r.name.toLowerCase() === "warehouse"),
+    [roles]
+  );
+  const branchOptions = useMemo(
+    () => roles.filter((r) => r.name.toLowerCase().startsWith("branch")),
+    [roles]
+  );
+
+  const roleLabel = (r) =>
+    r.name.toLowerCase() === "owner"
+      ? "Owner"
+      : r.name.toLowerCase() === "warehouse"
+      ? "Warehouse"
+      : r.name;
+
+  // Resolve a location id purely by role_id → locations.role_id
+  async function resolveLocationIdByRole(roleId) {
+    // Fetch all locations for this role id
+    const { data, error } = await supabase
+      .from("locations")
+      .select("id, location_name, name, kind")
+      .eq("role_id", roleId)
+      .order("location_name", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    const rows = data || [];
+    if (rows.length === 0) {
+      // Nothing wired → the DB needs one location row linked to this role
+      return { id: null, pickedLabel: null, reason: "none" };
+    }
+    if (rows.length === 1) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        pickedLabel: r.location_name || r.name || r.id,
+        reason: "single",
+      };
+    }
+    // Multiple matches → pick first deterministically (document it)
+    const r = rows[0];
+    return {
+      id: r.id,
+      pickedLabel: r.location_name || r.name || r.id,
+      reason: "multiple_first",
+    };
+  }
+
   const resetForm = () => {
-    setNewUser({ email: "", name: "", roleId: "", is_approved: true });
+    setNewUser({
+      email: "",
+      name: "",
+      roleId: "",
+      is_approved: true,
+    });
     setError("");
     setSuccess("");
   };
 
+  // ---------- Create user (auto-assign location for branch roles) ----------
   const handleCreateUser = async () => {
     setError("");
     setSuccess("");
@@ -136,7 +210,7 @@ export default function UserManagement() {
 
     setSubmitting(true);
     try {
-      // Ask Postgres (RPC) to look up auth.users.id for this email
+      // Optional: link to auth.users by email
       const { data: foundAuthId, error: rpcErr } = await supabase.rpc(
         "lookup_auth_uuid",
         { p_email: email }
@@ -146,14 +220,30 @@ export default function UserManagement() {
         return;
       }
 
-      // Build the insert payload
+      let locationIdToUse = null;
+      let pickedLabel = null;
+      let pickReason = null;
+
+      if (isBranchRole) {
+        const resolved = await resolveLocationIdByRole(newUser.roleId);
+        locationIdToUse = resolved.id;
+        pickedLabel = resolved.pickedLabel;
+        pickReason = resolved.reason;
+
+        if (!locationIdToUse) {
+          setError(
+            "No location is linked to this branch role. Please create a row in `locations` with role_id = selected role."
+          );
+          return;
+        }
+      }
+
       const insertPayload = {
         user_id: foundAuthId ?? null, // copy auth UUID if present
         name: newUser.name.trim(),
         is_approved: newUser.is_approved,
         user_role: newUser.roleId, // FK → roles.id
-        // If you added an email column to users_list, include it here:
-        // email,
+        location_id: locationIdToUse, // null for owner/warehouse
       };
 
       const { error: insertError } = await supabase
@@ -165,10 +255,17 @@ export default function UserManagement() {
         return;
       }
 
+      let extra =
+        isBranchRole && pickedLabel
+          ? pickReason === "multiple_first"
+            ? ` Location auto-assigned to "${pickedLabel}" (first of multiple matches).`
+            : ` Location auto-assigned to "${pickedLabel}".`
+          : "";
+
       setSuccess(
-        foundAuthId
+        (foundAuthId
           ? "User added and linked to existing Auth account."
-          : "User added without Auth link (no matching email in auth.users)."
+          : "User added without Auth link.") + extra
       );
       setShowForm(false);
       resetForm();
@@ -178,6 +275,7 @@ export default function UserManagement() {
     }
   };
 
+  // ---------- Approve toggle ----------
   const toggleApprove = async (row) => {
     setError("");
     setSuccess("");
@@ -206,32 +304,7 @@ export default function UserManagement() {
     }
   };
 
-  // ---- UI helpers ----
-  const inputClass =
-    "w-full rounded-lg border border-black px-3 py-2 text-gray-900 placeholder-gray-500 " +
-    "focus:outline-none focus:ring-0 focus:border-black hover:border-gray-500 transition-colors";
-  const labelClass = "text-sm text-gray-600";
-
-  const ownerOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase() === "owner"),
-    [roles]
-  );
-  const warehouseOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase() === "warehouse"),
-    [roles]
-  );
-  const branchOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase().startsWith("branch")),
-    [roles]
-  );
-
-  const roleLabel = (r) =>
-    r.name.toLowerCase() === "owner"
-      ? "Owner"
-      : r.name.toLowerCase() === "warehouse"
-      ? "Warehouse"
-      : r.name;
-
+  // ---------- UI ----------
   return (
     <div className="min-h-screen">
       <div className="w-full max-w-6xl mx-auto">
@@ -460,7 +533,8 @@ export default function UserManagement() {
                     ))}
                   </BWSelect>
                   <p className="mt-1 text-xs text-gray-500">
-                    Branch options come from <code>roles.actual_name</code>.
+                    Location is assigned automatically from the selected branch
+                    role.
                   </p>
                 </div>
               </div>
