@@ -9,8 +9,8 @@ export default function OwnerHome() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-3">
-          <CircularProgress style={{ color: "black" }} />
-          <div className="text-gray-700">Loading user…</div>
+          <CircularProgress style={{ color: "#4f46e5" }} />
+          <div className="text-gray-400">Loading user…</div>
         </div>
       </div>
     );

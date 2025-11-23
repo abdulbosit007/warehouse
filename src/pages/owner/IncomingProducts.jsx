@@ -9,6 +9,21 @@ import {
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 
+// 🔵 ProductsTable dagi kabi premium table uchun MUI importlar
+import {
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  Typography,
+} from "@mui/material";
+
+const INDIGO = "#4f46e5";
+
 function OriginModal({ open, onClose, onSelect }) {
   if (!open) return null;
   return (
@@ -175,7 +190,6 @@ export default function IncomingBatches() {
       }
 
       await createBatch({
-        // ✅ use Auth UUID stored in users_list.user_id
         created_by: userRow?.user_id ?? null,
         origin, // 'chinese' | 'uzbek'
       });
@@ -226,105 +240,146 @@ export default function IncomingBatches() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border bg-white">
-        <table className="min-w-full table-fixed divide-y">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Origin
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Draft
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Sent
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Approved
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Rejected
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Created
-              </th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
+      {/* 🔵 ProductsTable dagi premium MUI table UI */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 0,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          overflow: "hidden",
+          bgcolor: "common.white",
+        }}
+      >
+        <TableContainer>
+          <Table
+            size="small"
+            stickyHeader
+            aria-label="Incoming batches table"
+            sx={{
+              tableLayout: "fixed",
+              width: "100%",
+              "& th, & td": { p: "10px 16px" },
+            }}
+          >
+            <colgroup>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <col
+                  key={i}
+                  style={{ width: `calc(100% / 8)` }}
+                />
+              ))}
+            </colgroup>
 
-          <tbody className="divide-y">
-            {rows.map((r) => {
-              const canDelete =
-                (r.sent_count ?? 0) +
-                  (r.approved_count ?? 0) +
-                  (r.rejected_count ?? 0) ===
-                0;
+            <TableHead>
+              <TableRow
+                sx={{
+                  "& th": {
+                    bgcolor: INDIGO,
+                    color: "common.white",
+                    borderBottom: "1px solid",
+                    borderColor: INDIGO,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                  },
+                }}
+              >
+                <TableCell>Origin</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Draft</TableCell>
+                <TableCell>Sent</TableCell>
+                <TableCell>Approved</TableCell>
+                <TableCell>Rejected</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell align="right" />
+              </TableRow>
+            </TableHead>
 
-              return (
-                <tr
-                  key={r.id}
-                  tabIndex={0}
-                  role="button"
-                  onClick={() => navigate(`/owner/batch/${r.id}`)}
-                  onKeyDown={(e) => onRowKey(e, r.id)}
-                  className="cursor-pointer hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3 align-middle">
-                    {chipForOrigin(r.origin)}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {chipForStatus(r.status)}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {r.draft_count ?? 0}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {r.sent_count ?? 0}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {r.approved_count ?? 0}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {r.rejected_count ?? 0}
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    {fmtDate(r.created_at)}
-                  </td>
-                  <td className="px-4 py-3 align-middle text-right">
-                    {canDelete && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(r);
-                        }}
-                        className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50"
+            <TableBody>
+              {rows.map((r) => {
+                const canDelete =
+                  (r.sent_count ?? 0) +
+                    (r.approved_count ?? 0) +
+                    (r.rejected_count ?? 0) ===
+                  0;
+
+                return (
+                  <TableRow
+                    key={r.id}
+                    tabIndex={0}
+                    role="button"
+                    hover
+                    onClick={() => navigate(`/owner/batch/${r.id}`)}
+                    onKeyDown={(e) => onRowKey(e, r.id)}
+                    sx={{
+                      cursor: "pointer",
+                      bgcolor: "white",
+                      "&:hover": { bgcolor: "grey.100" },
+                    }}
+                  >
+                    <TableCell>
+                      {chipForOrigin(r.origin)}
+                    </TableCell>
+                    <TableCell>
+                      {chipForStatus(r.status)}
+                    </TableCell>
+                    <TableCell>{r.draft_count ?? 0}</TableCell>
+                    <TableCell>{r.sent_count ?? 0}</TableCell>
+                    <TableCell>{r.approved_count ?? 0}</TableCell>
+                    <TableCell>{r.rejected_count ?? 0}</TableCell>
+                    <TableCell>{fmtDate(r.created_at)}</TableCell>
+                    <TableCell align="right">
+                      {canDelete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // navigatsiyani to‘xtatish
+                            handleDelete(r);
+                          }}
+                          className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+
+              {rows.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={8} sx={{ bgcolor: "white" }}>
+                    <Box sx={{ py: 3, textAlign: "center" }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
                       >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+                        No batches yet.
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-            {rows.length === 0 && !loading && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-4 py-6 text-center text-sm text-gray-500"
-                >
-                  No batches yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {loading && <div className="p-6 text-center text-sm">Loading...</div>}
-      </div>
+        {loading && (
+          <Box sx={{ p: 2, textAlign: "center" }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              Loading...
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
       <OriginModal
         open={modalOpen}

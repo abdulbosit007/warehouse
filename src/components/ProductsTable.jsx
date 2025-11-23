@@ -36,23 +36,33 @@ import useCurrentUser from "../hooks/useCurrentUser";
 const nfQty = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 const nfMoney = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
+const INDIGO = "#4f46e5";
+
 const bwFieldSx = {
-  "& .MuiOutlinedInput-root": { borderRadius: 2 },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "black !important" },
+  "& .MuiOutlinedInput-root": {
+    borderRadius: 2,
+    bgcolor: "grey.50",
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "grey.300",
+  },
   "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "black !important",
+    borderColor: "grey.300",
   },
   "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "black !important",
+    borderColor: INDIGO,
     borderWidth: 1,
   },
-  "& .MuiInputLabel-root.Mui-focused": { color: "black !important" },
+  "& .MuiInputLabel-root": {
+    color: "grey.600",
+  },
+  "& .MuiInputLabel-root.Mui-focused": { color: INDIGO },
 };
 
 const sectionBoxSx = {
   border: "1px solid",
-  borderColor: "common.black",
-  borderRadius: 2,
+  borderColor: "grey.200",
+  borderRadius: 2.5,
   p: 2,
   bgcolor: "common.white",
 };
@@ -319,7 +329,7 @@ export default function ProductsTable() {
   if (!ready) {
     return (
       <div className="min-h-[50vh] grid place-items-center">
-        <div className="text-sm text-neutral-800">Loading…</div>
+        <div className="text-sm text-gray-400">Loading…</div>
       </div>
     );
   }
@@ -373,24 +383,49 @@ export default function ProductsTable() {
             }}
             sx={{
               width: { xs: "100%", sm: 320 },
-              "& .MuiOutlinedInput-root": { borderRadius: 2 },
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+              },
+
+              // Default border
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "grey.400",
+              },
+
+              // Hover
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#4f46e5",
+              },
+
+              // Focus (click qilganda)
+              "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                {
+                  borderColor: "#4f46e5",
+                  borderWidth: "2px",
+                },
+
+              // Label focus rangini ham premium qilamiz
+              "& .MuiInputLabel-root.Mui-focused": {
+                color: "#4f46e5",
+              },
             }}
           />
 
-          <Tooltip title="Filters">
+          <Tooltip>
             <IconButton
               onClick={() => setDialogOpen(true)}
               aria-label="Open filters"
               sx={{
                 border: "1px solid",
-                borderColor: "common.black",
-                bgcolor: hasAnyFilter ? "common.black" : "transparent",
-                color: hasAnyFilter ? "common.white" : "common.black",
+                borderColor: "grey.400",
+                bgcolor: hasAnyFilter ? "grey.200" : "transparent",
+                color: hasAnyFilter ? "common.white" : "grey",
                 borderRadius: 2,
                 "&:hover": {
-                  bgcolor: "common.black",
+                  bgcolor: "#4f46e5",
                   color: "common.white",
-                  borderColor: "common.black",
+                  borderColor: "grey.200",
                 },
               }}
             >
@@ -491,10 +526,10 @@ export default function ProductsTable() {
               <TableRow
                 sx={{
                   "& th": {
-                    bgcolor: "common.black",
+                    bgcolor: "#4f46e5",
                     color: "common.white",
                     borderBottom: "1px solid",
-                    borderColor: "common.black",
+                    borderColor: "#4f46e5",
                     fontWeight: 600,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -629,41 +664,74 @@ export default function ProductsTable() {
           sx={{
             "& .MuiPaginationItem-root": {
               color: "black",
-              borderColor: "black",
+              borderColor: "grey.200",
+            },
+            "& .MuiPaginationItem-root:hover": {
+              bgcolor: "grey.200", // engil hover (ixtiyoriy)
             },
             "& .Mui-selected": {
-              bgcolor: "black !important",
+              bgcolor: "#4f46e5 !important", // indigo-600
               color: "white !important",
-              borderColor: "black",
+              borderColor: "grey.200",
+            },
+            "& .Mui-selected:hover": {
+              bgcolor: "#4f46e5 !important",
             },
           }}
         />
       </Box>
 
       {/* Filters dialog (same design) */}
+      {/* Filters dialog (premium UI) */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            overflow: "hidden",
+            border: "1px solid",
+            borderColor: "grey.200",
+          },
+        }}
       >
         <DialogTitle
           sx={{
             bgcolor: "common.white",
             color: "common.black",
             fontWeight: 600,
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
+            fontSize: 16,
+            px: 3,
+            py: 2,
+            borderBottom: "1px solid",
+            borderColor: "grey.200",
           }}
         >
           Filter products
         </DialogTitle>
 
-        <DialogContent dividers sx={{ bgcolor: "common.white", p: 2.5 }}>
-          <Stack spacing={2.5}>
+        <DialogContent
+          dividers={false}
+          sx={{
+            bgcolor: "grey.50",
+            px: 3,
+            py: 2.5,
+          }}
+        >
+          <Stack spacing={2.5} sx={{ pt: 2.5 }}>
+            {/* Inventory section */}
             <Box sx={sectionBoxSx}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mb: 1.5,
+                  fontWeight: 700,
+                  color: "grey.800",
+                  letterSpacing: 0.2,
+                }}
+              >
                 Inventory
               </Typography>
 
@@ -770,9 +838,17 @@ export default function ProductsTable() {
               )}
             </Box>
 
-            {/* Attributes */}
+            {/* Attributes section */}
             <Box sx={sectionBoxSx}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mb: 1.5,
+                  fontWeight: 700,
+                  color: "grey.800",
+                  letterSpacing: 0.2,
+                }}
+              >
                 Attributes
               </Typography>
 
@@ -825,9 +901,9 @@ export default function ProductsTable() {
             bottom: 0,
             bgcolor: "common.white",
             borderTop: "1px solid",
-            borderColor: "common.black",
-            px: 2,
-            py: 1.5,
+            borderColor: "grey.200",
+            px: 2.5,
+            py: 1.75,
             gap: 1,
           }}
         >
@@ -836,9 +912,14 @@ export default function ProductsTable() {
             color="inherit"
             variant="outlined"
             sx={{
-              borderColor: "common.black",
-              color: "common.black",
-              "&:hover": { borderColor: "common.black", bgcolor: "grey.100" },
+              borderColor: "grey.300",
+              color: "grey.800",
+              borderRadius: 999,
+              px: 2.5,
+              "&:hover": {
+                borderColor: "grey.400",
+                bgcolor: "grey.100",
+              },
             }}
             startIcon={<ClearRoundedIcon />}
           >
@@ -850,9 +931,14 @@ export default function ProductsTable() {
             color="inherit"
             variant="outlined"
             sx={{
-              borderColor: "common.black",
-              color: "common.black",
-              "&:hover": { borderColor: "common.black", bgcolor: "grey.100" },
+              borderColor: "grey.300",
+              color: "grey.800",
+              borderRadius: 999,
+              px: 2.5,
+              "&:hover": {
+                borderColor: "grey.400",
+                bgcolor: "grey.100",
+              },
             }}
           >
             Cancel
@@ -861,9 +947,15 @@ export default function ProductsTable() {
             onClick={applyFilters}
             variant="contained"
             sx={{
-              bgcolor: "common.black",
+              bgcolor: INDIGO,
               color: "common.white",
-              "&:hover": { bgcolor: "common.black" },
+              borderRadius: 999,
+              px: 3,
+              boxShadow: "0 10px 22px rgba(79, 70, 229, 0.35)",
+              "&:hover": {
+                bgcolor: INDIGO,
+                boxShadow: "0 12px 26px rgba(79, 70, 229, 0.45)",
+              },
             }}
           >
             Apply
