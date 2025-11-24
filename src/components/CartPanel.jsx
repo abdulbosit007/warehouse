@@ -146,7 +146,7 @@ export default function CartPanel({
           <button
             onClick={onCommitSale}
             disabled={!cartValid}
-            className="w-full rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="w-full rounded-xl bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white"
           >
             Commit Sale
           </button>
@@ -154,7 +154,7 @@ export default function CartPanel({
           <button
             onClick={onCommitLoan}
             disabled={!loanValid}
-            className="w-full rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="w-full rounded-xl bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white"
           >
             Commit Loan
           </button>

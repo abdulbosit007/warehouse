@@ -205,7 +205,7 @@ export default function InlineSearchAdd({
           <button
             type="button"
             onClick={createBlankRow}
-            className="rounded-lg bg-gray-900 px-4 py-2 text-white"
+            className="rounded-lg bg-[#4f46e5] px-4 py-2 text-white"
             disabled={!hasText}
             title={!hasText ? "Type a SKU or name first" : "Add as blank row"}
           >

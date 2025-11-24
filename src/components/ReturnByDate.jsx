@@ -150,7 +150,7 @@ export default function ReturnByDate({
           <button
             onClick={submitReturn}
             disabled={!returnValid}
-            className="rounded-lg bg-black px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-[#4f46e5] px-3 py-1.5 text-sm font-semibold text-white"
           >
             Commit Return
           </button>

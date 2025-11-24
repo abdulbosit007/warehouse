@@ -4,19 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 
+const BRAND = "#4f46e5";
+
 const STATUS_META = {
   draft: { label: "Draft", className: "bg-slate-100 text-slate-700" },
-  sent: { label: "Sent", className: "bg-blue-100 text-blue-700" },
-  approved: { label: "Approved", className: "bg-emerald-100 text-emerald-700" },
+  sent: { label: "Sent", className: "bg-blue-50 text-blue-700" },
+  approved: {
+    label: "Approved",
+    className: "bg-emerald-50 text-emerald-700",
+  },
   partially_approved: {
     label: "Partially approved",
-    className: "bg-amber-100 text-amber-700",
+    className: "bg-amber-50 text-amber-700",
   },
-  rejected: { label: "Rejected", className: "bg-red-100 text-red-700" },
-  cancelled: { label: "Cancelled", className: "bg-zinc-100 text-zinc-600" },
+  rejected: { label: "Rejected", className: "bg-red-50 text-red-700" },
+  cancelled: { label: "Cancelled", className: "bg-zinc-50 text-zinc-600" },
   completed: {
     label: "Completed",
-    className: "bg-emerald-100 text-emerald-700",
+    className: "bg-emerald-50 text-emerald-700",
   },
 };
 
@@ -124,11 +129,11 @@ export default function BranchRequests() {
     "—";
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="mx-auto max-w-6xl px-4 py-6 space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Branch Requests
           </h1>
           <p className="text-sm text-neutral-500">
@@ -138,40 +143,25 @@ export default function BranchRequests() {
         </div>
 
         {/* Tabs */}
-        <div className="inline-flex rounded-full border border-neutral-200 bg-neutral-50 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab("request")}
-            className={`rounded-full px-3 py-1 font-medium transition ${
-              activeTab === "request"
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
-            }`}
-          >
-            Requesting
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("receive")}
-            className={`rounded-full px-3 py-1 font-medium transition ${
-              activeTab === "receive"
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
-            }`}
-          >
-            Receiving
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("history")}
-            className={`rounded-full px-3 py-1 font-medium transition ${
-              activeTab === "history"
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
-            }`}
-          >
-            History
-          </button>
+        <div className="inline-flex rounded-full border border-neutral-200 bg-white p-1 text-xs shadow-sm">
+          {[
+            ["request", "Requesting"],
+            ["receive", "Receiving"],
+            ["history", "History"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
+                activeTab === key
+                  ? "bg-[#4f46e5] text-white shadow-sm"
+                  : "text-neutral-700 hover:bg-slate-100"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -284,7 +274,7 @@ function RequestingView({ branchLocation, userRow }) {
       .eq("id", id)
       .single();
 
-    if (error) {
+  if (error) {
       console.error("Error loading request details:", error);
       setDetailsLoading(false);
       return;
@@ -350,7 +340,7 @@ function RequestingView({ branchLocation, userRow }) {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5] hover:border-neutral-400"
           >
             <option value="">All statuses</option>
             <option value="draft">Draft</option>
@@ -365,7 +355,7 @@ function RequestingView({ branchLocation, userRow }) {
           <button
             type="button"
             onClick={handleCreateDraft}
-            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+            className="rounded-xl bg-[#4f46e5] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#4338ca] active:scale-[.99] transition"
           >
             + New request
           </button>
@@ -383,7 +373,7 @@ function RequestingView({ branchLocation, userRow }) {
         ) : (
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+              <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
                 <th className="px-4 py-2 text-left">Date</th>
                 <th className="px-4 py-2 text-center">Items</th>
                 <th className="px-4 py-2 text-center">Total qty</th>
@@ -400,7 +390,7 @@ function RequestingView({ branchLocation, userRow }) {
                 return (
                   <tr
                     key={r.id}
-                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-neutral-50"
+                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-slate-50"
                     onClick={() => handleOpenRequest(r.id)}
                   >
                     <td className="px-4 py-2">
@@ -555,7 +545,7 @@ function ReceivingView({ branchLocation, userRow }) {
         ) : (
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+              <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
                 <th className="px-4 py-2 text-left">Date</th>
                 <th className="px-4 py-2 text-center">Items</th>
                 <th className="px-4 py-2 text-center">Approved qty</th>
@@ -576,7 +566,7 @@ function ReceivingView({ branchLocation, userRow }) {
                 return (
                   <tr
                     key={r.id}
-                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-neutral-50"
+                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-slate-50"
                     onClick={() => handleOpenRequest(r.id)}
                   >
                     <td className="px-4 py-2">
@@ -683,7 +673,7 @@ function ReceivingDetails({ request, currentUserId, onClose, onReload }) {
     <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-semibold text-slate-900">
             Receive items
             <span className="ml-2 text-xs font-normal text-neutral-500">
               #{request.id.slice(0, 8)}
@@ -709,7 +699,7 @@ function ReceivingDetails({ request, currentUserId, onClose, onReload }) {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400"
+            className="rounded-xl bg-[#4f46e5] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Saving…" : "Confirm received"}
           </button>
@@ -868,14 +858,14 @@ function HistoryView({ branchLocation }) {
         <div className="text-sm text-neutral-500">
           View history of your requests and responses to other branches.
         </div>
-        <div className="inline-flex rounded-full border border-neutral-200 bg-neutral-50 p-1 text-xs">
+        <div className="inline-flex rounded-full border border-neutral-200 bg-white p-1 text-xs shadow-sm">
           <button
             type="button"
             onClick={() => setMode("requests")}
-            className={`rounded-full px-3 py-1 font-medium transition ${
+            className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
               mode === "requests"
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
+                ? "bg-[#4f46e5] text-white shadow-sm"
+                : "text-neutral-700 hover:bg-slate-100"
             }`}
           >
             Request history
@@ -883,10 +873,10 @@ function HistoryView({ branchLocation }) {
           <button
             type="button"
             onClick={() => setMode("responding")}
-            className={`rounded-full px-3 py-1 font-medium transition ${
+            className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
               mode === "responding"
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
+                ? "bg-[#4f46e5] text-white shadow-sm"
+                : "text-neutral-700 hover:bg-slate-100"
             }`}
           >
             Responding history
@@ -905,7 +895,7 @@ function HistoryView({ branchLocation }) {
           ) : (
             <table className="min-w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+                <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
                   <th className="px-4 py-2 text-left">Date</th>
                   <th className="px-4 py-2 text-center">Items</th>
                   <th className="px-4 py-2 text-center">Requested</th>
@@ -954,7 +944,7 @@ function HistoryView({ branchLocation }) {
           ) : (
             <table className="min-w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+                <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
                   <th className="px-4 py-2 text-left">Date</th>
                   <th className="px-4 py-2 text-left">To branch</th>
                   <th className="px-4 py-2 text-left">Product</th>
@@ -981,7 +971,7 @@ function HistoryView({ branchLocation }) {
                       <td className="px-4 py-2">{destBranch}</td>
                       <td className="px-4 py-2">
                         {row.product?.name || "—"}{" "}
-                        <span className="font-mono text-[10px] text-neutral-500">
+                        <span className="font-mono text-[10px] text-neutral-200">
                           ({row.product?.sku || "—"})
                         </span>
                       </td>
@@ -1013,6 +1003,7 @@ function HistoryView({ branchLocation }) {
 /*                     BranchRequestEditor (Requesting UI)                    */
 /*           with dynamic search + stock & max-available validation          */
 /* -------------------------------------------------------------------------- */
+
 function BranchRequestEditor({
   request,
   branchLocation,
@@ -1185,7 +1176,6 @@ function BranchRequestEditor({
 
   /* ---------------------- Helpers for existing items edit --------------------- */
 
-  // Reset warehouse decision when branch edits
   function resetApproval(it) {
     return {
       ...it,
@@ -1195,7 +1185,6 @@ function BranchRequestEditor({
     };
   }
 
-  // Get available stock for product+source and cache it
   async function getAvailableQty(productId, sourceId) {
     const key = `${productId}:${sourceId}`;
     if (availabilityMap[key] !== undefined) return availabilityMap[key];
@@ -1227,7 +1216,6 @@ function BranchRequestEditor({
     const num = Number(value);
     if (Number.isNaN(num) || num <= 0) return;
 
-    // we must consider existing other items from same product+source
     setItems(async (prev) => {
       const updated = [...prev];
       const idx = updated.findIndex((it) => it.id === id);
@@ -1283,7 +1271,6 @@ function BranchRequestEditor({
 
   /* ------------------------ Add item from stock table ------------------------ */
 
-  // When user clicks a row, auto-fill remaining quantity
   function handleRowClick(locId, remaining) {
     setSourceDrafts((prev) => ({
       ...prev,
@@ -1471,7 +1458,7 @@ function BranchRequestEditor({
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-semibold text-slate-900">
             Edit request
             <span className="ml-2 text-xs font-normal text-neutral-500">
               #{request.id.slice(0, 8)}
@@ -1518,7 +1505,7 @@ function BranchRequestEditor({
               type="button"
               onClick={handleSend}
               disabled={!canEdit || saving}
-              className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+              className="rounded-lg bg-[#4f46e5] px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:bg-[#a5b4fc]"
             >
               Send to sources
             </button>
@@ -1583,7 +1570,7 @@ function BranchRequestEditor({
                             onChange={(e) =>
                               handleQtyChange(it.id, e.target.value)
                             }
-                            className="w-20 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-20 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
                           />
                         ) : (
                           it.requested_qty
@@ -1618,9 +1605,9 @@ function BranchRequestEditor({
 
       {/* Add item area – product search + stock table */}
       {canEdit && (
-        <div className="mt-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4 space-y-4">
+        <div className="mt-4 space-y-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-800 mb-1">
+            <h3 className="mb-1 text-sm font-semibold text-neutral-800">
               Add item
             </h3>
             <p className="text-xs text-neutral-500">
@@ -1643,10 +1630,10 @@ function BranchRequestEditor({
                 setSourceDrafts({});
               }}
               placeholder="Search by name or SKU"
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
             />
             {productSearching && (
-              <div className="text-xs text-neutral-500 mt-1">Searching…</div>
+              <div className="mt-1 text-xs text-neutral-500">Searching…</div>
             )}
             {productResults.length > 0 && (
               <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-neutral-200 bg-white text-xs">
@@ -1656,7 +1643,7 @@ function BranchRequestEditor({
                     type="button"
                     onClick={() => handleSelectProduct(p)}
                     className={`flex w-full items-center justify-between px-2 py-1 text-left hover:bg-neutral-50 ${
-                      newProduct?.id === p.id ? "bg-blue-50" : ""
+                      newProduct?.id === p.id ? "bg-indigo-50" : ""
                     }`}
                   >
                     <span>
@@ -1666,7 +1653,7 @@ function BranchRequestEditor({
                       </span>
                     </span>
                     {newProduct?.id === p.id && (
-                      <span className="text-[10px] text-blue-600">
+                      <span className="text-[10px] text-[#4f46e5]">
                         selected
                       </span>
                     )}
@@ -1734,7 +1721,7 @@ function BranchRequestEditor({
                         return (
                           <tr
                             key={loc.id}
-                            className="border-t border-neutral-100 hover:bg-neutral-50 cursor-pointer"
+                            className="cursor-pointer border-t border-neutral-100 hover:bg-neutral-50"
                             onClick={() => handleRowClick(loc.id, remaining)}
                           >
                             <td className="px-2 py-1 text-[11px] text-neutral-700">
@@ -1765,7 +1752,7 @@ function BranchRequestEditor({
                                       remaining
                                     )
                                   }
-                                  className="w-16 rounded-md border border-neutral-300 bg-white px-1 py-0.5 text-[11px] text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="w-16 rounded-md border border-neutral-300 bg-white px-1 py-0.5 text-[11px] text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
                                 />
                                 <button
                                   type="button"
@@ -1791,3 +1778,4 @@ function BranchRequestEditor({
     </div>
   );
 }
+

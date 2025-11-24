@@ -152,7 +152,7 @@ export default function SignIn() {
         ) : (
           <button
             onClick={handleGoogleLogin}
-            className="w-full bg-red-600 text-white py-2 rounded-xl hover:bg-red-700 transition"
+            className="w-full bg-[#4f46e5] text-white py-2 rounded-xl hover:bg-[#5f58e0] transition"
           >
             Sign in with Google
           </button>

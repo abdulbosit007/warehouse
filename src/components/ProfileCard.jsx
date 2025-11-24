@@ -34,12 +34,12 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
 
   const roleBadgeClass =
     role?.toLowerCase() === "owner"
-      ? "bg-black text-white"
+      ? "bg-[#4f46e5] text-white"
       : role?.toLowerCase() === "warehouse"
-      ? "bg-gray-900 text-white"
+      ? "bg-[#4f46e5] text-white"
       : role?.toLowerCase().startsWith("branch")
-      ? "bg-gray-800 text-white"
-      : "bg-gray-200 text-gray-800";
+      ? "bg-[#4f46e5] text-white"
+      : "bg-[#4f46e5] text-gray-800";
 
   const [copied, setCopied] = useState(false);
   const copyEmail = async () => {
@@ -58,7 +58,7 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="grid w-12 h-12 text-lg font-semibold text-white bg-black place-items-center rounded-xl">
+          <div className="grid w-12 h-12 text-lg font-semibold text-white bg-[#4f46e5] place-items-center rounded-xl">
             {initials}
           </div>
           <div>
@@ -83,7 +83,7 @@ export default function ProfileCard({ name, email, role, branch, onLogout }) {
         {onLogout && (
           <button
             onClick={onLogout}
-            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-900 transition-colors border border-gray-300 rounded-xl hover:bg-gray-100 active:bg-gray-200"
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#fff] transition-colors border border-gray-300 rounded-xl hover:bg-[#4f46e5]/10  active:bg-[#564fe4] bg-[#4f46e5]"
           >
             Log out
           </button>

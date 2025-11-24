@@ -38,7 +38,7 @@ export default function HistorySection({
             className={[
               "px-3 py-1.5 text-sm rounded-lg",
               histMode === k
-                ? "bg-black text-white"
+                ? "bg-[#4f46e5] text-white"
                 : "text-black hover:bg-neutral-100",
             ].join(" ")}
           >

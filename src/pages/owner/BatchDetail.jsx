@@ -15,6 +15,22 @@ import {
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
+import { useNavigate } from "react-router-dom";
+
+// 🔵 ProductsTable / IncomingBatches dagi kabi MUI importlar
+import {
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  Typography,
+} from "@mui/material";
+
+const INDIGO = "#4f46e5";
 
 /* ---------- tiny debounce helper ---------- */
 function useDebouncedEffect(effect, deps, delay) {
@@ -25,14 +41,6 @@ function useDebouncedEffect(effect, deps, delay) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, delay]);
-}
-
-function Th({ children }) {
-  return (
-    <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">
-      {children}
-    </th>
-  );
 }
 
 function StatusChip({ status }) {
@@ -313,14 +321,16 @@ function Row({ row, readonly, onDelete, categories, onClickRejected }) {
         )
       )}
 
-      <td className="px-4 py-2 text-right">
+      <td className="px-4 py-2">
         {row.status === "draft" ? (
-          <button
-            onClick={() => onDelete?.(row)}
-            className="rounded bg-red-600 px-3 py-1 text-sm text-white"
-          >
-            Delete
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => onDelete?.(row)}
+              className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+            >
+              Delete
+            </button>
+          </div>
         ) : (
           <StatusChip status={row.status} />
         )}
@@ -342,6 +352,7 @@ export default function BatchDetail() {
   const [reviewing, setReviewing] = useState(null); // rejected row owner is reviewing
 
   const isOpen = (batch?.status || "").toLowerCase() === "open";
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -437,7 +448,26 @@ export default function BatchDetail() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={() => navigate("/owner/incoming-product")}
+          className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="h-5 w-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+            />
+          </svg>
+        </button>
         <h1 className="text-2xl font-semibold">Batch detail</h1>
       </div>
 
@@ -465,30 +495,76 @@ export default function BatchDetail() {
           <div className="mb-4 text-sm font-semibold text-gray-700">
             Draft items
           </div>
-          <div className="overflow-hidden rounded-2xl border bg-white">
-            <table className="min-w-full divide-y">
-              <thead className="bg-gray-50">
-                <tr>
-                  <Th>Product</Th>
-                  <Th>SKU</Th>
-                  <Th>Category</Th>
-                  <Th>Qty</Th>
-                  <th className="px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {drafts.map((row) => (
-                  <Row
-                    key={row.id}
-                    row={row}
-                    readonly={!isOpen}
-                    onDelete={onDeleteDraft}
-                    categories={categories}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {/* 🔵 Premium MUI table – ProductsTable / IncomingBatches bilan bir xil */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 0,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              overflow: "hidden",
+              bgcolor: "common.white",
+            }}
+          >
+            <TableContainer>
+              <Table
+                size="small"
+                stickyHeader
+                aria-label="Draft items table"
+                sx={{
+                  tableLayout: "fixed",
+                  width: "100%",
+                  "& th, & td": { p: "10px 16px" },
+                }}
+              >
+                <colgroup>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <col key={i} style={{ width: `calc(100% / 5)` }} />
+                  ))}
+                </colgroup>
+
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      "& th": {
+                        bgcolor: INDIGO,
+                        color: "common.white",
+                        borderBottom: "1px solid",
+                        borderColor: INDIGO,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                      },
+                    }}
+                  >
+                    <TableCell>Product</TableCell>
+                    <TableCell>SKU</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Qty</TableCell>
+                    <TableCell align="right" />
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {drafts.map((row) => (
+                    <Row
+                      key={row.id}
+                      row={row}
+                      readonly={!isOpen}
+                      onDelete={onDeleteDraft}
+                      categories={categories}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
 
           {isOpen && (
             <div className="my-6 flex items-center justify-between">
@@ -498,7 +574,7 @@ export default function BatchDetail() {
               </div>
               <button
                 onClick={onSendAll}
-                className="rounded-xl bg-black px-4 py-2 text-white"
+                className="rounded-xl bg-[#4f46e5] px-4 py-2 text-white"
                 disabled={drafts.length === 0}
               >
                 Send all drafts
@@ -519,30 +595,76 @@ export default function BatchDetail() {
           <div className="mb-4 text-sm font-semibold text-gray-700">
             Sent / Approved / Rejected
           </div>
-          <div className="overflow-hidden rounded-2xl border bg-white">
-            <table className="min-w-full divide-y">
-              <thead className="bg-gray-50">
-                <tr>
-                  <Th>Product</Th>
-                  <Th>SKU</Th>
-                  <Th>Category</Th>
-                  <Th>Qty</Th>
-                  <Th>Status</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {others.map((row) => (
-                  <Row
-                    key={row.id}
-                    row={row}
-                    readonly
-                    categories={categories}
-                    onClickRejected={(r) => setReviewing(r)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {/* 🔵 Premium MUI table – xuddi shunday UI */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 0,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              overflow: "hidden",
+              bgcolor: "common.white",
+            }}
+          >
+            <TableContainer>
+              <Table
+                size="small"
+                stickyHeader
+                aria-label="Sent / Approved / Rejected table"
+                sx={{
+                  tableLayout: "fixed",
+                  width: "100%",
+                  "& th, & td": { p: "10px 16px" },
+                }}
+              >
+                <colgroup>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <col key={i} style={{ width: `calc(100% / 5)` }} />
+                  ))}
+                </colgroup>
+
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      "& th": {
+                        bgcolor: INDIGO,
+                        color: "common.white",
+                        borderBottom: "1px solid",
+                        borderColor: INDIGO,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                      },
+                    }}
+                  >
+                    <TableCell>Product</TableCell>
+                    <TableCell>SKU</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Qty</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {others.map((row) => (
+                    <Row
+                      key={row.id}
+                      row={row}
+                      readonly
+                      categories={categories}
+                      onClickRejected={(r) => setReviewing(r)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
         </>
       )}
 

@@ -217,13 +217,14 @@ export default function IncomingBatches() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    // 🔥 Navbar containeriga MATCH qildim:
+    <div className="mx-auto max-w-6xl px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Incoming batches</h1>
         <button
           onClick={handleCreateClick}
           disabled={loading || uLoading || !canCreateBatch}
-          className="rounded-xl bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="rounded-xl bg-[#4f46e5] px-4 py-2 text-white"
           title={
             !canCreateBatch
               ? "Create is allowed when the latest batch has approved > 0 and draft/sent/rejected are all 0."
@@ -260,15 +261,12 @@ export default function IncomingBatches() {
             sx={{
               tableLayout: "fixed",
               width: "100%",
-              "& th, & td": { p: "10px 16px" },
+              "& th, & td": { p: "10px 16px" }, // ✅ ProductsTable bilan bir xil
             }}
           >
             <colgroup>
               {Array.from({ length: 8 }).map((_, i) => (
-                <col
-                  key={i}
-                  style={{ width: `calc(100% / 8)` }}
-                />
+                <col key={i} style={{ width: `calc(100% / 8)` }} />
               ))}
             </colgroup>
 
@@ -323,12 +321,8 @@ export default function IncomingBatches() {
                       "&:hover": { bgcolor: "grey.100" },
                     }}
                   >
-                    <TableCell>
-                      {chipForOrigin(r.origin)}
-                    </TableCell>
-                    <TableCell>
-                      {chipForStatus(r.status)}
-                    </TableCell>
+                    <TableCell>{chipForOrigin(r.origin)}</TableCell>
+                    <TableCell>{chipForStatus(r.status)}</TableCell>
                     <TableCell>{r.draft_count ?? 0}</TableCell>
                     <TableCell>{r.sent_count ?? 0}</TableCell>
                     <TableCell>{r.approved_count ?? 0}</TableCell>
@@ -338,7 +332,7 @@ export default function IncomingBatches() {
                       {canDelete && (
                         <button
                           onClick={(e) => {
-                            e.stopPropagation(); // navigatsiyani to‘xtatish
+                            e.stopPropagation();
                             handleDelete(r);
                           }}
                           className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50"
@@ -355,10 +349,7 @@ export default function IncomingBatches() {
                 <TableRow>
                   <TableCell colSpan={8} sx={{ bgcolor: "white" }}>
                     <Box sx={{ py: 3, textAlign: "center" }}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
+                      <Typography variant="body2" color="text.secondary">
                         No batches yet.
                       </Typography>
                     </Box>
@@ -371,10 +362,7 @@ export default function IncomingBatches() {
 
         {loading && (
           <Box sx={{ p: 2, textAlign: "center" }}>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
+            <Typography variant="body2" color="text.secondary">
               Loading...
             </Typography>
           </Box>
