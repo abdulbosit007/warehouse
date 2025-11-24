@@ -54,7 +54,7 @@ export default function HistoryByDate({
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-black text-white">
+            <tr className="bg-[#4f46e5] text-white">
               <th className="px-4 py-3 text-left">Time</th>
               <th className="px-4 py-3 text-left">Type</th>
               <th className="px-4 py-3 text-left">Details</th>

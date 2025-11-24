@@ -5,7 +5,7 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
     <div className="overflow-hidden rounded-xl border bg-white">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-black text-white">
+          <tr className="bg-[#4f46e5] text-white">
             <th className="px-4 py-3 text-left">Name</th>
             <th className="px-4 py-3 text-left">SKU</th>
             <th className="px-4 py-3 text-left">Available</th>

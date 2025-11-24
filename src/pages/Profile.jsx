@@ -39,8 +39,8 @@ export default function Profile() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center gap-4 py-20">
-            <CircularProgress style={{ color: "black" }} />
-            <p className="font-medium text-gray-700">Loading profile...</p>
+            <CircularProgress style={{ color: "#4f46e5" }} />
+            <p className="font-medium text-gray-400">Loading profile...</p>
           </div>
         )}
 

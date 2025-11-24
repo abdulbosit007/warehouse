@@ -8,6 +8,8 @@ import {
   FormControl,
 } from "@mui/material";
 
+const INDIGO = "#4f46e5";
+
 /** Small b/w Select wrapper for your styling */
 function BWSelect({ value, onChange, children }) {
   return (
@@ -22,24 +24,30 @@ function BWSelect({ value, onChange, children }) {
           bgcolor: "white",
           color: "#111827",
           ".MuiOutlinedInput-input": { padding: "8px 36px 8px 12px" },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "black" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#D1D5DB" },
           "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: "#6B7280",
+            borderColor: "#9CA3AF",
           },
           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: "black",
+            borderColor: INDIGO,
           },
           "& .MuiSelect-icon": { color: "#6B7280" },
         }}
         MenuProps={{
           PaperProps: {
-            sx: { mt: 1, border: "1px solid #E5E7EB", boxShadow: "none" },
+            sx: {
+              mt: 1,
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
+              borderRadius: 2,
+            },
           },
           MenuListProps: {
             sx: {
               "& .MuiMenuItem-root": { fontSize: 14, color: "#111827" },
               "& .MuiMenuItem-root.Mui-selected": {
-                backgroundColor: "#F3F4F6 !important",
+                backgroundColor: "#EEF2FF !important",
+                color: "#111827",
               },
               "& .MuiMenuItem-root:hover": { backgroundColor: "#F3F4F6" },
             },
@@ -118,8 +126,8 @@ export default function UserManagement() {
 
   // ---------- Helpers ----------
   const inputClass =
-    "w-full rounded-lg border border-black px-3 py-2 text-gray-900 placeholder-gray-500 " +
-    "focus:outline-none focus:ring-0 focus:border-black hover:border-gray-500 transition-colors";
+    "w-full rounded-xl border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 " +
+    "focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 hover:border-gray-400 transition-colors";
   const labelClass = "text-sm text-gray-600";
 
   const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
@@ -150,7 +158,6 @@ export default function UserManagement() {
 
   // Resolve a location id purely by role_id → locations.role_id
   async function resolveLocationIdByRole(roleId) {
-    // Fetch all locations for this role id
     const { data, error } = await supabase
       .from("locations")
       .select("id, location_name, name, kind")
@@ -162,7 +169,6 @@ export default function UserManagement() {
 
     const rows = data || [];
     if (rows.length === 0) {
-      // Nothing wired → the DB needs one location row linked to this role
       return { id: null, pickedLabel: null, reason: "none" };
     }
     if (rows.length === 1) {
@@ -173,7 +179,6 @@ export default function UserManagement() {
         reason: "single",
       };
     }
-    // Multiple matches → pick first deterministically (document it)
     const r = rows[0];
     return {
       id: r.id,
@@ -193,7 +198,7 @@ export default function UserManagement() {
     setSuccess("");
   };
 
-  // ---------- Create user (auto-assign location for branch roles) ----------
+  // ---------- Create user ----------
   const handleCreateUser = async () => {
     setError("");
     setSuccess("");
@@ -210,7 +215,6 @@ export default function UserManagement() {
 
     setSubmitting(true);
     try {
-      // Optional: link to auth.users by email
       const { data: foundAuthId, error: rpcErr } = await supabase.rpc(
         "lookup_auth_uuid",
         { p_email: email }
@@ -239,11 +243,11 @@ export default function UserManagement() {
       }
 
       const insertPayload = {
-        user_id: foundAuthId ?? null, // copy auth UUID if present
+        user_id: foundAuthId ?? null,
         name: newUser.name.trim(),
         is_approved: newUser.is_approved,
-        user_role: newUser.roleId, // FK → roles.id
-        location_id: locationIdToUse, // null for owner/warehouse
+        user_role: newUser.roleId,
+        location_id: locationIdToUse,
       };
 
       const { error: insertError } = await supabase
@@ -281,7 +285,6 @@ export default function UserManagement() {
     setSuccess("");
     const next = !row.is_approved;
 
-    // optimistic UI
     setUsers((prev) =>
       prev.map((r) =>
         r.user_id === row.user_id ? { ...r, is_approved: next } : r
@@ -294,7 +297,6 @@ export default function UserManagement() {
       .eq("user_id", row.user_id);
 
     if (upErr) {
-      // rollback
       setUsers((prev) =>
         prev.map((r) =>
           r.user_id === row.user_id ? { ...r, is_approved: !next } : r
@@ -306,150 +308,160 @@ export default function UserManagement() {
 
   // ---------- UI ----------
   return (
-    <div className="min-h-screen">
-      <div className="w-full max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowForm(true);
-            }}
-            className="px-4 py-2 text-sm font-semibold text-white transition-opacity bg-black rounded-xl hover:opacity-90 active:opacity-80"
-          >
-            Create User
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className="mb-4 space-y-2">
-          {error && (
-            <div className="px-3 py-2 text-sm text-black bg-white border border-black rounded-lg">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg">
-              {success}
-            </div>
-          )}
-        </div>
-
-        {/* Users table */}
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-semibold text-gray-900">All Users</h3>
-          <div className="text-sm text-gray-600">
-            Total:{" "}
-            <span className="font-medium text-gray-900">{users.length}</span>
-          </div>
-        </div>
-
-        <div className="relative overflow-x-auto border border-gray-200 rounded-2xl min-h-[220px]">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <CircularProgress sx={{ color: "black" }} />
-            </div>
-          )}
-
-          <table
-            className={`min-w-full text-sm ${
-              loading ? "opacity-50" : "opacity-100"
-            }`}
-          >
-            <thead>
-              <tr className="text-white bg-black">
-                <th className="px-3 py-2 font-semibold text-left">Name</th>
-                <th className="px-3 py-2 font-semibold text-left">Email</th>
-                <th className="px-3 py-2 font-semibold text-left">Role</th>
-                <th className="px-3 py-2 font-semibold text-left">Location</th>
-                <th className="px-3 py-2 font-semibold text-left">Approved</th>
-                <th className="px-3 py-2 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && users.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-6 text-center text-gray-500"
-                  >
-                    No users yet.
-                  </td>
-                </tr>
-              ) : (
-                users.map((u) => {
-                  const base = (u.role_name || "").toLowerCase();
-                  const rolePretty =
-                    base === "owner"
-                      ? "Owner"
-                      : base === "warehouse"
-                      ? "Warehouse"
-                      : base.startsWith("branch")
-                      ? "Branch"
-                      : u.role_name || "—";
-                  const locationPretty =
-                    u.role_actual_name || u.role_name || "—";
-                  return (
-                    <tr
-                      key={u.user_id || u.name}
-                      className="bg-white border-t border-gray-200 hover:bg-gray-50"
-                    >
-                      <td className="px-3 py-2 text-gray-900 align-top">
-                        {u.name || "—"}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        {u.email ? (
-                          <a
-                            href={`mailto:${u.email}`}
-                            className="text-gray-900 underline break-all underline-offset-2 decoration-gray-300 hover:decoration-gray-700"
-                          >
-                            {u.email}
-                          </a>
-                        ) : (
-                          <span className="text-gray-500">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <span className="inline-flex items-center rounded-md border border-gray-300 px-2 py-0.5 text-[12px] font-medium text-gray-900">
-                          {rolePretty}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-900 align-top">
-                        {locationPretty}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <span className="inline-flex items-center rounded-md border border-gray-300 px-2 py-0.5 text-[12px] font-medium text-gray-900">
-                          {u.is_approved ? "Approved" : "Pending"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => toggleApprove(u)}
-                            className={
-                              u.is_approved
-                                ? "rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                                : "rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 active:opacity-80 transition-opacity"
-                            }
-                            title={
-                              u.is_approved ? "Revoke approval" : "Approve user"
-                            }
-                          >
-                            {u.is_approved ? "Revoke" : "Approve"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mb-12" />
+    <div className="mx-auto max-w-6xl p-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-gray-900">
+          User management
+        </h2>
+        <button
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
+          className="rounded-xl bg-[rgba(79,70,229,1)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 active:scale-[0.99] transition"
+        >
+          Create user
+        </button>
       </div>
+
+      {/* Messages */}
+      <div className="mb-4 space-y-2">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {success}
+          </div>
+        )}
+      </div>
+
+      {/* Users table header */}
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">All users</h3>
+        <div className="text-sm text-gray-600">
+          Total:{" "}
+          <span className="font-semibold text-gray-900">{users.length}</span>
+        </div>
+      </div>
+
+      {/* Users table */}
+      <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        {loading && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60">
+            <CircularProgress sx={{ color: INDIGO }} />
+          </div>
+        )}
+
+        <table
+          className={`w-full table-fixed text-sm ${
+            loading ? "opacity-60" : "opacity-100"
+          }`}
+        >
+          <thead>
+            <tr className="bg-[#4f46e5] text-xs font-semibold uppercase tracking-wide text-white">
+              <th className="px-4 py-3 text-left">Name</th>
+              <th className="px-4 py-3 text-left">Email</th>
+              <th className="px-4 py-3 text-left">Role</th>
+              <th className="px-4 py-3 text-left">Location</th>
+              <th className="px-4 py-3 text-left">Approved</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!loading && users.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-4 py-6 text-center text-sm text-gray-500"
+                >
+                  No users yet.
+                </td>
+              </tr>
+            ) : (
+              users.map((u) => {
+                const base = (u.role_name || "").toLowerCase();
+                const rolePretty =
+                  base === "owner"
+                    ? "Owner"
+                    : base === "warehouse"
+                    ? "Warehouse"
+                    : base.startsWith("branch")
+                    ? "Branch"
+                    : u.role_name || "—";
+                const locationPretty =
+                  u.role_actual_name || u.role_name || "—";
+
+                const approvedChipClass = u.is_approved
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                  : "bg-amber-50 text-amber-700 ring-amber-200";
+
+                const approvedLabel = u.is_approved ? "Approved" : "Pending";
+
+                return (
+                  <tr
+                    key={u.user_id || u.name}
+                    className="border-t border-gray-100 bg-white hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-2.5 align-top text-gray-900">
+                      {u.name || "—"}
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      {u.email ? (
+                        <a
+                          href={`mailto:${u.email}`}
+                          className="break-all text-sm text-indigo-700 underline underline-offset-2 decoration-indigo-200 hover:decoration-indigo-500"
+                        >
+                          {u.email}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-900">
+                        {rolePretty}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 align-top text-gray-900">
+                      {locationPretty}
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-0.5 text-[11px] font-medium ring-1 ${approvedChipClass}`}
+                      >
+                        {approvedLabel}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => toggleApprove(u)}
+                          className={
+                            u.is_approved
+                              ? "rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                              : "rounded-xl bg-[rgba(79,70,229,1)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 active:scale-[0.99] transition"
+                          }
+                          title={
+                            u.is_approved ? "Revoke approval" : "Approve user"
+                          }
+                        >
+                          {u.is_approved ? "Revoke" : "Approve"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mb-10" />
 
       {/* Create User modal */}
       {showForm && (
@@ -459,17 +471,17 @@ export default function UserManagement() {
           role="dialog"
         >
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setShowForm(false)}
           />
-          <div className="relative z-10 w-full max-w-xl bg-white border border-black shadow-2xl rounded-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
               <h4 className="text-lg font-semibold text-gray-900">
-                Create User
+                Create user
               </h4>
               <button
                 onClick={() => setShowForm(false)}
-                className="px-2 py-1 text-xs font-semibold text-gray-900 border border-gray-300 rounded-md hover:bg-gray-100 active:bg-gray-200"
+                className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
               >
                 Close
               </button>
@@ -477,7 +489,7 @@ export default function UserManagement() {
 
             <div className="px-5 py-5">
               {error && (
-                <div className="px-3 py-2 mb-4 text-sm text-black bg-white border border-black rounded-lg">
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -496,10 +508,10 @@ export default function UserManagement() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className={labelClass}>Full Name</label>
+                  <label className={labelClass}>Full name</label>
                   <input
                     className={inputClass}
-                    placeholder="Full Name"
+                    placeholder="Full name"
                     value={newUser.name}
                     onChange={(e) =>
                       setNewUser({ ...newUser, name: e.target.value })
@@ -540,22 +552,22 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
               <button
                 onClick={() => {
                   resetForm();
                   setShowForm(false);
                 }}
-                className="px-4 py-2 text-sm font-semibold text-gray-900 border border-gray-300 rounded-xl hover:bg-gray-100 active:bg-gray-200"
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateUser}
                 disabled={submitting}
-                className="px-4 py-2 text-sm font-semibold text-white transition-opacity bg-black rounded-xl hover:opacity-90 active:opacity-80 disabled:opacity-60"
+                className="rounded-xl bg-[rgba(79,70,229,1)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {submitting ? "Adding..." : "Add User"}
+                {submitting ? "Adding..." : "Add user"}
               </button>
             </div>
           </div>

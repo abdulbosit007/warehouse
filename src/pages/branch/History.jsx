@@ -820,47 +820,49 @@ export default function BranchOperations() {
 
   /* --------------------------------- GUARD ------------------------------- */
   if (!isBranch) {
-    return <Blocked title="Forbidden" message="Branch access only." />;
-  }
+  return <Blocked title="Forbidden" message="Branch access only." />;
+}
 
-  /* ----------------------- TABLET-OPTIMIZED UI WRAPPER -------------------- */
-  return (
+/* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
+return (
+  <div
+    className="
+      mx-auto
+      w-full
+      max-w-[1100px]
+      px-4 sm:px-6 md:px-8
+      pb-24
+    "
+  >
+    {/* Sticky top app bar for tablets/desktop */}
     <div
       className="
-        mx-auto
-        w-full
-        max-w-[1100px]
-        px-4 sm:px-6 md:px-8
-        pb-24
+        sticky top-0 z-30
+        -mx-4 sm:-mx-6 md:-mx-8
+        backdrop-blur supports-[backdrop-filter]:backdrop-blur
       "
     >
-      {/* Sticky top app bar for tablets */}
-      <div
-        className="
-          sticky top-0 z-30
-          -mx-4 sm:-mx-6 md:-mx-8
-          bg-white/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur
-          border-b border-neutral-200
-        "
-      >
-        <div className="mx-auto max-w-[1100px] px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between gap-3">
-          <h1 className="text-xl md:text-2xl font-semibold text-neutral-900">
-            Branch — Operations
-          </h1>
+      <div className="mx-auto max-w-[1100px] px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-semibold text-slate-900">
+          Branch — Operations
+        </h1>
 
-          {/* Segment tabs: large touch targets */}
-          <div className="inline-flex rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
-            {[
-              ["sale", "Sale"],
-              ["loan", "Loan"],
-              ["return", "Return"],
-              ["history", "History"],
-            ].map(([k, label]) => (
+        {/* Segment tabs: large touch targets */}
+        <div className="inline-flex rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-sm">
+          {[
+            ["sale", "Sale"],
+            ["loan", "Loan"],
+            ["return", "Return"],
+            ["history", "History"],
+          ].map(([k, label]) => {
+            const isActive = tab === k;
+            return (
               <button
                 key={k}
                 onClick={() => {
                   setTab(k);
                   setErr("");
+
                   if (k === "history") {
                     setHistMode("date");
                     setSkuQuery("");
@@ -870,171 +872,179 @@ export default function BranchOperations() {
                       0
                     );
                   }
+
                   if (k === "return") {
                     setReturnMode("date");
                     setTimeout(() => loadReturnByDate(new Date()), 0);
                   }
                 }}
                 className={[
-                  "px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-sm md:text-[15px] font-medium transition",
-                  tab === k
-                    ? "bg-black text-white"
-                    : "text-neutral-800 hover:bg-neutral-100 active:bg-neutral-200",
+                  "px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-sm md:text-[15px] font-medium transition-all",
+                  "whitespace-nowrap",
+                  isActive
+                    ? "bg-[#4f46e5] text-white shadow-[0_10px_22px_rgba(79,70,229,0.35)]"
+                    : "text-slate-700 hover:bg-slate-50 active:bg-slate-100",
                 ].join(" ")}
               >
                 {label}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* Alerts */}
-      <div className="mt-4 md:mt-6 space-y-3">
-        {err && (
-          <div className="rounded-xl border border-red-300 bg-red-50/80 px-3.5 py-2.5 text-[15px] text-red-800 shadow-sm">
-            {err}
-          </div>
-        )}
-        {ok && (
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-3.5 py-2.5 text-[15px] text-emerald-800 shadow-sm">
-            {ok}
-          </div>
-        )}
-      </div>
-
-      {/* Content cards (single-column on tablets) */}
-      <div className="mt-4 md:mt-6 space-y-6">
-        {tab === "sale" && (
-          <div className="rounded-2xl border bg-white shadow-sm p-3 md:p-4">
-            <SaleSection
-              locationName={locationName}
-              q={q}
-              setQ={setQ}
-              loading={loading}
-              rows={filteredCatalog}
-              onAdd={addToCart}
-              cart={cart}
-              note={note}
-              onNoteChange={setNote}
-              setCartQty={setCartQty}
-              removeFromCart={removeFromCart}
-              cartValid={cartValid}
-              onCommitSale={commitSale}
-              nf={nf}
-            />
-          </div>
-        )}
-
-        {tab === "loan" && (
-          <div className="rounded-2xl border bg-white shadow-sm p-3 md:p-4">
-            <LoanSection
-              locationName={locationName}
-              q={q}
-              setQ={setQ}
-              loading={loading}
-              rows={filteredCatalog}
-              onAdd={addToCart}
-              cart={cart}
-              note={note}
-              onNoteChange={setNote}
-              setCartQty={setCartQty}
-              removeFromCart={removeFromCart}
-              borrower={borrower}
-              setBorrower={setBorrower}
-              cartValid={cartValid}
-              loanValid={loanValid}
-              onCommitLoan={commitLoan}
-              nf={nf}
-            />
-          </div>
-        )}
-
-        {tab === "return" && (
-          <div className="rounded-2xl border bg-white shadow-sm p-3 md:p-4">
-            <ReturnSection
-              // common
-              note={note}
-              setNote={setNote}
-              returnMode={returnMode}
-              setReturnMode={setReturnMode}
-              // date
-              nf={nf}
-              retSelectedDay={retSelectedDay}
-              setRetSelectedDay={setRetSelectedDay}
-              retByDateRows={retByDateRows}
-              retByDateLoading={retByDateLoading}
-              retSelect={retSelect}
-              toggleRetSelect={toggleRetSelect}
-              setRetQty={setRetQty}
-              loadReturnByDate={loadReturnByDate}
-              // sku
-              retSkuQuery={retSkuQuery}
-              setRetSkuQuery={setRetSkuQuery}
-              retSkuOptions={retSkuOptions}
-              retSkuPicked={retSkuPicked}
-              retSkuQty={retSkuQty}
-              retSkuLoading={retSkuLoading}
-              searchReturnBySku={searchReturnBySku}
-              setRetSkuPicked={setRetSkuPicked}
-              setRetSkuQty={setRetSkuQty}
-              // submit
-              submitReturn={submitReturn}
-              returnValid={returnValid}
-              // resets
-              resetDatePick={() => {
-                setRetSelect(new Map());
-                loadReturnByDate(retSelectedDay);
-              }}
-              resetSkuPick={() => {
-                setRetSkuQuery("");
-                setRetSkuOptions([]);
-                setRetSkuPicked(null);
-                setRetSkuQty(0);
-              }}
-            />
-          </div>
-        )}
-
-        {tab === "history" && (
-          <div className="rounded-2xl border bg-white shadow-sm p-3 md:p-4">
-            <HistorySection
-              histMode={histMode}
-              setHistMode={setHistMode}
-              // date
-              nf={nf}
-              selectedDay={selectedDay}
-              setSelectedDay={setSelectedDay}
-              historyDateRows={historyDateRows}
-              histLoading={histLoading}
-              loadHistoryByDateWithParents={loadHistoryByDateWithParents}
-              onJump={(ds) => jumpToHistoryDay(ds)}
-              // sku
-              skuQuery={skuQuery}
-              setSkuQuery={setSkuQuery}
-              historyBySku={historyBySku}
-              histSkuLoading={histSkuLoading}
-              onSearch={searchHistoryBySku}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Floating debug (bigger button for touch) */}
-      <button
-        onClick={() => setDebugOpen((v) => !v)}
-        className="
-          fixed bottom-5 right-5 z-40
-          rounded-full bg-black text-white
-          text-xs md:text-sm px-4 py-2.5
-          shadow-lg active:scale-95 transition
-        "
-        title="Toggle Debug"
-      >
-        {debugOpen ? "Hide Logs" : "Logs"}
-      </button>
-
-      <DebugPanel open={debugOpen} logs={logs} onClear={() => setLogs([])} />
     </div>
-  );
+
+    {/* Alerts */}
+    <div className="mt-4 md:mt-6 space-y-3">
+      {err && (
+        <div className="rounded-xl border border-red-200 bg-red-50/90 px-3.5 py-2.5 text-[15px] text-red-800 shadow-sm">
+          {err}
+        </div>
+      )}
+      {ok && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-3.5 py-2.5 text-[15px] text-emerald-800 shadow-sm">
+          {ok}
+        </div>
+      )}
+    </div>
+
+    {/* Content cards (single-column on tablets, still good on desktop) */}
+    <div className="mt-4 md:mt-6 space-y-6">
+      {tab === "sale" && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+          <SaleSection
+            locationName={locationName}
+            q={q}
+            setQ={setQ}
+            loading={loading}
+            rows={filteredCatalog}
+            onAdd={addToCart}
+            cart={cart}
+            note={note}
+            onNoteChange={setNote}
+            setCartQty={setCartQty}
+            removeFromCart={removeFromCart}
+            cartValid={cartValid}
+            onCommitSale={commitSale}
+            nf={nf}
+          />
+        </div>
+      )}
+
+      {tab === "loan" && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+          <LoanSection
+            locationName={locationName}
+            q={q}
+            setQ={setQ}
+            loading={loading}
+            rows={filteredCatalog}
+            onAdd={addToCart}
+            cart={cart}
+            note={note}
+            onNoteChange={setNote}
+            setCartQty={setCartQty}
+            removeFromCart={removeFromCart}
+            borrower={borrower}
+            setBorrower={setBorrower}
+            cartValid={cartValid}
+            loanValid={loanValid}
+            onCommitLoan={commitLoan}
+            nf={nf}
+          />
+        </div>
+      )}
+
+      {tab === "return" && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+          <ReturnSection
+            // common
+            note={note}
+            setNote={setNote}
+            returnMode={returnMode}
+            setReturnMode={setReturnMode}
+            // date
+            nf={nf}
+            retSelectedDay={retSelectedDay}
+            setRetSelectedDay={setRetSelectedDay}
+            retByDateRows={retByDateRows}
+            retByDateLoading={retByDateLoading}
+            retSelect={retSelect}
+            toggleRetSelect={toggleRetSelect}
+            setRetQty={setRetQty}
+            loadReturnByDate={loadReturnByDate}
+            // sku
+            retSkuQuery={retSkuQuery}
+            setRetSkuQuery={setRetSkuQuery}
+            retSkuOptions={retSkuOptions}
+            retSkuPicked={retSkuPicked}
+            retSkuQty={retSkuQty}
+            retSkuLoading={retSkuLoading}
+            searchReturnBySku={searchReturnBySku}
+            setRetSkuPicked={setRetSkuPicked}
+            setRetSkuQty={setRetSkuQty}
+            // submit
+            submitReturn={submitReturn}
+            returnValid={returnValid}
+            // resets
+            resetDatePick={() => {
+              setRetSelect(new Map());
+              loadReturnByDate(retSelectedDay);
+            }}
+            resetSkuPick={() => {
+              setRetSkuQuery("");
+              setRetSkuOptions([]);
+              setRetSkuPicked(null);
+              setRetSkuQty(0);
+            }}
+          />
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+          <HistorySection
+            histMode={histMode}
+            setHistMode={setHistMode}
+            // date
+            nf={nf}
+            selectedDay={selectedDay}
+            setSelectedDay={setSelectedDay}
+            historyDateRows={historyDateRows}
+            histLoading={histLoading}
+            loadHistoryByDateWithParents={loadHistoryByDateWithParents}
+            onJump={(ds) => jumpToHistoryDay(ds)}
+            // sku
+            skuQuery={skuQuery}
+            setSkuQuery={setSkuQuery}
+            historyBySku={historyBySku}
+            histSkuLoading={histSkuLoading}
+            onSearch={searchHistoryBySku}
+          />
+        </div>
+      )}
+    </div>
+
+    {/* Floating debug (bigger button for touch, brand color) */}
+    <button
+      onClick={() => setDebugOpen((v) => !v)}
+      className="
+        fixed bottom-5 right-5 z-40
+        rounded-full
+        bg-[#4f46e5] text-white
+        border border-[#4f46e5]
+        text-xs md:text-sm px-4 py-2.5
+        shadow-lg shadow-indigo-400/40
+        active:scale-95 hover:opacity-90
+        transition
+      "
+      title="Toggle Debug"
+    >
+      {debugOpen ? "Hide Logs" : "Logs"}
+    </button>
+
+    <DebugPanel open={debugOpen} logs={logs} onClear={() => setLogs([])} />
+  </div>
+);
+
 }
