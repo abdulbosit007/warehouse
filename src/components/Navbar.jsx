@@ -1,14 +1,45 @@
 import { Fragment, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-const INDIGO = "#4f46e5";
+// Theme color configurations
+const THEMES = {
+  indigo: {
+    primary: "#4338ca",
+    bg: "bg-indigo-700",
+    bgLight: "bg-indigo-100",
+    bgLighter: "bg-indigo-50",
+    text: "text-indigo-700",
+    border: "border-indigo-400",
+    borderLight: "border-indigo-300",
+  },
+  emerald: {
+    primary: "#047857",
+    bg: "bg-emerald-700",
+    bgLight: "bg-emerald-100",
+    bgLighter: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-400",
+    borderLight: "border-emerald-300",
+  },
+  blue: {
+    primary: "#1d4ed8",
+    bg: "bg-blue-700",
+    bgLight: "bg-blue-100",
+    bgLighter: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-400",
+    borderLight: "border-blue-300",
+  },
+};
 
 export default function Navbar({
   links = [],
   brand = { code: "W", title: "Warehouse" },
   role, // can be string, array, or a function that returns links
   branchId,
+  theme = "indigo", // "indigo" | "emerald" | "blue"
 }) {
+  const themeConfig = THEMES[theme] || THEMES.indigo;
   const [open, setOpen] = useState(false);
   const [lang, setLang] = useState("EN");
   const navigate = useNavigate();
@@ -76,7 +107,7 @@ export default function Navbar({
               className="flex items-center gap-2"
               aria-label="Go to home"
             >
-              <div className="flex items-center justify-center w-8 h-8 text-white bg-[#4f46e5] shadow-sm rounded-xl">
+              <div className={`flex items-center justify-center w-8 h-8 text-white ${themeConfig.bg} shadow-sm rounded-xl`}>
                 {brand.code}
               </div>
               <span className="hidden text-[15px] font-semibold md:inline">
@@ -96,7 +127,7 @@ export default function Navbar({
                     [
                       "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
                       isActive
-                        ? "bg-[#4f46e5] text-white font-semibold"
+                        ? `${themeConfig.bg} text-white font-semibold`
                         : "text-black hover:bg-neutral-100",
                     ].join(" ")
                   }
@@ -108,10 +139,10 @@ export default function Navbar({
             </nav>
 
             {/* Language selector (desktop / lg+) */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4f46e5]/10 border border-[#4f46e5]/40">
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${themeConfig.bgLight} border ${themeConfig.border}`}>
               {/* globe icon */}
               <svg
-                className="w-4 h-4 text-[#4f46e5]"
+                className={`w-4 h-4 ${themeConfig.text}`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -134,7 +165,7 @@ export default function Navbar({
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold tracking-wide text-[#4f46e5] focus:outline-none focus:ring-0 cursor-pointer"
+                className={`bg-transparent border-none text-xs font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
                 aria-label="Select language"
               >
                 <option value="UZ">UZ</option>
@@ -159,7 +190,7 @@ export default function Navbar({
 
       {/* MOBILE+TABLET: drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white text-[#4f46e5] shadow-2xl rounded-r-2xl transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white ${themeConfig.text} shadow-2xl rounded-r-2xl transition-transform duration-200 lg:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         role="dialog"
@@ -168,7 +199,7 @@ export default function Navbar({
         {/* Drawer header */}
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 border-b border-neutral-200">
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center text-white bg-[#4f46e5] h-9 w-9 rounded-xl">
+            <div className={`flex items-center justify-center text-white ${themeConfig.bg} h-9 w-9 rounded-xl`}>
               {brand.code}
             </div>
             <div className="flex flex-col">
@@ -178,9 +209,9 @@ export default function Navbar({
 
           <div className="flex items-center gap-2">
             {/* Language selector (mobile+tablet) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#4f46e5]/5 border border-[#4f46e5]/30">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${themeConfig.bgLighter} border ${themeConfig.borderLight}`}>
               <svg
-                className="w-4 h-4 text-[#4f46e5]"
+                className={`w-4 h-4 ${themeConfig.text}`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -203,7 +234,7 @@ export default function Navbar({
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value)}
-                className="bg-transparent border-none text-[11px] font-semibold tracking-wide text-[#4f46e5] focus:outline-none focus:ring-0 cursor-pointer"
+                className={`bg-transparent border-none text-[11px] font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
               >
                 <option value="UZ">UZ</option>
                 <option value="RU">RU</option>
@@ -245,7 +276,7 @@ export default function Navbar({
                   [
                     "flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors",
                     isActive
-                      ? "bg-[#4f46e5] text-white font-semibold"
+                      ? `${themeConfig.bg} text-white font-semibold`
                       : "text-black hover:bg-neutral-100",
                   ].join(" ")
                 }

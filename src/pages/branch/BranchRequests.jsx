@@ -1,1781 +1,1526 @@
 /* eslint-disable no-unused-vars */
 // src/pages/branch/BranchRequests.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import {
+  Package,
+  Search,
+  Plus,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRightLeft,
+  History,
+  ChevronRight,
+  RefreshCw,
+  Inbox,
+  MapPin,
+  X,
+  Check,
+  AlertCircle,
+  Truck,
+  PackageCheck,
+} from "lucide-react";
 
-const BRAND = "#4f46e5";
-
-const STATUS_META = {
-  draft: { label: "Draft", className: "bg-slate-100 text-slate-700" },
-  sent: { label: "Sent", className: "bg-blue-50 text-blue-700" },
-  approved: {
-    label: "Approved",
-    className: "bg-emerald-50 text-emerald-700",
+/* -------------------------------------------------------------------------- */
+/*                              STATUS CONFIG                                  */
+/* -------------------------------------------------------------------------- */
+const STATUS_CONFIG = {
+  sent: { 
+    label: "Pending Review", 
+    color: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border-amber-200/80 shadow-amber-100/50",
+    icon: Clock,
+    iconBg: "bg-amber-100",
   },
-  partially_approved: {
-    label: "Partially approved",
-    className: "bg-amber-50 text-amber-700",
+  approved: { 
+    label: "In Transit", 
+    color: "bg-gradient-to-r from-blue-50 to-emerald-50 text-blue-700 border-blue-200/80 shadow-blue-100/50",
+    icon: Truck,
+    iconBg: "bg-blue-100",
   },
-  rejected: { label: "Rejected", className: "bg-red-50 text-red-700" },
-  cancelled: { label: "Cancelled", className: "bg-zinc-50 text-zinc-600" },
-  completed: {
-    label: "Completed",
-    className: "bg-emerald-50 text-emerald-700",
+  rejected: { 
+    label: "Rejected", 
+    color: "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200/80 shadow-red-100/50",
+    icon: XCircle,
+    iconBg: "bg-red-100",
+  },
+  completed: { 
+    label: "Completed", 
+    color: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200/80 shadow-emerald-100/50",
+    icon: PackageCheck,
+    iconBg: "bg-emerald-100",
+  },
+  cancelled: { 
+    label: "Cancelled", 
+    color: "bg-gradient-to-r from-neutral-50 to-teal-50 text-neutral-600 border-neutral-200/80 shadow-neutral-100/50",
+    icon: X,
+    iconBg: "bg-neutral-100",
   },
 };
 
 function StatusBadge({ status }) {
-  const meta = STATUS_META[status] || {
-    label: status,
-    className: "bg-neutral-100 text-neutral-700",
-  };
+  const config = STATUS_CONFIG[status] || { label: status, color: "bg-neutral-100 text-neutral-700", iconBg: "bg-neutral-100" };
+  const Icon = config.icon || Clock;
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.className}`}
-    >
-      {meta.label}
+    <span className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold border shadow-sm ${config.color}`}>
+      <span className={`p-0.5 rounded-md ${config.iconBg}`}>
+        <Icon className="w-3 h-3" />
+      </span>
+      {config.label}
     </span>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            Top-level Branch page                           */
+/*                         TOAST NOTIFICATION                                  */
 /* -------------------------------------------------------------------------- */
-
-export default function BranchRequests() {
-  const { loading, error, roleBase, roleId, userRow, locationName } =
-    useCurrentUser();
-
-  const [branchLocation, setBranchLocation] = useState(null);
-  const [branchLocationError, setBranchLocationError] = useState(null);
-
-  const [activeTab, setActiveTab] = useState("request"); // 'request' | 'receive' | 'history'
-
-  // Load branch location (locations.role_id = roleId, kind='branch')
+function Toast({ message, type, onClose }) {
   useEffect(() => {
-    if (loading || error || !roleId || roleBase !== "branch") return;
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
-    let ignore = false;
+  const colors = {
+    success: "bg-emerald-600",
+    error: "bg-red-600",
+    info: "bg-blue-600",
+  };
 
-    async function loadBranchLocation() {
-      setBranchLocationError(null);
-      const { data, error: err } = await supabase
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 ${colors[type] || colors.info} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slide-up`}>
+      {type === "success" && <CheckCircle2 className="w-5 h-5" />}
+      {type === "error" && <XCircle className="w-5 h-5" />}
+      {type === "info" && <AlertCircle className="w-5 h-5" />}
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            MAIN COMPONENT                                   */
+/* -------------------------------------------------------------------------- */
+export default function BranchRequests() {
+  const { loading: authLoading, error: authError, roleBase, roleId, userRow, locationName } = useCurrentUser();
+
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  const [activeTab, setActiveTab] = useState("new"); // new, outgoing, incoming, history
+  const [toast, setToast] = useState(null);
+
+  // Load current location
+  useEffect(() => {
+    if (authLoading || authError || !roleId) return;
+    
+    async function loadLocation() {
+      const { data, error } = await supabase
         .from("locations")
         .select("id, name, location_name, code, kind")
         .eq("role_id", roleId)
-        .eq("kind", "branch")
+        .eq("kind", roleBase)
         .single();
 
-      if (ignore) return;
-
-      if (err) {
-        console.error("Error loading branch location:", err);
-        setBranchLocation(null);
-        setBranchLocationError(
-          err.message || "Could not find branch location for this user."
-        );
+      if (error) {
+        setLocationError(error.message);
       } else {
-        setBranchLocation(data);
+        setLocation(data);
       }
     }
+    loadLocation();
+  }, [authLoading, authError, roleId, roleBase]);
 
-    loadBranchLocation();
-    return () => {
-      ignore = true;
-    };
-  }, [loading, error, roleBase, roleId]);
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+  }, []);
 
-  // --- Auth guards ---
+  // Loading/Error states
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (authError || locationError) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {authError || locationError}
+        </div>
+      </div>
+    );
+  }
+
+  if (!location) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const tabs = [
+    { key: "new", label: "New Request", icon: Plus },
+    { key: "outgoing", label: "My Requests", icon: Send },
+    { key: "incoming", label: "Incoming", icon: Inbox },
+    { key: "history", label: "History", icon: History },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Clean Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
+        <div className="relative flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
+            <ArrowRightLeft className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Product Requests</h1>
+            <p className="text-slate-400 text-sm">Manage incoming and outgoing product transfers</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Modern Pill Tabs */}
+      <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? "text-emerald-600" : ""}`} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <div className="min-h-[400px]">
+        {activeTab === "new" && <NewRequestTab location={location} showToast={showToast} />}
+        {activeTab === "outgoing" && <OutgoingTab location={location} showToast={showToast} />}
+        {activeTab === "incoming" && <IncomingTab location={location} showToast={showToast} />}
+        {activeTab === "history" && <HistoryTab location={location} />}
+      </div>
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          NEW REQUEST TAB                                    */
+/* -------------------------------------------------------------------------- */
+function NewRequestTab({ location, showToast }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [products, setProducts] = useState([]);
+  const [allLocations, setAllLocations] = useState([]);
+  const [productStock, setProductStock] = useState({});
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Cart: { productId, productName, sku, sourceLocationId, sourceLocationName, qty }
+  const [cart, setCart] = useState([]);
+  
+  // Track quantities for each location (for batch add)
+  const [locationQtys, setLocationQtys] = useState({});
+
+  // Load all locations except current
+  useEffect(() => {
+    async function loadLocations() {
+      const { data } = await supabase
+        .from("locations")
+        .select("id, name, location_name, kind")
+        .neq("id", location.id);
+      setAllLocations(data || []);
+    }
+    loadLocations();
+  }, [location.id]);
+
+  // Search products
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setProducts([]);
+      return;
+    }
+
+    const debounce = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, sku, price")
+        .or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`)
+        .limit(20);
+      setProducts(data || []);
+      setLoading(false);
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
+  // Load stock for selected product across all locations
+  useEffect(() => {
+    if (!selectedProduct) {
+      setProductStock({});
+      return;
+    }
+
+    async function loadStock() {
+      const { data } = await supabase
+        .from("product_list")
+        .select("location_id, quantity")
+        .eq("product_id", selectedProduct.id)
+        .neq("location_id", location.id);
+
+      const stockMap = {};
+      (data || []).forEach((row) => {
+        stockMap[row.location_id] = row.quantity;
+      });
+      setProductStock(stockMap);
+    }
+    loadStock();
+  }, [selectedProduct, location.id]);
+
+  function handleBatchAddToCart() {
+    if (!selectedProduct) return;
+
+    // Get all locations with qty > 0
+    const newItems = Object.entries(locationQtys)
+      .filter(([_, qty]) => qty > 0)
+      .map(([locId, qty]) => {
+        const loc = allLocations.find(l => l.id === locId);
+        return {
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          sku: selectedProduct.sku,
+          sourceLocationId: locId,
+          sourceLocationName: loc?.location_name || loc?.name || "Unknown",
+          qty: qty,
+        };
+      });
+
+    if (newItems.length === 0) return;
+
+    setCart((prev) => [...prev, ...newItems]);
+    setSelectedProduct(null);
+    setSearchQuery("");
+    setProducts([]);
+    setLocationQtys({});
+  }
+
+  function handleRemoveFromCart(index) {
+    setCart((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmitRequests() {
+    if (cart.length === 0) return;
+    
+    setSubmitting(true);
+    try {
+      // Group cart items by source location
+      const bySource = {};
+      cart.forEach((item) => {
+        if (!bySource[item.sourceLocationId]) {
+          bySource[item.sourceLocationId] = [];
+        }
+        bySource[item.sourceLocationId].push(item);
+      });
+
+      // Create one request per source location
+      for (const [sourceId, items] of Object.entries(bySource)) {
+        const { data: request, error: reqError } = await supabase
+          .from("branch_requests")
+          .insert({
+            to_location_id: location.id,
+            status: "sent",
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select("id")
+          .single();
+
+        if (reqError) throw reqError;
+
+        // Create request items
+        const itemInserts = items.map((item) => ({
+          request_id: request.id,
+          product_id: item.productId,
+          source_location_id: item.sourceLocationId,
+          requested_qty: item.qty,
+          status: "requested",
+        }));
+
+        const { error: itemError } = await supabase
+          .from("branch_request_items")
+          .insert(itemInserts);
+
+        if (itemError) throw itemError;
+      }
+
+      setCart([]);
+      showToast("Request sent successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to send request", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left: Product Search */}
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <h3 className="font-semibold text-neutral-900 mb-4">Search Products</h3>
+          
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search by name or SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Search Results */}
+          {products.length > 0 && (
+            <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
+              {products.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => {
+                    setSelectedProduct(product);
+                    setProducts([]);
+                    setSearchQuery(product.name);
+                  }}
+                  className="w-full text-left p-3 rounded-xl border border-neutral-200 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
+                >
+                  <p className="font-medium text-neutral-900">{product.name}</p>
+                  <p className="text-xs text-neutral-500">SKU: {product.sku}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loading && (
+            <div className="mt-3 text-sm text-neutral-500 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Searching...
+            </div>
+          )}
+        </div>
+
+        {/* Stock Availability - with batch add */}
+        {selectedProduct && (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h3 className="font-semibold text-neutral-900 mb-1">{selectedProduct.name}</h3>
+            <p className="text-xs text-neutral-500 mb-4">Enter quantities from each location:</p>
+
+            <div className="space-y-2">
+              {allLocations.map((loc) => {
+                const stock = productStock[loc.id] || 0;
+                const currentQty = locationQtys[loc.id] || 0;
+                return (
+                  <div key={loc.id} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                    <div>
+                      <p className="font-medium text-neutral-900 text-sm">{loc.location_name || loc.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        Available: <span className={stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"}>{stock}</span>
+                      </p>
+                    </div>
+                    {stock > 0 && (
+                      <input
+                        type="number"
+                        min="0"
+                        max={stock}
+                        value={currentQty || ""}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = Math.min(stock, Math.max(0, parseInt(e.target.value) || 0));
+                          setLocationQtys(prev => ({ ...prev, [loc.id]: val }));
+                        }}
+                        className="w-20 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add All to Cart button */}
+            {Object.values(locationQtys).some(q => q > 0) && (
+              <button
+                onClick={handleBatchAddToCart}
+                className="w-full mt-4 rounded-xl bg-emerald-600 text-white py-2.5 px-4 font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add {Object.values(locationQtys).filter(q => q > 0).length} Location(s) to Cart
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Right: Cart */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <h3 className="font-semibold text-neutral-900 mb-4">Request Cart ({cart.length} items)</h3>
+
+        {cart.length === 0 ? (
+          <div className="text-center py-8 text-neutral-400">
+            <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm">No items in cart</p>
+            <p className="text-xs mt-1">Search and add products to request</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {cart.map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                <div>
+                  <p className="font-medium text-neutral-900 text-sm">{item.productName}</p>
+                  <p className="text-xs text-neutral-500">
+                    From: {item.sourceLocationName} • Qty: {item.qty}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRemoveFromCart(i)}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            <button
+              onClick={handleSubmitRequests}
+              disabled={submitting}
+              className="w-full mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Send Request
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LocationStockRow({ location, stock, onAdd }) {
+  const [qty, setQty] = useState(1);
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+      <div>
+        <p className="font-medium text-neutral-900 text-sm">{location.location_name || location.name}</p>
+        <p className="text-xs text-neutral-500">
+          Available: <span className={stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"}>{stock}</span>
+        </p>
+      </div>
+      {stock > 0 && (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="1"
+            max={stock}
+            value={qty}
+            onChange={(e) => setQty(Math.min(stock, Math.max(1, parseInt(e.target.value) || 1)))}
+            className="w-16 rounded-lg border border-neutral-200 px-2 py-1 text-sm text-center"
+          />
+          <button
+            onClick={() => onAdd(qty)}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+          >
+            Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          OUTGOING TAB (My Requests)                         */
+/* -------------------------------------------------------------------------- */
+function OutgoingTab({ location, showToast }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedLocations, setExpandedLocations] = useState({});
+
+  const loadRequests = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("branch_requests")
+      .select(`
+        id, status, created_at,
+        to_location:to_location_id (id, name, location_name),
+        items:branch_request_items (
+          id, requested_qty, approved_qty, status,
+          product:product_id (name, sku),
+          source_location:source_location_id (id, name, location_name)
+        )
+      `)
+      .eq("to_location_id", location.id)
+      .in("status", ["sent", "approved"])
+      .order("created_at", { ascending: false });
+
+    setRequests(data || []);
+    // Expand all locations by default
+    const locationIds = {};
+    (data || []).forEach(r => {
+      const sourceId = r.items?.[0]?.source_location?.id;
+      if (sourceId) locationIds[sourceId] = true;
+    });
+    setExpandedLocations(locationIds);
+    setLoading(false);
+  }, [location.id]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  async function handleCancel(requestId) {
+    const { error } = await supabase
+      .from("branch_requests")
+      .update({ status: "cancelled" })
+      .eq("id", requestId);
+
+    if (error) {
+      showToast("Failed to cancel request", "error");
+    } else {
+      showToast("Request cancelled", "info");
+      loadRequests();
+    }
+  }
+
+  async function handleConfirmReceipt(requestId) {
+    try {
+      const { data: request, error: fetchErr } = await supabase
+        .from("branch_requests")
+        .select(`
+          id,
+          items:branch_request_items (
+            id, requested_qty, approved_qty,
+            product:product_id (id)
+          )
+        `)
+        .eq("id", requestId)
+        .single();
+
+      if (fetchErr || !request) throw fetchErr || new Error("Request not found");
+
+      // Add inventory to requester location (this location)
+      for (const item of request.items) {
+        const qtyToAdd = item.approved_qty || item.requested_qty || 0;
+        if (qtyToAdd <= 0) continue;
+
+        const { data: existing } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", item.product.id)
+          .eq("location_id", location.id)
+          .maybeSingle();
+
+        if (existing) {
+          const { error: upErr } = await supabase
+            .from("product_list")
+            .update({ quantity: (existing.quantity || 0) + qtyToAdd })
+            .eq("id", existing.id);
+          if (upErr) console.error("Update inventory error:", upErr);
+        } else {
+          const { error: insErr } = await supabase
+            .from("product_list")
+            .insert({
+              id: crypto.randomUUID(),
+              product_id: item.product.id,
+              location_id: location.id,
+              quantity: qtyToAdd,
+              status: "available",
+            });
+          if (insErr) console.error("Insert inventory error:", insErr);
+        }
+      }
+
+      await supabase
+        .from("branch_requests")
+        .update({ 
+          status: "completed",
+          branch_confirmed_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      showToast("Items received! Inventory updated.", "success");
+      loadRequests();
+    } catch (err) {
+      console.error("Confirm receipt error:", err);
+      showToast("Failed to confirm receipt", "error");
+    }
+  }
+
+  // Group by source location, then by month
+  const groupedByLocation = useMemo(() => {
+    const groups = {};
+    requests.forEach(req => {
+      const sourceLocation = req.items?.[0]?.source_location;
+      const sourceId = sourceLocation?.id || 'unknown';
+      const sourceName = sourceLocation?.location_name || sourceLocation?.name || 'Unknown';
+      
+      if (!groups[sourceId]) {
+        groups[sourceId] = { name: sourceName, id: sourceId, months: {} };
+      }
+      
+      const date = new Date(req.created_at);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      if (!groups[sourceId].months[monthKey]) {
+        groups[sourceId].months[monthKey] = { name: monthName, requests: [] };
+      }
+      groups[sourceId].months[monthKey].requests.push(req);
+    });
+    return groups;
+  }, [requests]);
+
+  const toggleLocation = (locationId) => {
+    setExpandedLocations(prev => ({ ...prev, [locationId]: !prev[locationId] }));
+  };
 
   if (loading) {
     return (
-      <div className="p-6 text-sm text-neutral-500">Checking user session…</div>
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      </div>
     );
   }
 
-  if (error) {
+  if (requests.length === 0) {
     return (
-      <div className="p-6 text-sm text-red-500">
-        Auth error: <span className="font-mono">{error}</span>
+      <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
+        <Send className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+        <h3 className="font-semibold text-neutral-900 mb-2">No Active Requests</h3>
+        <p className="text-sm text-neutral-500">Create a new request to get started</p>
       </div>
     );
-  }
-
-  if (roleBase !== "branch") {
-    return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Only branch users can access this page.
-        </div>
-      </div>
-    );
-  }
-
-  if (branchLocationError) {
-    return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {branchLocationError}
-        </div>
-      </div>
-    );
-  }
-
-  const branchLabel =
-    branchLocation?.location_name ||
-    locationName ||
-    branchLocation?.name ||
-    "—";
-
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Branch Requests
-          </h1>
-          <p className="text-sm text-neutral-500">
-            You are in branch:{" "}
-            <span className="font-medium text-neutral-800">{branchLabel}</span>
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="inline-flex rounded-full border border-neutral-200 bg-white p-1 text-xs shadow-sm">
-          {[
-            ["request", "Requesting"],
-            ["receive", "Receiving"],
-            ["history", "History"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
-                activeTab === key
-                  ? "bg-[#4f46e5] text-white shadow-sm"
-                  : "text-neutral-700 hover:bg-slate-100"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content */}
-      {activeTab === "request" && (
-        <RequestingView branchLocation={branchLocation} userRow={userRow} />
-      )}
-      {activeTab === "receive" && (
-        <ReceivingView branchLocation={branchLocation} userRow={userRow} />
-      )}
-      {activeTab === "history" && (
-        <HistoryView branchLocation={branchLocation} />
-      )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             Requesting subview                             */
-/* -------------------------------------------------------------------------- */
-
-function RequestingView({ branchLocation, userRow }) {
-  const [requests, setRequests] = useState([]);
-  const [listLoading, setListLoading] = useState(false);
-  // eslint-disable-next-line no-unused-vars
-  const [listError, setListError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!branchLocation) return;
-    loadRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchLocation]);
-
-  async function loadRequests() {
-    if (!branchLocation) return;
-    setListLoading(true);
-    setListError(null);
-
-    const { data, error } = await supabase
-      .from("branch_requests")
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        updated_at,
-        warehouse_decided_at,
-        branch_confirmed_at,
-        items:branch_request_items (
-          id,
-          requested_qty,
-          approved_qty,
-          status
-        )
-      `
-      )
-      .eq("to_location_id", branchLocation.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading branch requests:", error);
-      setListError(error.message || "Failed to load requests.");
-      setRequests([]);
-    } else {
-      setRequests(data || []);
-    }
-    setListLoading(false);
-  }
-
-  const filteredRequests = useMemo(
-    () =>
-      requests.filter((r) => (statusFilter ? r.status === statusFilter : true)),
-    [requests, statusFilter]
-  );
-
-  async function handleOpenRequest(id) {
-    setDetailsLoading(true);
-    setSelectedRequest(null);
-
-    const { data, error } = await supabase
-      .from("branch_requests")
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        updated_at,
-        to_location_id,
-        created_by,
-        to_location:to_location_id ( id, name, location_name ),
-        created_user:created_by ( name ),
-        warehouse_decided_at,
-        warehouse_decided_by,
-        branch_confirmed_at,
-        branch_confirmed_by,
-        items:branch_request_items (
-          id,
-          requested_qty,
-          approved_qty,
-          status,
-          is_received,
-          product:product_id (id, name, sku, price),
-          source_location:source_location_id (id, name, location_name, kind)
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
-
-  if (error) {
-      console.error("Error loading request details:", error);
-      setDetailsLoading(false);
-      return;
-    }
-
-    setSelectedRequest(data);
-    setDetailsLoading(false);
-  }
-
-  async function handleCreateDraft() {
-    if (!branchLocation || !userRow?.user_id) return;
-
-    const { data, error } = await supabase
-      .from("branch_requests")
-      .insert({
-        to_location_id: branchLocation.id,
-        created_by: userRow.user_id,
-        status: "draft",
-      })
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        updated_at,
-        to_location_id,
-        created_by,
-        to_location:to_location_id ( id, name, location_name ),
-        created_user:created_by ( name ),
-        items:branch_request_items (
-          id,
-          requested_qty,
-          approved_qty,
-          status,
-          is_received,
-          product:product_id (id, name, sku, price),
-          source_location:source_location_id (id, name, location_name, kind)
-        )
-      `
-      )
-      .single();
-
-    if (error) {
-      console.error("Error creating draft:", error);
-      alert(error.message || "Failed to create draft.");
-      return;
-    }
-
-    await loadRequests();
-    setSelectedRequest(data);
-    setDetailsLoading(false);
   }
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-neutral-500">
-          Create and manage branch requests.
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5] hover:border-neutral-400"
-          >
-            <option value="">All statuses</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="approved">Approved</option>
-            <option value="partially_approved">Partially approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={handleCreateDraft}
-            className="rounded-xl bg-[#4f46e5] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#4338ca] active:scale-[.99] transition"
-          >
-            + New request
-          </button>
-        </div>
+      {/* Summary */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-600">
+          <span className="font-semibold text-neutral-900">{requests.length}</span> active requests
+        </p>
       </div>
 
-      {/* Requests list */}
-      <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        {listLoading ? (
-          <div className="p-6 text-sm text-neutral-500">Loading…</div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="p-6 text-sm text-neutral-500">
-            No requests yet. Click “New request” to create one.
-          </div>
-        ) : (
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
-                <th className="px-4 py-2 text-left">Date</th>
-                <th className="px-4 py-2 text-center">Items</th>
-                <th className="px-4 py-2 text-center">Total qty</th>
-                <th className="px-4 py-2 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.map((r) => {
-                const totalQty =
-                  r.items?.reduce(
-                    (sum, it) => sum + (it.requested_qty || 0),
-                    0
-                  ) ?? 0;
-                return (
-                  <tr
-                    key={r.id}
-                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-slate-50"
-                    onClick={() => handleOpenRequest(r.id)}
-                  >
-                    <td className="px-4 py-2">
-                      {new Date(r.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      {r.items?.length ?? 0}
-                    </td>
-                    <td className="px-4 py-2 text-center">{totalQty}</td>
-                    <td className="px-4 py-2">
-                      <StatusBadge status={r.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Table */}
+      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        {/* Table Header */}
+        <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
+          <div className="col-span-3">Products</div>
+          <div className="col-span-2">Source</div>
+          <div className="col-span-1 text-center">Qty</div>
+          <div className="col-span-2 text-center">Status</div>
+          <div className="col-span-2 text-center">Date</div>
+          <div className="col-span-2 text-right">Actions</div>
+        </div>
 
-      {/* Editor */}
-      <div className="mt-4">
-        {detailsLoading && (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-500 shadow-sm">
-            Loading request…
-          </div>
-        )}
-
-        {selectedRequest && !detailsLoading && (
-          <BranchRequestEditor
-            request={selectedRequest}
-            branchLocation={branchLocation}
-            currentUserId={userRow?.user_id || null}
-            onClose={() => setSelectedRequest(null)}
-            onReload={loadRequests}
-          />
-        )}
+        {/* Table Body */}
+        <div className="divide-y divide-neutral-100">
+          {requests.map(req => {
+            const source = req.items?.[0]?.source_location?.location_name || req.items?.[0]?.source_location?.name || "Unknown";
+            const totalQty = req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+            const productInfo = req.items?.slice(0, 2).map(i => 
+              `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
+            ).join(", ") || "—";
+            const moreCount = (req.items?.length || 0) - 2;
+            const isPending = req.status === "sent";
+            const isApproved = req.status === "approved";
+            
+            return (
+              <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center">
+                <div className="col-span-3 text-sm text-neutral-700 truncate">
+                  {productInfo}
+                  {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-neutral-900">{source}</p>
+                </div>
+                <div className="col-span-1 text-center">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
+                    {totalQty}
+                  </span>
+                </div>
+                <div className="col-span-2 text-center">
+                  {isPending && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                      <Clock className="w-3 h-3" />
+                      Pending
+                    </span>
+                  )}
+                  {isApproved && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                      <Check className="w-3 h-3" />
+                      Approved
+                    </span>
+                  )}
+                </div>
+                <div className="col-span-2 text-center">
+                  <p className="text-sm text-neutral-600">
+                    {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="col-span-2 flex items-center justify-end gap-2">
+                  {isPending && (
+                    <button
+                      onClick={() => handleCancel(req.id)}
+                      className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-sm font-medium hover:bg-neutral-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  {isApproved && (
+                    <button
+                      onClick={() => handleConfirmReceipt(req.id)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                    >
+                      <PackageCheck className="w-4 h-4" />
+                      Received
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            Receiving subview                               */
+/*                          INCOMING TAB                                       */
 /* -------------------------------------------------------------------------- */
-
-function ReceivingView({ branchLocation, userRow }) {
+function IncomingTab({ location, showToast }) {
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!branchLocation) return;
-    loadReceiving();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchLocation]);
-
-  async function loadReceiving() {
+  const loadRequests = useCallback(async () => {
     setLoading(true);
-
-    // Requests where this branch is destination AND there exist items with approved_qty>0 and is_received=false
+    // Fetch all sent requests, then filter by items where source_location = this location
     const { data, error } = await supabase
       .from("branch_requests")
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        updated_at,
+      .select(`
+        id, status, created_at,
+        to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
-          id,
-          requested_qty,
-          approved_qty,
-          is_received
+          id, requested_qty, approved_qty, status,
+          product:product_id (id, name, sku),
+          source_location:source_location_id (id, name, location_name)
         )
-      `
-      )
-      .eq("to_location_id", branchLocation.id)
-      .in("status", ["sent", "approved", "partially_approved"])
+      `)
+      .eq("status", "sent")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error loading receiving list:", error);
-      setRequests([]);
-      setLoading(false);
-      return;
-    }
-
-    const filtered =
-      data?.filter((r) =>
-        (r.items || []).some(
-          (it) => (it.approved_qty || 0) > 0 && !it.is_received
-        )
-      ) || [];
-
+    // Filter: only keep requests with at least one item sourced from this location
+    const filtered = (data || []).filter(req => 
+      req.items?.some(item => item.source_location?.id === location.id)
+    );
+    
     setRequests(filtered);
     setLoading(false);
-  }
+  }, [location.id]);
 
-  async function handleOpenRequest(id) {
-    setDetailsLoading(true);
-    setSelectedRequest(null);
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
 
-    const { data, error } = await supabase
-      .from("branch_requests")
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        updated_at,
-        to_location:to_location_id ( id, name, location_name ),
-        created_user:created_by ( name ),
-        items:branch_request_items (
-          id,
-          requested_qty,
-          approved_qty,
-          status,
-          is_received,
-          product:product_id (id, name, sku, price),
-          source_location:source_location_id (id, name, location_name, kind)
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      console.error("Error loading receiving details:", error);
-      setDetailsLoading(false);
-      return;
-    }
-
-    setSelectedRequest(data);
-    setDetailsLoading(false);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="text-sm text-neutral-500">
-        Confirm items actually received to complete transfers.
-      </div>
-
-      <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="p-6 text-sm text-neutral-500">Loading…</div>
-        ) : requests.length === 0 ? (
-          <div className="p-6 text-sm text-neutral-500">
-            No pending items to receive.
-          </div>
-        ) : (
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
-                <th className="px-4 py-2 text-left">Date</th>
-                <th className="px-4 py-2 text-center">Items</th>
-                <th className="px-4 py-2 text-center">Approved qty</th>
-                <th className="px-4 py-2 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((r) => {
-                const approvedQty =
-                  r.items?.reduce(
-                    (sum, it) => sum + (it.approved_qty || 0),
-                    0
-                  ) ?? 0;
-                const pendingCount =
-                  r.items?.filter(
-                    (it) => (it.approved_qty || 0) > 0 && !it.is_received
-                  ).length ?? 0;
-                return (
-                  <tr
-                    key={r.id}
-                    className="cursor-pointer border-t border-neutral-100 transition hover:bg-slate-50"
-                    onClick={() => handleOpenRequest(r.id)}
-                  >
-                    <td className="px-4 py-2">
-                      {new Date(r.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2 text-center">{pendingCount}</td>
-                    <td className="px-4 py-2 text-center">{approvedQty}</td>
-                    <td className="px-4 py-2">
-                      <StatusBadge status={r.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="mt-4">
-        {detailsLoading && (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-500 shadow-sm">
-            Loading request…
-          </div>
-        )}
-
-        {selectedRequest && !detailsLoading && (
-          <ReceivingDetails
-            request={selectedRequest}
-            currentUserId={userRow?.user_id || null}
-            onClose={() => setSelectedRequest(null)}
-            onReload={loadReceiving}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ReceivingDetails({ request, currentUserId, onClose, onReload }) {
-  const [items, setItems] = useState(
-    () =>
-      request.items?.map((it) => ({
-        ...it,
-        is_received: it.is_received || false,
-      })) || []
-  );
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-
-  const branchName =
-    request.to_location?.location_name || request.to_location?.name || "—";
-  const createdBy = request.created_user?.name || "—";
-
-  async function handleSave() {
-    setSaving(true);
-    setSaveError(null);
-
+  async function handleApprove(request) {
     try {
-      // Update items (is_received flags)
-      const payload = items.map((it) => ({
-        id: it.id,
-        is_received: it.is_received,
-      }));
+      // Deduct inventory from source location
+      for (const item of request.items) {
+        const qtyToDeduct = item.requested_qty;
+        
+        // Get current product
+        const { data: product } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", item.product.id)
+          .eq("location_id", location.id)
+          .single();
 
-      const { error: itemsErr } = await supabase
-        .from("branch_request_items")
-        .upsert(payload, { onConflict: "id" });
-
-      if (itemsErr) {
-        console.error("Receiving: items error:", itemsErr);
-        throw new Error(itemsErr.message || "Failed to update items");
-      }
-
-      // Check if all approved items are received
-      const allReceived = items.every(
-        (it) => (it.approved_qty || 0) === 0 || it.is_received
-      );
-
-      if (allReceived) {
-        const { error: headerErr } = await supabase
-          .from("branch_requests")
-          .update({
-            status: "completed",
-            branch_confirmed_at: new Date().toISOString(),
-            branch_confirmed_by: currentUserId,
-          })
-          .eq("id", request.id);
-
-        if (headerErr) {
-          console.error("Receiving: header error:", headerErr);
-          throw new Error(headerErr.message || "Failed to update request");
+        if (product) {
+          await supabase
+            .from("product_list")
+            .update({ quantity: Math.max(0, product.quantity - qtyToDeduct) })
+            .eq("id", product.id);
         }
+
+        // Update item status
+        await supabase
+          .from("branch_request_items")
+          .update({ status: "approved", approved_qty: qtyToDeduct })
+          .eq("id", item.id);
       }
 
-      await onReload();
-      setSaving(false);
-    } catch (e) {
-      setSaving(false);
-      setSaveError(e.message || "Unknown error");
+      // Update request status
+      await supabase
+        .from("branch_requests")
+        .update({ 
+          status: "approved",
+          warehouse_decided_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      showToast("Request approved! Inventory deducted.", "success");
+      loadRequests();
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to approve request", "error");
     }
   }
 
-  return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Receive items
-            <span className="ml-2 text-xs font-normal text-neutral-500">
-              #{request.id.slice(0, 8)}
-            </span>
-          </h2>
-          <p className="text-sm text-neutral-500">
-            For branch:{" "}
-            <span className="font-medium text-neutral-700">{branchName}</span> ·
-            Created by{" "}
-            <span className="font-medium text-neutral-700">{createdBy}</span> on{" "}
-            {new Date(request.created_at).toLocaleString()}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-neutral-500 hover:text-neutral-700"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-xl bg-[#4f46e5] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Confirm received"}
-          </button>
-        </div>
-      </div>
-
-      {saveError && (
-        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {saveError}
-        </div>
-      )}
-
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-100">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
-              <th className="px-3 py-2 text-left">Source</th>
-              <th className="px-3 py-2 text-left">SKU</th>
-              <th className="px-3 py-2 text-left">Product</th>
-              <th className="px-3 py-2 text-center">Approved</th>
-              <th className="px-3 py-2 text-center">Received</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-3 py-3 text-center text-sm text-neutral-500"
-                >
-                  No items.
-                </td>
-              </tr>
-            ) : (
-              items.map((it) => {
-                if ((it.approved_qty || 0) === 0) return null;
-                const src = it.source_location;
-                const srcLabel =
-                  (src?.kind === "warehouse" ? "Warehouse: " : "Branch: ") +
-                  (src?.location_name || src?.name || "—");
-                return (
-                  <tr key={it.id} className="border-t border-neutral-100">
-                    <td className="px-3 py-2 text-xs text-neutral-600">
-                      {srcLabel}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {it.product?.sku || "—"}
-                    </td>
-                    <td className="px-3 py-2">{it.product?.name || "—"}</td>
-                    <td className="px-3 py-2 text-center">
-                      {it.approved_qty || 0}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={it.is_received}
-                        onChange={(e) =>
-                          setItems((prev) =>
-                            prev.map((row) =>
-                              row.id === it.id
-                                ? { ...row, is_received: e.target.checked }
-                                : row
-                            )
-                          )
-                        }
-                      />
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                               History subview                              */
-/* -------------------------------------------------------------------------- */
-
-function HistoryView({ branchLocation }) {
-  const [mode, setMode] = useState("requests"); // 'requests' | 'responding'
-  const [requests, setRequests] = useState([]);
-  const [responding, setResponding] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
-  const [loadingResponding, setLoadingResponding] = useState(false);
-
-  useEffect(() => {
-    if (!branchLocation) return;
-    loadRequestsHistory();
-    loadRespondingHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchLocation]);
-
-  async function loadRequestsHistory() {
-    setLoadingRequests(true);
-    const { data, error } = await supabase
+  async function handleReject(requestId) {
+    await supabase
       .from("branch_requests")
-      .select(
-        `
-        id,
-        status,
-        created_at,
-        branch_confirmed_at,
-        items:branch_request_items (id, requested_qty, approved_qty)
-      `
-      )
-      .eq("to_location_id", branchLocation.id)
-      .order("created_at", { ascending: false });
+      .update({ status: "rejected" })
+      .eq("id", requestId);
 
-    if (error) {
-      console.error("History requests error:", error);
-      setRequests([]);
-    } else {
-      setRequests(data || []);
-    }
-    setLoadingRequests(false);
+    showToast("Request rejected", "info");
+    loadRequests();
   }
 
-  async function loadRespondingHistory() {
-    setLoadingResponding(true);
-    const { data, error } = await supabase
-      .from("branch_request_items")
-      .select(
-        `
-        id,
-        requested_qty,
-        approved_qty,
-        is_received,
-        product:product_id (id, name, sku),
-        request:request_id (
-          id,
-          status,
-          created_at,
-          to_location:to_location_id (id, name, location_name)
-        )
-      `
-      )
-      .eq("source_location_id", branchLocation.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("History responding error:", error);
-      setResponding([]);
-    } else {
-      setResponding(data || []);
-    }
-    setLoadingResponding(false);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-neutral-500">
-          View history of your requests and responses to other branches.
-        </div>
-        <div className="inline-flex rounded-full border border-neutral-200 bg-white p-1 text-xs shadow-sm">
-          <button
-            type="button"
-            onClick={() => setMode("requests")}
-            className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
-              mode === "requests"
-                ? "bg-[#4f46e5] text-white shadow-sm"
-                : "text-neutral-700 hover:bg-slate-100"
-            }`}
-          >
-            Request history
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("responding")}
-            className={`rounded-full px-3.5 py-1.5 font-medium transition text-sm ${
-              mode === "responding"
-                ? "bg-[#4f46e5] text-white shadow-sm"
-                : "text-neutral-700 hover:bg-slate-100"
-            }`}
-          >
-            Responding history
-          </button>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
       </div>
-
-      {mode === "requests" ? (
-        <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-          {loadingRequests ? (
-            <div className="p-6 text-sm text-neutral-500">Loading…</div>
-          ) : requests.length === 0 ? (
-            <div className="p-6 text-sm text-neutral-500">
-              No request history yet.
-            </div>
-          ) : (
-            <table className="min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-center">Items</th>
-                  <th className="px-4 py-2 text-center">Requested</th>
-                  <th className="px-4 py-2 text-center">Approved</th>
-                  <th className="px-4 py-2 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((r) => {
-                  const totalReq =
-                    r.items?.reduce(
-                      (s, it) => s + (it.requested_qty || 0),
-                      0
-                    ) ?? 0;
-                  const totalApp =
-                    r.items?.reduce((s, it) => s + (it.approved_qty || 0), 0) ??
-                    0;
-                  return (
-                    <tr key={r.id} className="border-t border-neutral-100">
-                      <td className="px-4 py-2">
-                        {new Date(r.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        {r.items?.length ?? 0}
-                      </td>
-                      <td className="px-4 py-2 text-center">{totalReq}</td>
-                      <td className="px-4 py-2 text-center">{totalApp}</td>
-                      <td className="px-4 py-2">
-                        <StatusBadge status={r.status} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-          {loadingResponding ? (
-            <div className="p-6 text-sm text-neutral-500">Loading…</div>
-          ) : responding.length === 0 ? (
-            <div className="p-6 text-sm text-neutral-500">
-              No history where you responded as source.
-            </div>
-          ) : (
-            <table className="min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-[#4f46e5] text-[11px] uppercase tracking-wide text-white">
-                  <th className="px-4 py-2 text-left">Date</th>
-                  <th className="px-4 py-2 text-left">To branch</th>
-                  <th className="px-4 py-2 text-left">Product</th>
-                  <th className="px-4 py-2 text-center">Requested</th>
-                  <th className="px-4 py-2 text-center">Approved</th>
-                  <th className="px-4 py-2 text-center">Received</th>
-                  <th className="px-4 py-2 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {responding.map((row) => {
-                  const req = row.request;
-                  const destBranch =
-                    req?.to_location?.location_name ||
-                    req?.to_location?.name ||
-                    "—";
-                  return (
-                    <tr key={row.id} className="border-t border-neutral-100">
-                      <td className="px-4 py-2">
-                        {req?.created_at
-                          ? new Date(req.created_at).toLocaleString()
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-2">{destBranch}</td>
-                      <td className="px-4 py-2">
-                        {row.product?.name || "—"}{" "}
-                        <span className="font-mono text-[10px] text-neutral-200">
-                          ({row.product?.sku || "—"})
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        {row.requested_qty || 0}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        {row.approved_qty || 0}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        {row.is_received ? "Yes" : "No"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <StatusBadge status={req?.status || "draft"} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                     BranchRequestEditor (Requesting UI)                    */
-/*           with dynamic search + stock & max-available validation          */
-/* -------------------------------------------------------------------------- */
-
-function BranchRequestEditor({
-  request,
-  branchLocation,
-  currentUserId,
-  onClose,
-  onReload,
-}) {
-  const [items, setItems] = useState(() =>
-    (request.items || []).map((it) => ({
-      id: it.id,
-      requested_qty: it.requested_qty,
-      approved_qty: it.approved_qty,
-      status: it.status || "requested",
-      is_received: it.is_received,
-      product: it.product,
-      product_id: it.product?.id || null,
-      source_location: it.source_location,
-      source_location_id: it.source_location?.id || null,
-      _isNew: false,
-      _deleted: false,
-    }))
-  );
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-
-  const [sourceLocations, setSourceLocations] = useState([]);
-  const [sourcesLoading, setSourcesLoading] = useState(false);
-
-  // dynamic product search
-  const [productSearch, setProductSearch] = useState("");
-  const [productResults, setProductResults] = useState([]);
-  const [productSearching, setProductSearching] = useState(false);
-  const [newProduct, setNewProduct] = useState(null);
-
-  // stock per location for currently selected product
-  const [stockSummary, setStockSummary] = useState([]); // [{location, available}]
-  const [stockLoading, setStockLoading] = useState(false);
-
-  // per-source draft quantity while adding: { [locationId]: number }
-  const [sourceDrafts, setSourceDrafts] = useState({});
-
-  // availability cache for editing existing rows: { `${productId}:${locId}`: available }
-  const [availabilityMap, setAvailabilityMap] = useState({});
-
-  const canEdit =
-    request.status !== "completed" && request.status !== "cancelled";
-
-  const branchName =
-    request.to_location?.location_name || request.to_location?.name || "—";
-  const createdBy = request.created_user?.name || "—";
-
-  /* --------------------------- Load source locations --------------------------- */
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadSources() {
-      setSourcesLoading(true);
-      const { data, error } = await supabase
-        .from("locations")
-        .select("id, name, location_name, kind")
-        .neq("id", branchLocation.id);
-
-      if (ignore) return;
-
-      if (error) {
-        console.error("Error loading source locations:", error);
-        setSourceLocations([]);
-      } else {
-        setSourceLocations(data || []);
-      }
-      setSourcesLoading(false);
-    }
-
-    loadSources();
-    return () => {
-      ignore = true;
-    };
-  }, [branchLocation.id]);
-
-  /* ------------------------- Dynamic product suggestions ---------------------- */
-
-  useEffect(() => {
-    if (!productSearch.trim()) {
-      setProductResults([]);
-      return;
-    }
-
-    const handle = setTimeout(async () => {
-      setProductSearching(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, sku, price")
-        .or(`name.ilike.%${productSearch}%,sku.ilike.%${productSearch}%`)
-        .limit(15);
-
-      if (error) {
-        console.error("Error searching products:", error);
-        setProductResults([]);
-      } else {
-        setProductResults(data || []);
-      }
-      setProductSearching(false);
-    }, 250);
-
-    return () => clearTimeout(handle);
-  }, [productSearch]);
-
-  function handleSelectProduct(p) {
-    setNewProduct(p);
-    setProductResults([]);
-    setProductSearch(`${p.name} (${p.sku})`);
-    setSourceDrafts({});
-  }
-
-  /* ------------------- Load stock summary for selected product ---------------- */
-
-  useEffect(() => {
-    if (!newProduct) {
-      setStockSummary([]);
-      return;
-    }
-
-    let ignore = false;
-
-    async function loadStock() {
-      setStockLoading(true);
-      const { data, error } = await supabase
-        .from("product_list")
-        .select(
-          `
-          quantity,
-          status,
-          location:location_id (id, name, location_name, kind)
-        `
-        )
-        .eq("product_id", newProduct.id);
-
-      if (ignore) return;
-
-      if (error) {
-        console.error("Error loading stock summary:", error);
-        setStockSummary([]);
-      } else {
-        const byLocation = {};
-        (data || []).forEach((row) => {
-          if (row.status !== "available") return;
-          const loc = row.location;
-          if (!loc) return;
-          const key = loc.id;
-          if (!byLocation[key]) {
-            byLocation[key] = {
-              location: loc,
-              available: 0,
-            };
-          }
-          byLocation[key].available += row.quantity || 0;
-        });
-        setStockSummary(Object.values(byLocation));
-      }
-      setStockLoading(false);
-    }
-
-    loadStock();
-    return () => {
-      ignore = true;
-    };
-  }, [newProduct]);
-
-  /* ---------------------- Helpers for existing items edit --------------------- */
-
-  function resetApproval(it) {
-    return {
-      ...it,
-      approved_qty: null,
-      status: "requested",
-      is_received: false,
-    };
-  }
-
-  async function getAvailableQty(productId, sourceId) {
-    const key = `${productId}:${sourceId}`;
-    if (availabilityMap[key] !== undefined) return availabilityMap[key];
-
-    const { data, error } = await supabase
-      .from("product_list")
-      .select("quantity, status")
-      .eq("product_id", productId)
-      .eq("location_id", sourceId);
-
-    if (error) {
-      console.error("Error fetching availability:", error);
-      setAvailabilityMap((prev) => ({ ...prev, [key]: 0 }));
-      return 0;
-    }
-
-    const available =
-      data?.reduce(
-        (sum, row) =>
-          row.status === "available" ? sum + (row.quantity || 0) : sum,
-        0
-      ) || 0;
-
-    setAvailabilityMap((prev) => ({ ...prev, [key]: available }));
-    return available;
-  }
-
-  async function handleQtyChange(id, value) {
-    const num = Number(value);
-    if (Number.isNaN(num) || num <= 0) return;
-
-    setItems(async (prev) => {
-      const updated = [...prev];
-      const idx = updated.findIndex((it) => it.id === id);
-      if (idx === -1) return prev;
-      const it = updated[idx];
-
-      if (!it.product_id || !it.source_location_id) {
-        updated[idx] = resetApproval({ ...it, requested_qty: num });
-        return updated;
-      }
-
-      const available = await getAvailableQty(
-        it.product_id,
-        it.source_location_id
-      );
-
-      const alreadyOther = updated
-        .filter(
-          (row) =>
-            row.id !== it.id &&
-            !row._deleted &&
-            row.product_id === it.product_id &&
-            row.source_location_id === it.source_location_id
-        )
-        .reduce((s, row) => s + (row.requested_qty || 0), 0);
-
-      const maxAllowed = Math.max(available - alreadyOther, 0);
-      if (maxAllowed === 0) {
-        alert("No remaining stock from this source for this product.");
-        return prev;
-      }
-
-      const finalQty = num > maxAllowed ? maxAllowed : num;
-      if (num > maxAllowed) {
-        alert(
-          `You can request maximum ${maxAllowed} units from this source (considering already requested rows).`
-        );
-      }
-
-      updated[idx] = resetApproval({
-        ...it,
-        requested_qty: finalQty,
-      });
-      return updated;
-    });
-  }
-
-  function handleDeleteItem(id) {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, _deleted: true } : it))
     );
   }
 
-  /* ------------------------ Add item from stock table ------------------------ */
-
-  function handleRowClick(locId, remaining) {
-    setSourceDrafts((prev) => ({
-      ...prev,
-      [locId]: prev[locId] && prev[locId] > 0 ? prev[locId] : remaining,
-    }));
+  if (requests.length === 0) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center">
+        <Inbox className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+        <h3 className="font-semibold text-neutral-900 mb-2">No Incoming Requests</h3>
+        <p className="text-sm text-neutral-500">You'll see requests from other locations here</p>
+      </div>
+    );
   }
-
-  function handleDraftQtyChange(locId, value, remaining) {
-    const num = Number(value);
-    if (Number.isNaN(num) || num < 0) return;
-    const final = num > remaining ? remaining : num;
-    setSourceDrafts((prev) => ({ ...prev, [locId]: final }));
-  }
-
-  function calcRemainingForLocation(locId, available) {
-    if (!newProduct) return 0;
-
-    const already = items
-      .filter(
-        (it) =>
-          !it._deleted &&
-          it.product_id === newProduct.id &&
-          it.source_location_id === locId
-      )
-      .reduce((s, it) => s + (it.requested_qty || 0), 0);
-
-    return Math.max(available - already, 0);
-  }
-
-  function handleAddFromSource(loc) {
-    if (!newProduct) return;
-
-    const available =
-      stockSummary.find((row) => row.location.id === loc.id)?.available || 0;
-
-    const remaining = calcRemainingForLocation(loc.id, available);
-    if (remaining <= 0) {
-      alert("No remaining stock from this source for this product.");
-      return;
-    }
-
-    const draftQty = sourceDrafts[loc.id] || 0;
-    if (draftQty <= 0) {
-      alert("Enter quantity greater than 0.");
-      return;
-    }
-
-    const finalQty = draftQty > remaining ? remaining : draftQty;
-    if (draftQty > remaining) {
-      alert(
-        `You can request maximum ${remaining} units from this source. Quantity will be set to ${remaining}.`
-      );
-    }
-
-    setItems((prev) => [
-      ...prev,
-      {
-        id: `temp-${Date.now()}-${Math.random()}`,
-        requested_qty: finalQty,
-        approved_qty: null,
-        status: "requested",
-        is_received: false,
-        product: newProduct,
-        product_id: newProduct.id,
-        source_location: loc,
-        source_location_id: loc.id,
-        _isNew: true,
-        _deleted: false,
-      },
-    ]);
-
-    setSourceDrafts((prev) => ({ ...prev, [loc.id]: 0 }));
-  }
-
-  /* ------------------ Save draft / send / cancel (same logic) ---------------- */
-
-  async function saveItemsAndHeader(nextStatus) {
-    setSaving(true);
-    setSaveError(null);
-
-    try {
-      const existing = items.filter((it) => !it._isNew && !it._deleted);
-      const toInsert = items.filter((it) => it._isNew && !it._deleted);
-      const toDelete = items.filter((it) => !it._isNew && it._deleted);
-
-      if (toInsert.length > 0) {
-        const insertPayload = toInsert.map((it) => ({
-          request_id: request.id,
-          product_id: it.product_id,
-          source_location_id: it.source_location_id,
-          requested_qty: it.requested_qty,
-          approved_qty: it.approved_qty,
-          status: it.status,
-          is_received: it.is_received,
-        }));
-
-        const { error: insertErr } = await supabase
-          .from("branch_request_items")
-          .insert(insertPayload);
-
-        if (insertErr) {
-          console.error("Insert items error:", insertErr);
-          throw new Error(insertErr.message || "Failed to insert items.");
-        }
-      }
-
-      if (existing.length > 0) {
-        const updatePayload = existing.map((it) => ({
-          id: it.id,
-          requested_qty: it.requested_qty,
-          approved_qty: it.approved_qty,
-          status: it.status,
-          is_received: it.is_received,
-          product_id: it.product_id,
-          source_location_id: it.source_location_id,
-        }));
-
-        const { error: updateErr } = await supabase
-          .from("branch_request_items")
-          .upsert(updatePayload, { onConflict: "id" });
-
-        if (updateErr) {
-          console.error("Update items error:", updateErr);
-          throw new Error(updateErr.message || "Failed to update items.");
-        }
-      }
-
-      if (toDelete.length > 0) {
-        const ids = toDelete.map((it) => it.id);
-        const { error: deleteErr } = await supabase
-          .from("branch_request_items")
-          .delete()
-          .in("id", ids);
-
-        if (deleteErr) {
-          console.error("Delete items error:", deleteErr);
-          throw new Error(deleteErr.message || "Failed to delete items.");
-        }
-      }
-
-      if (nextStatus) {
-        const updateObj = { status: nextStatus };
-        const { error: headerErr } = await supabase
-          .from("branch_requests")
-          .update(updateObj)
-          .eq("id", request.id);
-
-        if (headerErr) {
-          console.error("Header update error:", headerErr);
-          throw new Error(headerErr.message || "Failed to update request.");
-        }
-      }
-
-      await onReload();
-      setSaving(false);
-    } catch (e) {
-      setSaving(false);
-      setSaveError(e.message || "Unknown error");
-    }
-  }
-
-  async function handleSaveDraft() {
-    await saveItemsAndHeader(null);
-  }
-
-  async function handleSend() {
-    await saveItemsAndHeader("sent");
-  }
-
-  async function handleCancel() {
-    if (
-      !window.confirm(
-        "Are you sure you want to cancel this request? It will not be processed by sources."
-      )
-    ) {
-      return;
-    }
-    await saveItemsAndHeader("cancelled");
-  }
-
-  /* --------------------------------- RENDER --------------------------------- */
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Edit request
-            <span className="ml-2 text-xs font-normal text-neutral-500">
-              #{request.id.slice(0, 8)}
-            </span>
-          </h2>
-          <p className="text-sm text-neutral-500">
-            For branch:{" "}
-            <span className="font-medium text-neutral-700">{branchName}</span> ·
-            Created by{" "}
-            <span className="font-medium text-neutral-700">{createdBy}</span> on{" "}
-            {new Date(request.created_at).toLocaleString()}
-          </p>
-          <div className="mt-2">
-            <StatusBadge status={request.status} />
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-600">
+          <span className="font-semibold text-neutral-900">{requests.length}</span> pending requests need your attention
+        </p>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        {/* Table Header */}
+        <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
+          <div className="col-span-4">Products</div>
+          <div className="col-span-2">Requester</div>
+          <div className="col-span-1 text-center">Qty</div>
+          <div className="col-span-2 text-center">Date</div>
+          <div className="col-span-3 text-right">Actions</div>
+        </div>
+
+        {/* Table Body */}
+        <div className="divide-y divide-neutral-100">
+          {requests.map(req => {
+            const requester = req.to_location?.location_name || req.to_location?.name || "Unknown";
+            const totalQty = req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+            const productInfo = req.items?.slice(0, 2).map(i => 
+              `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
+            ).join(", ") || "—";
+            const moreCount = (req.items?.length || 0) - 2;
+            
+            return (
+              <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center">
+                <div className="col-span-4 text-sm text-neutral-700 truncate">
+                  {productInfo}
+                  {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-neutral-900">{requester}</p>
+                </div>
+                <div className="col-span-1 text-right">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
+                    {totalQty}
+                  </span>
+                </div>
+                <div className="col-span-2 text-center">
+                  <p className="text-sm text-neutral-600">
+                    {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="col-span-3 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => handleReject(req.id)}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleApprove(req)}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    Approve
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          HISTORY TAB (Comprehensive)                        */
+/* -------------------------------------------------------------------------- */
+function HistoryTab({ location }) {
+  const [allRequests, setAllRequests] = useState([]); // All data (both directions)
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50; // Load more since we filter client-side
+
+  // Filters - direction is CLIENT-SIDE only (no reload)
+  const [direction, setDirection] = useState("outgoing");
+  const [status, setStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Load ALL requests (both outgoing and incoming) - direction filtered client-side
+  const loadHistory = useCallback(async (pageNum = 0, append = false) => {
+    if (pageNum === 0) setLoading(true);
+    else setLoadingMore(true);
+
+    // Load requests where we are either to_location OR source_location
+    const { data, error } = await supabase
+      .from("branch_requests")
+      .select(`
+        id, status, created_at, to_location_id,
+        to_location:to_location_id (id, name, location_name),
+        items:branch_request_items (
+          id, requested_qty, approved_qty,
+          product:product_id (name, sku),
+          source_location:source_location_id (id, name, location_name)
+        )
+      `)
+      .in("status", ["completed", "cancelled", "rejected"])
+      .gte("created_at", `${dateFrom}T00:00:00`)
+      .lte("created_at", `${dateTo}T23:59:59`)
+      .order("created_at", { ascending: false })
+      .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+
+    if (!error) {
+      // Tag each request with its direction for this location
+      const taggedData = (data || []).map(req => {
+        const isOutgoing = req.to_location_id === location.id;
+        const isIncoming = req.items?.some(item => item.source_location?.id === location.id);
+        return { ...req, _isOutgoing: isOutgoing, _isIncoming: isIncoming };
+      }).filter(req => req._isOutgoing || req._isIncoming); // Only keep relevant requests
+
+      if (append) {
+        setAllRequests(prev => [...prev, ...taggedData]);
+      } else {
+        setAllRequests(taggedData);
+      }
+      setHasMore((data || []).length === PAGE_SIZE);
+    }
+    
+    setLoading(false);
+    setLoadingMore(false);
+  }, [location.id, dateFrom, dateTo]); // NO direction dependency!
+
+  useEffect(() => {
+    setPage(0);
+    loadHistory(0, false);
+  }, [loadHistory]);
+
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadHistory(nextPage, true);
+  };
+
+  // Apply client-side filters (direction + status + search) - NO reload needed!
+  const filteredRequests = useMemo(() => {
+    // First filter by direction (client-side, instant)
+    let result = direction === "outgoing" 
+      ? allRequests.filter(r => r._isOutgoing)
+      : allRequests.filter(r => r._isIncoming);
+    
+    // Status filter
+    if (status !== "all") {
+      result = result.filter(r => r.status === status);
+    }
+    
+    // Search filter (product name or SKU)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(r => 
+        r.items?.some(item => 
+          item.product?.name?.toLowerCase().includes(q) ||
+          item.product?.sku?.toLowerCase().includes(q)
+        )
+      );
+    }
+    
+    return result;
+  }, [allRequests, direction, status, search]);
+
+  // Count by status (for current direction)
+  const directionFiltered = direction === "outgoing" 
+    ? allRequests.filter(r => r._isOutgoing)
+    : allRequests.filter(r => r._isIncoming);
+  
+  const counts = {
+    all: directionFiltered.length,
+    completed: directionFiltered.filter(r => r.status === "completed").length,
+    cancelled: directionFiltered.filter(r => r.status === "cancelled").length,
+    rejected: directionFiltered.filter(r => r.status === "rejected").length,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filter Card */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4">
+        {/* Row 1: Direction Toggle + Date Range */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Direction Toggle - Professional labels */}
+          <div className="inline-flex rounded-lg bg-neutral-100 p-1">
+            <button
+              onClick={() => setDirection("outgoing")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                direction === "outgoing"
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              <Send className={`w-4 h-4 ${direction === "outgoing" ? "text-emerald-600" : ""}`} />
+              Outgoing
+            </button>
+            <button
+              onClick={() => setDirection("incoming")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                direction === "incoming"
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              <Inbox className={`w-4 h-4 ${direction === "incoming" ? "text-emerald-600" : ""}`} />
+              Incoming
+            </button>
+          </div>
+
+          {/* Date Range - Cleaner */}
+          <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+            />
+            <span className="text-neutral-400">→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+            />
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-neutral-500 hover:text-neutral-700"
-          >
-            Close
-          </button>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={!canEdit || saving}
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Cancel request
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={saving}
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!canEdit || saving}
-              className="rounded-lg bg-[#4f46e5] px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:bg-[#a5b4fc]"
-            >
-              Send to sources
-            </button>
+        {/* Row 2: Search + Status Pills */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search product or SKU..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-neutral-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Pills - inline */}
+          <div className="flex items-center gap-1.5">
+            {[
+              { key: "all", label: "All" },
+              { key: "completed", label: "Completed" },
+              { key: "cancelled", label: "Cancelled" },
+              { key: "rejected", label: "Rejected" },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setStatus(key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  status === key
+                    ? "bg-emerald-600 text-white"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                }`}
+              >
+                {label} ({counts[key]})
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {saveError && (
-        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {saveError}
+      {/* Results Table */}
+      {filteredRequests.length === 0 ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
+          <History className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+          <h3 className="font-semibold text-neutral-900 mb-2">No Results</h3>
+          <p className="text-sm text-neutral-500">No requests match your filters</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
+            <div className="col-span-5">Products</div>
+            <div className="col-span-2">{direction === "outgoing" ? "From" : "To"}</div>
+            <div className="col-span-1 text-right">Qty</div>
+            <div className="col-span-2 text-center">Status</div>
+            <div className="col-span-2 text-right">Date</div>
+          </div>
+
+          {/* Table Body */}
+          <div className="divide-y divide-neutral-100">
+            {filteredRequests.map(req => {
+              const partner = direction === "outgoing" 
+                ? (req.items?.[0]?.source_location?.location_name || req.items?.[0]?.source_location?.name || "Unknown")
+                : (req.to_location?.location_name || req.to_location?.name || "Unknown");
+              const totalQty = req.items?.reduce((sum, i) => sum + (i.approved_qty || i.requested_qty || 0), 0) || 0;
+              // Product name with SKU
+              const productInfo = req.items?.slice(0, 2).map(i => 
+                `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
+              ).join(", ") || "—";
+              const moreCount = (req.items?.length || 0) - 2;
+              const config = STATUS_CONFIG[req.status] || { label: req.status, color: "bg-neutral-100 text-neutral-600" };
+              
+              return (
+                <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-neutral-50/50 transition-colors items-center">
+                  <div className="col-span-5 text-sm text-neutral-700 truncate">
+                    {productInfo}
+                    {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm font-medium text-neutral-900 truncate">{partner}</p>
+                  </div>
+                  <div className="col-span-1 text-right">
+                    <span className="text-sm font-semibold text-neutral-900">{totalQty}</span>
+                  </div>
+                  <div className="col-span-2 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${config.color}`}>
+                      {config.label}
+                    </span>
+                  </div>
+                  <div className="col-span-2 text-right">
+                    <p className="text-sm text-neutral-600">
+                      {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                    <p className="text-xs text-neutral-400">
+                      {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Load More */}
+          {hasMore && (
+            <div className="px-4 py-3 bg-neutral-50 border-t border-neutral-200">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  `Load More (showing ${filteredRequests.length})`
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Existing items table */}
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-100">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
-              <th className="px-3 py-2 text-left">Source</th>
-              <th className="px-3 py-2 text-left">SKU</th>
-              <th className="px-3 py-2 text-left">Product</th>
-              <th className="px-3 py-2 text-center">Requested</th>
-              <th className="px-3 py-2 text-center">Approved</th>
-              <th className="px-3 py-2 text-left">Status</th>
-              <th className="px-3 py-2 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.filter((it) => !it._deleted).length === 0 ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-3 py-3 text-center text-sm text-neutral-500"
-                >
-                  No items in this request.
-                </td>
-              </tr>
-            ) : (
-              items
-                .filter((it) => !it._deleted)
-                .map((it) => {
-                  const src = it.source_location;
-                  const srcLabel =
-                    (src?.kind === "warehouse" ? "Warehouse: " : "Branch: ") +
-                    (src?.location_name || src?.name || "—");
+      {/* Results Summary */}
+      <div className="text-xs text-neutral-500 text-center">
+        Showing {filteredRequests.length} of {counts.all} {direction} requests
+        {search && ` matching "${search}"`}
+      </div>
+    </div>
+  );
+}
 
-                  return (
-                    <tr key={it.id} className="border-t border-neutral-100">
-                      <td className="px-3 py-2 text-xs text-neutral-600">
-                        {srcLabel}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {it.product?.sku || "—"}
-                      </td>
-                      <td className="px-3 py-2">{it.product?.name || "—"}</td>
-                      <td className="px-3 py-2 text-center">
-                        {canEdit ? (
-                          <input
-                            type="number"
-                            min={1}
-                            value={it.requested_qty}
-                            onChange={(e) =>
-                              handleQtyChange(it.id, e.target.value)
-                            }
-                            className="w-20 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-                          />
-                        ) : (
-                          it.requested_qty
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {typeof it.approved_qty === "number"
-                          ? it.approved_qty
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusBadge status={it.status} />
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {canEdit && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(it.id)}
-                            className="text-xs text-red-600 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-            )}
-          </tbody>
-        </table>
+/*                       COMPACT REQUEST ROW (for grouped view)                */
+/* -------------------------------------------------------------------------- */
+function CompactRequestRow({ request, onCancel, onConfirmReceipt, onApprove, onReject, isIncoming = false }) {
+  const config = STATUS_CONFIG[request.status] || { label: request.status, color: "bg-neutral-100 text-neutral-600" };
+  const StatusIcon = config.icon || Clock;
+
+  return (
+    <div className="hover:bg-neutral-50/50 transition-colors">
+      {/* Request Header - minimal */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-100/50">
+        <div className="flex items-center gap-2">
+          <StatusIcon className={`w-3.5 h-3.5 ${request.status === 'approved' ? 'text-blue-600' : request.status === 'sent' ? 'text-amber-600' : 'text-neutral-500'}`} />
+          <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${config.color}`}>
+            {config.label}
+          </span>
+          <span className="text-xs text-neutral-400">
+            {new Date(request.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {!isIncoming && request.status === "sent" && (
+            <button
+              onClick={onCancel}
+              className="px-2.5 py-1 rounded-lg border border-neutral-200 bg-white text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+          {!isIncoming && request.status === "approved" && (
+            <button
+              onClick={onConfirmReceipt}
+              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+            >
+              Confirm Receipt
+            </button>
+          )}
+          {isIncoming && request.status === "sent" && (
+            <>
+              <button
+                onClick={onReject}
+                className="px-2.5 py-1 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Reject
+              </button>
+              <button
+                onClick={onApprove}
+                className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+              >
+                Approve
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      
+      {/* Product Items - product name/SKU left, quantity right */}
+      <div className="divide-y divide-neutral-50">
+        {request.items?.map((item, i) => (
+          <div key={i} className="flex items-center justify-between px-4 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-neutral-900 truncate">{item.product?.name || 'Unknown Product'}</p>
+              <p className="text-xs text-neutral-500">{item.product?.sku || 'No SKU'}</p>
+            </div>
+            <div className="text-right shrink-0 ml-4">
+              <p className="text-sm font-bold text-neutral-900">{item.approved_qty || item.requested_qty || 0}</p>
+              <p className="text-[10px] text-neutral-400 uppercase">qty</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          REQUEST CARD                                       */
+/* -------------------------------------------------------------------------- */
+function RequestCard({ request, type, onCancel, onConfirmReceipt, onApprove, onReject }) {
+  const itemCount = request.items?.length || 0;
+  const totalQty = request.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+
+  // Get source location from first item (since from_location_id isn't in header)
+  const firstItem = request.items?.[0];
+  const fromLocation = firstItem?.source_location?.location_name || firstItem?.source_location?.name || "Unknown";
+  const toLocation = request.to_location?.location_name || request.to_location?.name || "Unknown";
+
+  // Request ID formatted nicely
+  const requestId = typeof request.id === 'string' ? request.id.slice(0, 8).toUpperCase() : String(request.id).padStart(4, "0");
+
+  return (
+    <div className="group rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden hover:shadow-lg hover:border-neutral-300/80 transition-all duration-300">
+      {/* Header with gradient accent */}
+      <div className="relative">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-b from-neutral-50/80 to-white">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 shadow-sm group-hover:shadow transition-shadow">
+              <ArrowRightLeft className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-bold text-neutral-900 tracking-tight">REQ-{requestId}</p>
+              <p className="text-xs text-neutral-500 flex items-center gap-2 mt-0.5">
+                <Clock className="w-3.5 h-3.5" />
+                {new Date(request.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+                <span className="w-1 h-1 rounded-full bg-neutral-300" />
+                {itemCount} item{itemCount !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+          <StatusBadge status={request.status} />
+        </div>
       </div>
 
-      {/* Add item area – product search + stock table */}
-      {canEdit && (
-        <div className="mt-4 space-y-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4">
-          <div>
-            <h3 className="mb-1 text-sm font-semibold text-neutral-800">
-              Add item
-            </h3>
-            <p className="text-xs text-neutral-500">
-              1. Search product · 2. Choose from which location(s) to request.
+      {/* Location Flow - Visual Arrow */}
+      <div className="px-5 py-4 bg-gradient-to-r from-neutral-50/50 via-white to-neutral-50/50 border-y border-neutral-100">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Source</p>
+            <p className="font-semibold text-neutral-900 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-emerald-600" />
+              {fromLocation}
             </p>
           </div>
-
-          {/* Product search */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-neutral-600">
-              Product (type to see suggestions)
-            </label>
-            <input
-              type="text"
-              value={productSearch}
-              onChange={(e) => {
-                setProductSearch(e.target.value);
-                setNewProduct(null);
-                setStockSummary([]);
-                setSourceDrafts({});
-              }}
-              placeholder="Search by name or SKU"
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-            />
-            {productSearching && (
-              <div className="mt-1 text-xs text-neutral-500">Searching…</div>
-            )}
-            {productResults.length > 0 && (
-              <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-neutral-200 bg-white text-xs">
-                {productResults.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleSelectProduct(p)}
-                    className={`flex w-full items-center justify-between px-2 py-1 text-left hover:bg-neutral-50 ${
-                      newProduct?.id === p.id ? "bg-indigo-50" : ""
-                    }`}
-                  >
-                    <span>
-                      {p.name}{" "}
-                      <span className="font-mono text-[10px] text-neutral-500">
-                        ({p.sku})
-                      </span>
-                    </span>
-                    {newProduct?.id === p.id && (
-                      <span className="text-[10px] text-[#4f46e5]">
-                        selected
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center gap-1 text-emerald-500">
+            <div className="w-8 h-0.5 bg-gradient-to-r from-emerald-300 to-emerald-500 rounded-full" />
+            <ChevronRight className="w-5 h-5" />
           </div>
+          <div className="flex-1 text-right">
+            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Destination</p>
+            <p className="font-semibold text-neutral-900 flex items-center gap-2 justify-end">
+              {toLocation}
+              <MapPin className="w-4 h-4 text-teal-600" />
+            </p>
+          </div>
+        </div>
+      </div>
 
-          {/* Stock table for selected product */}
-          {newProduct && (
-            <div className="rounded-xl border border-neutral-200 bg-white p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-medium text-neutral-800">
-                  Availability for{" "}
-                  <span className="font-semibold">{newProduct.name}</span>
-                  <span className="ml-1 font-mono text-xs text-neutral-500">
-                    ({newProduct.sku})
-                  </span>
-                </div>
-                {stockLoading && (
-                  <span className="text-xs text-neutral-500">
-                    Loading stock…
-                  </span>
-                )}
-              </div>
+      {/* Items Preview - Chips */}
+      <div className="px-5 py-4">
+        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-2">Products</p>
+        <div className="flex flex-wrap gap-2">
+          {request.items?.slice(0, 3).map((item, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-neutral-100 to-neutral-50 border border-neutral-200/80 text-xs font-medium text-neutral-700 shadow-sm">
+              <Package className="w-3.5 h-3.5 text-neutral-500" />
+              {item.product?.name}
+              <span className="text-emerald-600 font-semibold">×{item.requested_qty}</span>
+            </span>
+          ))}
+          {itemCount > 3 && (
+            <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-neutral-100 border border-neutral-200/80 text-xs font-medium text-neutral-500">
+              +{itemCount - 3} more
+            </span>
+          )}
+        </div>
+      </div>
 
-              {stockSummary.length === 0 && !stockLoading ? (
-                <div className="text-xs text-neutral-500">
-                  No available stock found in any location.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-neutral-50 text-[11px] uppercase tracking-wide text-neutral-500">
-                        <th className="px-2 py-1 text-left">Source</th>
-                        <th className="px-2 py-1 text-center">Available</th>
-                        <th className="px-2 py-1 text-center">
-                          Already in this request
-                        </th>
-                        <th className="px-2 py-1 text-center">Remaining</th>
-                        <th className="px-2 py-1 text-center">
-                          Request from here
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stockSummary.map((row) => {
-                        const loc = row.location;
-                        const available = row.available;
-                        const remaining = calcRemainingForLocation(
-                          loc.id,
-                          available
-                        );
-                        const draft = sourceDrafts[loc.id] || "";
-                        const label =
-                          (loc.kind === "warehouse"
-                            ? "Warehouse · "
-                            : "Branch · ") +
-                          (loc.location_name || loc.name || "—");
-
-                        const already = available - remaining;
-
-                        return (
-                          <tr
-                            key={loc.id}
-                            className="cursor-pointer border-t border-neutral-100 hover:bg-neutral-50"
-                            onClick={() => handleRowClick(loc.id, remaining)}
-                          >
-                            <td className="px-2 py-1 text-[11px] text-neutral-700">
-                              {label}
-                            </td>
-                            <td className="px-2 py-1 text-center font-mono">
-                              {available}
-                            </td>
-                            <td className="px-2 py-1 text-center font-mono text-neutral-500">
-                              {already}
-                            </td>
-                            <td className="px-2 py-1 text-center font-mono">
-                              {remaining}
-                            </td>
-                            <td
-                              className="px-2 py-1 text-center"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="inline-flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={draft}
-                                  onChange={(ev) =>
-                                    handleDraftQtyChange(
-                                      loc.id,
-                                      ev.target.value,
-                                      remaining
-                                    )
-                                  }
-                                  className="w-16 rounded-md border border-neutral-300 bg-white px-1 py-0.5 text-[11px] text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddFromSource(loc)}
-                                  disabled={remaining <= 0}
-                                  className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+      {/* Actions - Premium Buttons */}
+      {(type === "outgoing" || type === "incoming") && (
+        <div className="px-5 py-4 border-t border-neutral-100 bg-gradient-to-b from-neutral-50/50 to-neutral-100/30 flex justify-end gap-3">
+          {type === "outgoing" && request.status === "sent" && (
+            <button
+              onClick={onCancel}
+              className="px-5 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 shadow-sm hover:shadow transition-all"
+            >
+              Cancel Request
+            </button>
+          )}
+          {type === "outgoing" && request.status === "approved" && (
+            <button
+              onClick={onConfirmReceipt}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 flex items-center gap-2 transition-all"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Confirm Receipt
+            </button>
+          )}
+          {type === "incoming" && request.status === "sent" && (
+            <>
+              <button
+                onClick={onReject}
+                className="px-5 py-2.5 rounded-xl border border-red-200 bg-white text-sm font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 shadow-sm hover:shadow transition-all"
+              >
+                Reject
+              </button>
+              <button
+                onClick={onApprove}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 flex items-center gap-2 transition-all"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Approve
+              </button>
+            </>
           )}
         </div>
       )}
     </div>
   );
 }
-

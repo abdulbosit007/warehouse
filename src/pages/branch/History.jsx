@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import { Package } from "lucide-react";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
@@ -44,7 +45,7 @@ export default function BranchOperations() {
     )}ms`;
 
   /* ------------------------------ WHO AM I ------------------------------- */
-  const { roleBase, locationName } = useCurrentUser();
+  const { loading: uLoading, error: uErr, roleBase, locationName } = useCurrentUser();
   const isBranch = roleBase === "branch";
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function BranchOperations() {
   // By SKU
   const [retSkuQuery, setRetSkuQuery] = useState("");
   const [retSkuLoading, setRetSkuLoading] = useState(false);
+  const [retSkuSuggestions, setRetSkuSuggestions] = useState([]); // Product suggestions dropdown
   const [retSkuOptions, setRetSkuOptions] = useState([]);
   const [retSkuPicked, setRetSkuPicked] = useState(null);
   const [retSkuQty, setRetSkuQty] = useState(0);
@@ -100,6 +102,7 @@ export default function BranchOperations() {
   const [historyDateRows, setHistoryDateRows] = useState([]);
   const [skuQuery, setSkuQuery] = useState("");
   const [histSkuLoading, setHistSkuLoading] = useState(false);
+  const [histSkuSuggestions, setHistSkuSuggestions] = useState([]); // Product suggestions dropdown
   const [historyBySku, setHistoryBySku] = useState([]);
 
   /* -------------------------------- MEMOS -------------------------------- */
@@ -346,6 +349,83 @@ export default function BranchOperations() {
   };
 
   /* -------------------------- HISTORY: BY SKU (1y) ------------------------ */
+  // Search for product suggestions (dropdown) - searches by SKU or Name
+  async function searchHistoryProductSuggestions() {
+    const term = skuQuery.trim();
+    if (term.length < 2) {
+      setHistSkuSuggestions([]);
+      return;
+    }
+    try {
+      const { data: prods, error } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
+        .limit(10);
+      if (error) throw error;
+      setHistSkuSuggestions(prods || []);
+    } catch (e) {
+      setHistSkuSuggestions([]);
+    }
+  }
+
+  // Load history for a selected product
+  async function loadHistoryForProduct(productId, sku) {
+    setHistSkuLoading(true);
+    setHistSkuSuggestions([]); // Hide dropdown
+    setSkuQuery(sku); // Show selected SKU
+    try {
+      setErr("");
+      const loc = await getBranchLocation();
+      const sinceISO = oneYearAgoISO();
+
+      const { data: rows, error: tErr } = await supabase
+        .from("transaction_items")
+        .select(
+          `id, product_id, qty,
+           tx:transactions ( id, type, status, created_at, note, borrower_name, due_date, location_id, parent_tx_id ),
+           product:products ( sku, name )`
+        )
+        .eq("product_id", productId)
+        .gte("tx.created_at", sinceISO)
+        .eq("tx.status", "committed")
+        .eq("tx.location_id", loc.id)
+        .order("created_at", { ascending: false, foreignTable: "transactions" })
+        .limit(500);
+      if (tErr) throw tErr;
+
+      const bySku = new Map();
+      for (const r of rows || []) {
+        const skuVal = r.product?.sku || "(no sku)";
+        const name = r.product?.name || "";
+        const day = ymd(r.tx?.created_at || new Date());
+        if (!bySku.has(skuVal)) bySku.set(skuVal, { sku: skuVal, name, items: [] });
+        bySku.get(skuVal).items.push({
+          id: r.id,
+          day,
+          type: r.tx?.type || "",
+          qty: r.qty,
+          note: r.tx?.note || "",
+          borrower_name: r.tx?.borrower_name || "",
+          due_date: r.tx?.due_date || null,
+        });
+      }
+
+      const result = Array.from(bySku.values()).map((blk) => ({
+        ...blk,
+        items: blk.items.sort((a, b) => (a.day < b.day ? 1 : -1)),
+      }));
+      result.sort((a, b) => a.sku.localeCompare(b.sku));
+      setHistoryBySku(result);
+    } catch (e) {
+      log("history for product error", e.message || String(e));
+      setErr(e.message || String(e));
+      setHistoryBySku([]);
+    } finally {
+      setHistSkuLoading(false);
+    }
+  }
+
   const searchHistoryBySku = async () => {
     const term = skuQuery.trim();
     if (!term) {
@@ -495,6 +575,13 @@ export default function BranchOperations() {
       setOk(`Loan committed. TX: ${data}`);
       setCart([]);
       setNote("");
+      // Reset borrower details
+      setBorrower({
+        borrower_name: "",
+        borrower_phone: "",
+        borrower_store_no: "",
+        due_date: todayPlus(3),
+      });
       setLoading(true);
       setTimeout(() => setLoading(false), 150);
     } catch (e) {
@@ -613,33 +700,34 @@ export default function BranchOperations() {
   }
 
   /* --------------------------- RETURN: BY SKU ----------------------------- */
-  async function searchReturnBySku() {
+  // Search for product suggestions (dropdown) - searches by SKU or Name
+  async function searchProductSuggestions() {
     const term = retSkuQuery.trim();
-    if (!term) {
-      setRetSkuOptions([]);
-      setRetSkuPicked(null);
-      setRetSkuQty(0);
+    if (term.length < 2) {
+      setRetSkuSuggestions([]);
       return;
     }
+    try {
+      const { data: prods, error } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
+        .limit(10);
+      if (error) throw error;
+      setRetSkuSuggestions(prods || []);
+    } catch (e) {
+      setRetSkuSuggestions([]);
+    }
+  }
+
+  // Load returnable items for a selected product
+  async function loadReturnableItems(productId, sku) {
     setRetSkuLoading(true);
+    setRetSkuSuggestions([]); // Hide dropdown
+    setRetSkuQuery(sku); // Show selected SKU
     try {
       setErr("");
       const loc = await getBranchLocation();
-
-      const { data: prods, error: pErr } = await supabase
-        .from("products")
-        .select("id, name, sku")
-        .ilike("sku", `${term}%`)
-        .limit(50);
-      if (pErr) throw pErr;
-      if (!prods || prods.length === 0) {
-        setRetSkuOptions([]);
-        setRetSkuPicked(null);
-        setRetSkuQty(0);
-        return;
-      }
-
-      const pidSet = prods.map((p) => p.id);
       const sinceISO = oneYearAgoISO();
 
       const { data: rows, error } = await supabase
@@ -649,13 +737,13 @@ export default function BranchOperations() {
            tx:transactions ( id, type, status, created_at, note, location_id ) ,
            product:products ( sku, name )`
         )
-        .in("product_id", pidSet)
+        .eq("product_id", productId)
         .gte("tx.created_at", sinceISO)
         .eq("tx.status", "committed")
         .eq("tx.location_id", loc.id)
         .in("tx.type", ["sale", "loan"])
         .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(1000);
+        .limit(100);
       if (error) throw error;
 
       const parentIds = [
@@ -692,12 +780,42 @@ export default function BranchOperations() {
     } catch (e) {
       setErr(e.message || String(e));
       setRetSkuOptions([]);
-      setRetSkuPicked(null);
-      setRetSkuQty(0);
     } finally {
       setRetSkuLoading(false);
     }
   }
+
+  // Auto-search product suggestions as user types (debounced)
+  useEffect(() => {
+    if (returnMode !== "sku") return;
+    const term = retSkuQuery.trim();
+    if (term.length < 2) {
+      setRetSkuSuggestions([]);
+      setRetSkuOptions([]);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      searchProductSuggestions();
+    }, 200);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retSkuQuery, returnMode]);
+
+  // Auto-search history product suggestions as user types (debounced)
+  useEffect(() => {
+    if (histMode !== "sku") return;
+    const term = skuQuery.trim();
+    if (term.length < 2) {
+      setHistSkuSuggestions([]);
+      setHistoryBySku([]);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      searchHistoryProductSuggestions();
+    }, 200);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skuQuery, histMode]);
 
   /* ----------------------------- SUBMIT RETURN --------------------------- */
   async function submitReturn() {
@@ -819,99 +937,93 @@ export default function BranchOperations() {
   }
 
   /* --------------------------------- GUARD ------------------------------- */
+  if (uLoading) return <div className="p-6">Loading...</div>;
+  if (uErr) return <Blocked title="Error" message={uErr} />;
+
   if (!isBranch) {
-  return <Blocked title="Forbidden" message="Branch access only." />;
-}
+    return <Blocked title="Forbidden" message="Branch access only." />;
+  }
 
 /* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
 return (
-  <div
-    className="
-      mx-auto
-      w-full
-      max-w-[1100px]
-      px-4 sm:px-6 md:px-8
-      pb-24
-    "
-  >
-    {/* Sticky top app bar for tablets/desktop */}
-    <div
-      className="
-        sticky top-0 z-30
-        -mx-4 sm:-mx-6 md:-mx-8
-        backdrop-blur supports-[backdrop-filter]:backdrop-blur
-      "
-    >
-      <div className="mx-auto max-w-[1100px] px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-semibold text-slate-900">
-          Branch — Operations
-        </h1>
-
-        {/* Segment tabs: large touch targets */}
-        <div className="inline-flex rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-sm">
-          {[
-            ["sale", "Sale"],
-            ["loan", "Loan"],
-            ["return", "Return"],
-            ["history", "History"],
-          ].map(([k, label]) => {
-            const isActive = tab === k;
-            return (
-              <button
-                key={k}
-                onClick={() => {
-                  setTab(k);
-                  setErr("");
-
-                  if (k === "history") {
-                    setHistMode("date");
-                    setSkuQuery("");
-                    setHistoryBySku([]);
-                    setTimeout(
-                      () => loadHistoryByDateWithParents(new Date()),
-                      0
-                    );
-                  }
-
-                  if (k === "return") {
-                    setReturnMode("date");
-                    setTimeout(() => loadReturnByDate(new Date()), 0);
-                  }
-                }}
-                className={[
-                  "px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-sm md:text-[15px] font-medium transition-all",
-                  "whitespace-nowrap",
-                  isActive
-                    ? "bg-[#4f46e5] text-white shadow-[0_10px_22px_rgba(79,70,229,0.35)]"
-                    : "text-slate-700 hover:bg-slate-50 active:bg-slate-100",
-                ].join(" ")}
-              >
-                {label}
-              </button>
-            );
-          })}
+  <div className="space-y-6">
+    {/* Clean Header - Matching BranchRequests */}
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
+      <div className="relative flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
+          <Package className="w-5 h-5 text-emerald-400" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-white tracking-tight">Branch Operations</h1>
+          <p className="text-slate-400 text-sm">Manage sales, loans, returns and history</p>
         </div>
       </div>
     </div>
 
-    {/* Alerts */}
-    <div className="mt-4 md:mt-6 space-y-3">
-      {err && (
-        <div className="rounded-xl border border-red-200 bg-red-50/90 px-3.5 py-2.5 text-[15px] text-red-800 shadow-sm">
-          {err}
-        </div>
-      )}
-      {ok && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-3.5 py-2.5 text-[15px] text-emerald-800 shadow-sm">
-          {ok}
-        </div>
-      )}
+    {/* Modern Pill Tabs - Same as BranchRequests */}
+    <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+      {[
+        { key: "sale", label: "Sale" },
+        { key: "loan", label: "Loan" },
+        { key: "return", label: "Return" },
+        { key: "history", label: "History" },
+      ].map((tabItem) => {
+        const isActive = tab === tabItem.key;
+        return (
+          <button
+            key={tabItem.key}
+            onClick={() => {
+              setTab(tabItem.key);
+              setErr("");
+
+              if (tabItem.key === "history") {
+                setHistMode("date");
+                setSkuQuery("");
+                setHistoryBySku([]);
+                setTimeout(
+                  () => loadHistoryByDateWithParents(new Date()),
+                  0
+                );
+              }
+
+              if (tabItem.key === "return") {
+                setReturnMode("date");
+                setTimeout(() => loadReturnByDate(new Date()), 0);
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              isActive
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+            }`}
+          >
+            {tabItem.label}
+          </button>
+        );
+      })}
     </div>
 
-    {/* Content cards (single-column on tablets, still good on desktop) */}
-    <div className="mt-4 md:mt-6 space-y-6">
+    {/* Alerts */}
+    {(err || ok) && (
+      <div className="space-y-3">
+        {err && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+            {err}
+          </div>
+        )}
+        {ok && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
+            {ok}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Content cards */}
+    <div className="space-y-6">
       {tab === "sale" && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <SaleSection
             locationName={locationName}
             q={q}
@@ -932,7 +1044,7 @@ return (
       )}
 
       {tab === "loan" && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <LoanSection
             locationName={locationName}
             q={q}
@@ -956,7 +1068,7 @@ return (
       )}
 
       {tab === "return" && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <ReturnSection
             // common
             note={note}
@@ -976,11 +1088,12 @@ return (
             // sku
             retSkuQuery={retSkuQuery}
             setRetSkuQuery={setRetSkuQuery}
+            retSkuSuggestions={retSkuSuggestions}
             retSkuOptions={retSkuOptions}
             retSkuPicked={retSkuPicked}
             retSkuQty={retSkuQty}
             retSkuLoading={retSkuLoading}
-            searchReturnBySku={searchReturnBySku}
+            loadReturnableItems={loadReturnableItems}
             setRetSkuPicked={setRetSkuPicked}
             setRetSkuQty={setRetSkuQty}
             // submit
@@ -993,6 +1106,7 @@ return (
             }}
             resetSkuPick={() => {
               setRetSkuQuery("");
+              setRetSkuSuggestions([]);
               setRetSkuOptions([]);
               setRetSkuPicked(null);
               setRetSkuQty(0);
@@ -1002,7 +1116,7 @@ return (
       )}
 
       {tab === "history" && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-100 p-3 md:p-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <HistorySection
             histMode={histMode}
             setHistMode={setHistMode}
@@ -1017,33 +1131,20 @@ return (
             // sku
             skuQuery={skuQuery}
             setSkuQuery={setSkuQuery}
+            histSkuSuggestions={histSkuSuggestions}
             historyBySku={historyBySku}
             histSkuLoading={histSkuLoading}
-            onSearch={searchHistoryBySku}
+            loadHistoryForProduct={loadHistoryForProduct}
+            // reset
+            resetHistSkuSearch={() => {
+              setSkuQuery("");
+              setHistSkuSuggestions([]);
+              setHistoryBySku([]);
+            }}
           />
         </div>
       )}
     </div>
-
-    {/* Floating debug (bigger button for touch, brand color) */}
-    <button
-      onClick={() => setDebugOpen((v) => !v)}
-      className="
-        fixed bottom-5 right-5 z-40
-        rounded-full
-        bg-[#4f46e5] text-white
-        border border-[#4f46e5]
-        text-xs md:text-sm px-4 py-2.5
-        shadow-lg shadow-indigo-400/40
-        active:scale-95 hover:opacity-90
-        transition
-      "
-      title="Toggle Debug"
-    >
-      {debugOpen ? "Hide Logs" : "Logs"}
-    </button>
-
-    <DebugPanel open={debugOpen} logs={logs} onClear={() => setLogs([])} />
   </div>
 );
 

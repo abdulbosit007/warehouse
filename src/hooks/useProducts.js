@@ -15,6 +15,7 @@ export function useProducts({
   pageSize = 10,
   search = "",
   filters = {},
+  enabled = true,
 }) {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(undefined);
@@ -22,6 +23,11 @@ export function useProducts({
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(true); // or false, depending on desired UI while "waiting"
+      return;
+    }
+
     let cancel = false;
 
     (async () => {
@@ -100,7 +106,7 @@ export function useProducts({
       cancel = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, search, JSON.stringify(filters)]);
+  }, [page, pageSize, search, JSON.stringify(filters), enabled]);
 
   return { rows, total, loading, error };
 }

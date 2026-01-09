@@ -1,3 +1,4 @@
+import { Clock } from "lucide-react";
 import HistoryByDate from "../HistoryByDate";
 import HistoryBySku from "../HistoryBySku";
 
@@ -15,38 +16,54 @@ export default function HistorySection({
   // By SKU
   skuQuery,
   setSkuQuery,
+  histSkuSuggestions = [],
   historyBySku,
   histSkuLoading,
-  onSearch,
+  loadHistoryForProduct,
+  // reset
+  resetHistSkuSearch,
 }) {
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-1">
-        {[
-          ["date", "By Date"],
-          ["sku", "By SKU"],
-        ].map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => {
-              setHistMode(k);
-              if (k === "date") {
-                setSkuQuery("");
-                onSearch && onSearch(""); // noop guard
-              }
-            }}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg",
-              histMode === k
-                ? "bg-[#4f46e5] text-white"
-                : "text-black hover:bg-neutral-100",
-            ].join(" ")}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Header with mode toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-teal-100">
+            <Clock className="w-4 h-4 text-teal-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-neutral-900">Transaction History</h3>
+            <p className="text-xs text-neutral-500">View past sales, loans, and returns</p>
+          </div>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          {[
+            ["date", "By Date"],
+            ["sku", "By SKU"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => {
+                setHistMode(k);
+                if (k === "date" && resetHistSkuSearch) {
+                  resetHistSkuSearch();
+                }
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                histMode === k
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Content based on mode */}
       {histMode === "date" ? (
         <HistoryByDate
           nf={nf}
@@ -62,9 +79,11 @@ export default function HistorySection({
           nf={nf}
           skuQuery={skuQuery}
           setSkuQuery={setSkuQuery}
+          histSkuSuggestions={histSkuSuggestions}
           historyBySku={historyBySku}
           histSkuLoading={histSkuLoading}
-          onSearch={onSearch}
+          loadHistoryForProduct={loadHistoryForProduct}
+          resetHistSkuSearch={resetHistSkuSearch}
         />
       )}
     </div>
