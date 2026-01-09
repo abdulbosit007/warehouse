@@ -1115,7 +1115,6 @@ function HistoryTab({ location }) {
     return result;
   }, [allRequests, direction, status, search]);
 
-  // Count by status (for current direction)
   const directionFiltered = direction === "outgoing" 
     ? allRequests.filter(r => r._isOutgoing)
     : allRequests.filter(r => r._isIncoming);
