@@ -1,108 +1,150 @@
 // src/pages/owner/UserManagement.jsx
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import useCurrentUser from "../../hooks/useCurrentUser";
 import {
-  CircularProgress,
-  Select as MUISelect,
-  MenuItem,
-  FormControl,
-} from "@mui/material";
+  Users,
+  UserPlus,
+  Shield,
+  MapPin,
+  Mail,
+  User,
+  Check,
+  X,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+  ChevronDown,
+  Building2,
+  Warehouse,
+  Store,
+} from "lucide-react";
 
-const INDIGO = "#4f46e5";
+const BRAND = "#4f46e5";
 
-/** Small b/w Select wrapper for your styling */
-function BWSelect({ value, onChange, children }) {
+/* ─────────────────────────────────────────────────────────────────────────────
+   STAT CARD COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onClick }) {
   return (
-    <FormControl fullWidth>
-      <MUISelect
-        value={value}
-        onChange={onChange}
-        displayEmpty
-        variant="outlined"
-        sx={{
-          height: 40,
-          bgcolor: "white",
-          color: "#111827",
-          ".MuiOutlinedInput-input": { padding: "8px 36px 8px 12px" },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#D1D5DB" },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: "#9CA3AF",
-          },
-          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-            borderColor: INDIGO,
-          },
-          "& .MuiSelect-icon": { color: "#6B7280" },
-        }}
-        MenuProps={{
-          PaperProps: {
-            sx: {
-              mt: 1,
-              border: "1px solid #E5E7EB",
-              boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
-              borderRadius: 2,
-            },
-          },
-          MenuListProps: {
-            sx: {
-              "& .MuiMenuItem-root": { fontSize: 14, color: "#111827" },
-              "& .MuiMenuItem-root.Mui-selected": {
-                backgroundColor: "#EEF2FF !important",
-                color: "#111827",
-              },
-              "& .MuiMenuItem-root:hover": { backgroundColor: "#F3F4F6" },
-            },
-          },
-        }}
-      >
-        {children}
-      </MUISelect>
-    </FormControl>
+    <button
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${
+        active
+          ? "ring-2 ring-indigo-500 ring-offset-2"
+          : "hover:ring-1 hover:ring-neutral-200"
+      }`}
+      style={{ background: gradient }}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
+            {label}
+          </p>
+          <p className="mt-1 text-3xl font-bold text-neutral-900">{count}</p>
+        </div>
+        <div className={`p-2 rounded-xl ${iconColor} bg-white/50 backdrop-blur-sm`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </button>
   );
 }
 
-export default function UserManagement() {
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]); // [{id,name,actual_name}]
-  const [loading, setLoading] = useState(true);
+/* ─────────────────────────────────────────────────────────────────────────────
+   ROLE BADGE COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+function RoleBadge({ role }) {
+  const base = (role || "").toLowerCase();
+  const config = base === "owner"
+    ? { label: "Owner", bg: "bg-purple-100", text: "text-purple-700", icon: Building2 }
+    : base === "warehouse"
+    ? { label: "Warehouse", bg: "bg-blue-100", text: "text-blue-700", icon: Warehouse }
+    : base.startsWith("branch")
+    ? { label: "Branch", bg: "bg-emerald-100", text: "text-emerald-700", icon: Store }
+    : { label: role || "—", bg: "bg-neutral-100", text: "text-neutral-700", icon: User };
 
+  const Icon = config.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${config.bg} ${config.text}`}>
+      <Icon className="w-3 h-3" />
+      {config.label}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STATUS BADGE COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+function StatusBadge({ approved }) {
+  if (approved) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+        <Check className="w-3 h-3" />
+        Approved
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700">
+      <Clock className="w-3 h-3" />
+      Pending
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+export default function UserManagement() {
+  const { loading: uLoading, error: uErr, roleBase } = useCurrentUser();
+  
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newUser, setNewUser] = useState({
     email: "",
     name: "",
-    roleId: "", // roles.id
+    roleId: "",
     is_approved: true,
   });
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState("all"); // 'all' | 'approved' | 'pending'
 
-  // ---------- Load data ----------
+  /* ─────────────────────────────────────────────────────────────────────────
+     LOAD DATA
+  ───────────────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError("");
-      await Promise.all([fetchRoles(), fetchUsers()]);
-      setLoading(false);
-    })();
-  }, []);
+    if (uLoading || roleBase !== "owner") return;
+    loadData();
+  }, [uLoading, roleBase]);
 
-  const fetchRoles = async () => {
+  async function loadData() {
+    setLoading(true);
+    setError("");
+    await Promise.all([fetchRoles(), fetchUsers()]);
+    setLoading(false);
+  }
+
+  async function fetchRoles() {
     const { data, error } = await supabase
       .from("roles")
       .select("id, name, actual_name")
       .order("name", { ascending: true });
     if (error) setError(error.message);
     setRoles(data ?? []);
-  };
+  }
 
-  const fetchUsers = async () => {
-    setError("");
+  async function fetchUsers() {
     const res = await supabase
       .from("users_list")
-      .select(
-        "user_id, name, is_approved, user_role, roles:roles ( id, name, actual_name )"
-      )
+      .select("user_id, name, is_approved, user_role, roles:roles ( id, name, actual_name )")
       .order("name", { ascending: true });
 
     if (res.error) {
@@ -115,91 +157,66 @@ export default function UserManagement() {
       (res.data || []).map((r) => ({
         user_id: r.user_id,
         name: r.name,
-        email: null, // not exposed here
+        email: null,
         is_approved: r.is_approved,
         role_id: r.roles?.id ?? null,
         role_name: r.roles?.name ?? null,
         role_actual_name: r.roles?.actual_name ?? r.roles?.name ?? null,
       }))
     );
-  };
+  }
 
-  // ---------- Helpers ----------
-  const inputClass =
-    "w-full rounded-xl border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 " +
-    "focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 hover:border-gray-400 transition-colors";
-  const labelClass = "text-sm text-gray-600";
+  /* ─────────────────────────────────────────────────────────────────────────
+     COMPUTED
+  ───────────────────────────────────────────────────────────────────────── */
+  const stats = useMemo(() => ({
+    all: users.length,
+    approved: users.filter((u) => u.is_approved).length,
+    pending: users.filter((u) => !u.is_approved).length,
+  }), [users]);
+
+  const filteredUsers = useMemo(() => {
+    if (filter === "approved") return users.filter((u) => u.is_approved);
+    if (filter === "pending") return users.filter((u) => !u.is_approved);
+    return users;
+  }, [users, filter]);
 
   const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
   const selectedRole = roleById.get(newUser.roleId);
-  const isBranchRole = (selectedRole?.name || "")
-    .toLowerCase()
-    .startsWith("branch");
+  const isBranchRole = (selectedRole?.name || "").toLowerCase().startsWith("branch");
 
-  const ownerOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase() === "owner"),
-    [roles]
-  );
-  const warehouseOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase() === "warehouse"),
-    [roles]
-  );
-  const branchOptions = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase().startsWith("branch")),
-    [roles]
-  );
+  const ownerOptions = useMemo(() => roles.filter((r) => r.name.toLowerCase() === "owner"), [roles]);
+  const warehouseOptions = useMemo(() => roles.filter((r) => r.name.toLowerCase() === "warehouse"), [roles]);
+  const branchOptions = useMemo(() => roles.filter((r) => r.name.toLowerCase().startsWith("branch")), [roles]);
 
-  const roleLabel = (r) =>
-    r.name.toLowerCase() === "owner"
-      ? "Owner"
-      : r.name.toLowerCase() === "warehouse"
-      ? "Warehouse"
-      : r.name;
+  /* ─────────────────────────────────────────────────────────────────────────
+     HANDLERS
+  ───────────────────────────────────────────────────────────────────────── */
+  const resetForm = () => {
+    setNewUser({ email: "", name: "", roleId: "", is_approved: true });
+    setError("");
+    setSuccess("");
+  };
 
-  // Resolve a location id purely by role_id → locations.role_id
   async function resolveLocationIdByRole(roleId) {
     const { data, error } = await supabase
       .from("locations")
       .select("id, location_name, name, kind")
       .eq("role_id", roleId)
-      .order("location_name", { ascending: true })
-      .order("name", { ascending: true });
+      .order("location_name", { ascending: true });
 
     if (error) throw error;
-
     const rows = data || [];
-    if (rows.length === 0) {
-      return { id: null, pickedLabel: null, reason: "none" };
-    }
-    if (rows.length === 1) {
-      const r = rows[0];
-      return {
-        id: r.id,
-        pickedLabel: r.location_name || r.name || r.id,
-        reason: "single",
-      };
-    }
+    if (rows.length === 0) return { id: null, pickedLabel: null, reason: "none" };
     const r = rows[0];
     return {
       id: r.id,
       pickedLabel: r.location_name || r.name || r.id,
-      reason: "multiple_first",
+      reason: rows.length > 1 ? "multiple_first" : "single",
     };
   }
 
-  const resetForm = () => {
-    setNewUser({
-      email: "",
-      name: "",
-      roleId: "",
-      is_approved: true,
-    });
-    setError("");
-    setSuccess("");
-  };
-
-  // ---------- Create user ----------
-  const handleCreateUser = async () => {
+  async function handleCreateUser() {
     setError("");
     setSuccess("");
 
@@ -215,10 +232,7 @@ export default function UserManagement() {
 
     setSubmitting(true);
     try {
-      const { data: foundAuthId, error: rpcErr } = await supabase.rpc(
-        "lookup_auth_uuid",
-        { p_email: email }
-      );
+      const { data: foundAuthId, error: rpcErr } = await supabase.rpc("lookup_auth_uuid", { p_email: email });
       if (rpcErr) {
         setError(rpcErr.message);
         return;
@@ -235,61 +249,46 @@ export default function UserManagement() {
         pickReason = resolved.reason;
 
         if (!locationIdToUse) {
-          setError(
-            "No location is linked to this branch role. Please create a row in `locations` with role_id = selected role."
-          );
+          setError("No location is linked to this branch role.");
           return;
         }
       }
 
-      const insertPayload = {
-        user_id: foundAuthId ?? null,
-        name: newUser.name.trim(),
-        is_approved: newUser.is_approved,
-        user_role: newUser.roleId,
-        location_id: locationIdToUse,
-      };
-
       const { error: insertError } = await supabase
         .from("users_list")
-        .insert([insertPayload]);
+        .insert([{
+          user_id: foundAuthId ?? null,
+          name: newUser.name.trim(),
+          is_approved: newUser.is_approved,
+          user_role: newUser.roleId,
+          location_id: locationIdToUse,
+        }]);
 
       if (insertError) {
         setError(insertError.message);
         return;
       }
 
-      let extra =
-        isBranchRole && pickedLabel
-          ? pickReason === "multiple_first"
-            ? ` Location auto-assigned to "${pickedLabel}" (first of multiple matches).`
-            : ` Location auto-assigned to "${pickedLabel}".`
-          : "";
+      const extra = isBranchRole && pickedLabel
+        ? pickReason === "multiple_first"
+          ? ` Location auto-assigned to "${pickedLabel}" (first of multiple).`
+          : ` Location auto-assigned to "${pickedLabel}".`
+        : "";
 
-      setSuccess(
-        (foundAuthId
-          ? "User added and linked to existing Auth account."
-          : "User added without Auth link.") + extra
-      );
+      setSuccess((foundAuthId ? "User added and linked!" : "User added.") + extra);
       setShowForm(false);
       resetForm();
       await fetchUsers();
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  // ---------- Approve toggle ----------
-  const toggleApprove = async (row) => {
+  async function toggleApprove(row) {
     setError("");
-    setSuccess("");
     const next = !row.is_approved;
 
-    setUsers((prev) =>
-      prev.map((r) =>
-        r.user_id === row.user_id ? { ...r, is_approved: next } : r
-      )
-    );
+    setUsers((prev) => prev.map((r) => r.user_id === row.user_id ? { ...r, is_approved: next } : r));
 
     const { error: upErr } = await supabase
       .from("users_list")
@@ -297,277 +296,343 @@ export default function UserManagement() {
       .eq("user_id", row.user_id);
 
     if (upErr) {
-      setUsers((prev) =>
-        prev.map((r) =>
-          r.user_id === row.user_id ? { ...r, is_approved: !next } : r
-        )
-      );
+      setUsers((prev) => prev.map((r) => r.user_id === row.user_id ? { ...r, is_approved: !next } : r));
       setError(upErr.message);
     }
-  };
+  }
 
-  // ---------- UI ----------
+  /* ─────────────────────────────────────────────────────────────────────────
+     UI GUARDS
+  ───────────────────────────────────────────────────────────────────────── */
+  if (uLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (uErr) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6" />
+            <span className="font-medium">{uErr}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (roleBase !== "owner") {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6" />
+            <span className="font-medium">Only owner can access this page.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     RENDER
+  ───────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-gray-900">
-          User management
-        </h2>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          className="rounded-xl bg-[rgba(79,70,229,1)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 active:scale-[0.99] transition"
-        >
-          Create user
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div className="mb-4 space-y-2">
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            {success}
-          </div>
-        )}
-      </div>
-
-      {/* Users table header */}
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-gray-900">All users</h3>
-        <div className="text-sm text-gray-600">
-          Total:{" "}
-          <span className="font-semibold text-gray-900">{users.length}</span>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+            User Management
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Manage user accounts and permissions
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:shadow-xl hover:shadow-indigo-300 hover:scale-[1.02] active:scale-95"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add User
+          </button>
         </div>
       </div>
 
-      {/* Users table */}
-      <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        {loading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60">
-            <CircularProgress sx={{ color: INDIGO }} />
+      {/* Messages */}
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+          <X className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
+          <Check className="w-4 h-4" />
+          {success}
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard
+          label="All Users"
+          count={stats.all}
+          icon={Users}
+          gradient="linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)"
+          iconColor="text-neutral-600"
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
+        />
+        <StatCard
+          label="Approved"
+          count={stats.approved}
+          icon={Check}
+          gradient="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"
+          iconColor="text-emerald-600"
+          active={filter === "approved"}
+          onClick={() => setFilter("approved")}
+        />
+        <StatCard
+          label="Pending"
+          count={stats.pending}
+          icon={Clock}
+          gradient="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)"
+          iconColor="text-amber-600"
+          active={filter === "pending"}
+          onClick={() => setFilter("pending")}
+        />
+      </div>
+
+      {/* Users Table */}
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           </div>
-        )}
-
-        <table
-          className={`w-full table-fixed text-sm ${
-            loading ? "opacity-60" : "opacity-100"
-          }`}
-        >
-          <thead>
-            <tr className="bg-[#4f46e5] text-xs font-semibold uppercase tracking-wide text-white">
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Role</th>
-              <th className="px-4 py-3 text-left">Location</th>
-              <th className="px-4 py-3 text-left">Approved</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!loading && users.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-6 text-center text-sm text-gray-500"
-                >
-                  No users yet.
-                </td>
-              </tr>
-            ) : (
-              users.map((u) => {
-                const base = (u.role_name || "").toLowerCase();
-                const rolePretty =
-                  base === "owner"
-                    ? "Owner"
-                    : base === "warehouse"
-                    ? "Warehouse"
-                    : base.startsWith("branch")
-                    ? "Branch"
-                    : u.role_name || "—";
-                const locationPretty =
-                  u.role_actual_name || u.role_name || "—";
-
-                const approvedChipClass = u.is_approved
-                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                  : "bg-amber-50 text-amber-700 ring-amber-200";
-
-                const approvedLabel = u.is_approved ? "Approved" : "Pending";
-
-                return (
-                  <tr
-                    key={u.user_id || u.name}
-                    className="border-t border-gray-100 bg-white hover:bg-gray-50"
-                  >
-                    <td className="px-4 py-2.5 align-top text-gray-900">
-                      {u.name || "—"}
+        ) : filteredUsers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
+            <Users className="w-12 h-12 mb-3 text-neutral-300" />
+            <p className="text-sm">No users found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                <tr className="text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-6 py-4 text-left">User</th>
+                  <th className="px-6 py-4 text-left">Role</th>
+                  <th className="px-6 py-4 text-left">Location</th>
+                  <th className="px-6 py-4 text-left">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {filteredUsers.map((u) => (
+                  <tr key={u.user_id || u.name} className="hover:bg-neutral-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-sm font-bold text-indigo-600">
+                          {(u.name || "U").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-neutral-900">{u.name || "—"}</p>
+                          {u.email && (
+                            <p className="text-xs text-neutral-500">{u.email}</p>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5 align-top">
-                      {u.email ? (
-                        <a
-                          href={`mailto:${u.email}`}
-                          className="break-all text-sm text-indigo-700 underline underline-offset-2 decoration-indigo-200 hover:decoration-indigo-500"
-                        >
-                          {u.email}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                    <td className="px-6 py-4">
+                      <RoleBadge role={u.role_name} />
                     </td>
-                    <td className="px-4 py-2.5 align-top">
-                      <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-900">
-                        {rolePretty}
-                      </span>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-sm text-neutral-700">
+                        <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+                        {u.role_actual_name || u.role_name || "—"}
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5 align-top text-gray-900">
-                      {locationPretty}
+                    <td className="px-6 py-4">
+                      <StatusBadge approved={u.is_approved} />
                     </td>
-                    <td className="px-4 py-2.5 align-top">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-0.5 text-[11px] font-medium ring-1 ${approvedChipClass}`}
-                      >
-                        {approvedLabel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 align-top">
+                    <td className="px-6 py-4">
                       <div className="flex justify-end">
                         <button
                           onClick={() => toggleApprove(u)}
                           className={
                             u.is_approved
-                              ? "rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                              : "rounded-xl bg-[rgba(79,70,229,1)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 active:scale-[0.99] transition"
-                          }
-                          title={
-                            u.is_approved ? "Revoke approval" : "Approve user"
+                              ? "inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 transition-all active:scale-95"
+                              : "inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:shadow-md transition-all active:scale-95"
                           }
                         >
-                          {u.is_approved ? "Revoke" : "Approve"}
+                          {u.is_approved ? (
+                            <>
+                              <X className="w-3 h-3" />
+                              Revoke
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3 h-3" />
+                              Approve
+                            </>
+                          )}
                         </button>
                       </div>
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      <div className="mb-10" />
-
-      {/* Create User modal */}
+      {/* Create User Modal */}
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-modal="true"
-          role="dialog"
-        >
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowForm(false)}
-          />
-          <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-              <h4 className="text-lg font-semibold text-gray-900">
-                Create user
-              </h4>
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Add New User</h3>
+                <p className="text-sm text-indigo-100 mt-0.5">Create a new user account</p>
+              </div>
               <button
                 onClick={() => setShowForm(false)}
-                className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                className="text-white/70 hover:text-white transition-colors"
               >
-                Close
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="px-5 py-5">
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
               {error && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelClass}>Email (Google)</label>
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                  Email (Google Account)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <input
-                    className={inputClass}
-                    placeholder="user@example.com"
+                    type="email"
                     value={newUser.email}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, email: e.target.value })
-                    }
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    placeholder="user@example.com"
+                    className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   />
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelClass}>Full name</label>
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <input
-                    className={inputClass}
-                    placeholder="Full name"
+                    type="text"
                     value={newUser.name}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, name: e.target.value })
-                    }
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    placeholder="John Doe"
+                    className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   />
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-1.5 md:col-span-2">
-                  <label className={labelClass}>Role</label>
-                  <BWSelect
+              {/* Role */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                  Role
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 z-10" />
+                  <select
                     value={newUser.roleId}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, roleId: e.target.value })
-                    }
+                    onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
+                    className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-10 py-2.5 text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   >
-                    {ownerOptions.map((r) => (
-                      <MenuItem key={r.id} value={r.id}>
-                        {roleLabel(r)}
-                      </MenuItem>
-                    ))}
-                    {warehouseOptions.map((r) => (
-                      <MenuItem key={r.id} value={r.id}>
-                        {roleLabel(r)}
-                      </MenuItem>
-                    ))}
-                    <MenuItem disabled>──────────</MenuItem>
-                    {branchOptions.map((r) => (
-                      <MenuItem key={r.id} value={r.id}>
-                        {r.actual_name || r.name}
-                      </MenuItem>
-                    ))}
-                  </BWSelect>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Location is assigned automatically from the selected branch
-                    role.
-                  </p>
+                    <option value="">Select a role...</option>
+                    {ownerOptions.length > 0 && (
+                      <optgroup label="Owner">
+                        {ownerOptions.map((r) => (
+                          <option key={r.id} value={r.id}>Owner</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {warehouseOptions.length > 0 && (
+                      <optgroup label="Warehouse">
+                        {warehouseOptions.map((r) => (
+                          <option key={r.id} value={r.id}>Warehouse</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {branchOptions.length > 0 && (
+                      <optgroup label="Branches">
+                        {branchOptions.map((r) => (
+                          <option key={r.id} value={r.id}>{r.actual_name || r.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
                 </div>
+                <p className="mt-1.5 text-xs text-neutral-500">
+                  Location is assigned automatically from the selected branch role.
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+            {/* Modal Footer */}
+            <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3">
               <button
-                onClick={() => {
-                  resetForm();
-                  setShowForm(false);
-                }}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100"
+                onClick={() => { resetForm(); setShowForm(false); }}
+                className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-all active:scale-95"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateUser}
                 disabled={submitting}
-                className="rounded-xl bg-[rgba(79,70,229,1)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:bg-[rgba(79,70,229,1)]/95 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:shadow-xl hover:shadow-indigo-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Adding..." : "Add user"}
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    Add User
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -211,6 +211,7 @@ export default function ProductsTable() {
     pageSize,
     search,
     filters: effectiveFilters,
+    enabled: !!roleBase && !metaLoading,
   });
 
   // visible rows: only warehouses for WH view (страховка, если view вернёт лишнее)

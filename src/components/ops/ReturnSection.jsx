@@ -1,3 +1,4 @@
+import { RotateCcw } from "lucide-react";
 import ReturnByDate from "../ReturnByDate";
 import ReturnBySku from "../ReturnBySku";
 
@@ -19,11 +20,12 @@ export default function ReturnSection({
   // By SKU
   retSkuQuery,
   setRetSkuQuery,
+  retSkuSuggestions,
   retSkuOptions,
   retSkuPicked,
   retSkuQty,
   retSkuLoading,
-  searchReturnBySku,
+  loadReturnableItems,
   setRetSkuPicked,
   setRetSkuQty,
   // Submit
@@ -35,42 +37,44 @@ export default function ReturnSection({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-white p-3">
-        <label className="mb-1 block text-xs font-medium text-neutral-600">
-          Note (optional)
-        </label>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={2}
-          className="w-full rounded-lg border px-3 py-2 text-sm"
-        />
+      {/* Header with mode toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-amber-100">
+            <RotateCcw className="w-4 h-4 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-neutral-900">Process Returns</h3>
+            <p className="text-xs text-neutral-500">Return items from sales or loans</p>
+          </div>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          {[
+            ["date", "By Date"],
+            ["sku", "By SKU"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => {
+                setReturnMode(k);
+                if (k === "date") resetDatePick();
+                else resetSkuPick();
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                returnMode === k
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-1">
-        {[
-          ["date", "By Date"],
-          ["sku", "By SKU"],
-        ].map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => {
-              setReturnMode(k);
-              if (k === "date") resetDatePick();
-              else resetSkuPick();
-            }}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg",
-              returnMode === k
-                ? "bg-[#4f46e5] text-white"
-                : "text-black hover:bg-neutral-100",
-            ].join(" ")}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+      {/* Content based on mode */}
       {returnMode === "date" ? (
         <ReturnByDate
           nf={nf}
@@ -90,11 +94,12 @@ export default function ReturnSection({
           nf={nf}
           retSkuQuery={retSkuQuery}
           setRetSkuQuery={setRetSkuQuery}
+          retSkuSuggestions={retSkuSuggestions}
           retSkuOptions={retSkuOptions}
           retSkuPicked={retSkuPicked}
           retSkuQty={retSkuQty}
           retSkuLoading={retSkuLoading}
-          searchReturnBySku={searchReturnBySku}
+          loadReturnableItems={loadReturnableItems}
           setPicked={setRetSkuPicked}
           setQty={setRetSkuQty}
           submitReturn={submitReturn}

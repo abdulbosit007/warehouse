@@ -137,8 +137,11 @@ export async function sendAllDraftItems(batchId) {
  * WAREHOUSE ACTIONS
  * ============================ */
 
-export async function approveItem(itemId, warehouseUserId) {
-  return supabase
+export async function approveItem(itemId, warehouseUserId, locationId = null) {
+  console.log("[approveItem] Starting approval:", { itemId, warehouseUserId, locationId });
+  
+  // First update the item status
+  const { data: item, error: updateErr } = await supabase
     .from("incoming_batch_items")
     .update({
       status: "approved",
@@ -146,12 +149,116 @@ export async function approveItem(itemId, warehouseUserId) {
       reviewed_at: nowIso(),
       rejection_code: null,
       corrected_quantity: null,
+      approved_location_id: locationId,
     })
     .eq("id", itemId)
     .eq("status", "sent")
-    .select()
+    .select("*")
     .single();
+
+  if (updateErr) {
+    console.error("[approveItem] Update error:", updateErr);
+    return { data: null, error: updateErr };
+  }
+
+  console.log("[approveItem] Item updated:", item);
+
+  // Now update product_list - add/increase quantity at the location
+  if (locationId && item) {
+    let productId = null;
+    
+    // Check if product exists by SKU
+    if (item.sku) {
+      console.log("[approveItem] Looking for product by SKU:", item.sku);
+      const { data: existing, error: existErr } = await supabase
+        .from("products")
+        .select("id")
+        .eq("sku", item.sku)
+        .maybeSingle();
+      
+      if (existErr) console.error("[approveItem] Product lookup error:", existErr);
+      
+      if (existing) {
+        productId = existing.id;
+        console.log("[approveItem] Found existing product:", productId);
+      } else {
+        // Create new product
+        console.log("[approveItem] Creating new product...");
+        const { data: newProd, error: prodErr } = await supabase
+          .from("products")
+          .insert({
+            id: newId(),
+            name: item.product_name,
+            sku: item.sku,
+            category_id: item.category_id,
+            price: item.price > 0 ? item.price : 1, // Minimum price of 1 to satisfy constraint
+          })
+          .select()
+          .single();
+        
+        if (prodErr) {
+          console.error("[approveItem] Create product error:", prodErr);
+        } else if (newProd) {
+          productId = newProd.id;
+          console.log("[approveItem] Created new product:", productId);
+        }
+      }
+    } else {
+      console.log("[approveItem] No SKU on item, skipping product_list update");
+    }
+
+    if (productId) {
+      console.log("[approveItem] Checking product_list for:", { productId, locationId });
+      const { data: existingEntry, error: listErr } = await supabase
+        .from("product_list")
+        .select("id, quantity")
+        .eq("product_id", productId)
+        .eq("location_id", locationId)
+        .maybeSingle();
+
+      if (listErr) console.error("[approveItem] product_list lookup error:", listErr);
+
+      if (existingEntry) {
+        const oldQty = existingEntry.quantity || 0;
+        const addQty = item.quantity || 0;
+        const newQty = oldQty + addQty;
+        console.log("[approveItem] Updating existing entry:", { id: existingEntry.id, oldQty, addQty, newQty });
+        
+        const { error: upErr } = await supabase
+          .from("product_list")
+          .update({ 
+            quantity: newQty,
+            status: "available"
+          })
+          .eq("id", existingEntry.id);
+        
+        if (upErr) console.error("[approveItem] Update product_list error:", upErr);
+        else console.log("[approveItem] Successfully updated product_list!");
+      } else {
+        console.log("[approveItem] Creating new product_list entry:", { productId, locationId, quantity: item.quantity });
+        const { error: insErr } = await supabase
+          .from("product_list")
+          .insert({
+            id: newId(),
+            product_id: productId,
+            location_id: locationId,
+            quantity: item.quantity || 0,
+            status: "available",
+          });
+        
+        if (insErr) console.error("[approveItem] Insert product_list error:", insErr);
+        else console.log("[approveItem] Successfully created product_list entry!");
+      }
+    } else {
+      console.log("[approveItem] No productId, cannot update product_list");
+    }
+  } else {
+    console.log("[approveItem] Skipping product_list update - no locationId or no item");
+  }
+
+  return { data: item, error: null };
 }
+
 
 /** Reject with strict shape */
 export async function rejectItemWithCode(
@@ -323,6 +430,16 @@ export async function getCategories() {
   return res;
 }
 
+export async function getWarehouseLocations() {
+  const res = await supabase
+    .from("locations")
+    .select("id, location_name, kind")
+    .eq("kind", "warehouse")
+    .order("location_name");
+  if (res.error) return { data: [], error: null };
+  return res;
+}
+
 /** Product helpers */
 export async function findProductBySKU(sku) {
   const clean = String(sku ?? "").trim();
@@ -357,7 +474,9 @@ export async function addDraftFromProduct({
     sku: product.sku,
     category_id: product.category_id ?? null,
     quantity: null,
-    price: 0,
+    price: product.price || 0,
     requested_by,
   });
 }
+
+

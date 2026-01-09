@@ -1,6 +1,6 @@
 // src/pages/owner/BatchDetail.jsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   getBatch,
   getBatchItems,
@@ -15,24 +15,22 @@ import {
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
-import { useNavigate } from "react-router-dom";
-
-// 🔵 ProductsTable / IncomingBatches dagi kabi MUI importlar
 import {
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Box,
-  Typography,
-} from "@mui/material";
+  ArrowLeft,
+  Package,
+  Send,
+  Check,
+  X,
+  AlertCircle,
+  Trash2,
+  RefreshCw,
+  Clock,
+  FileText,
+} from "lucide-react";
 
-const INDIGO = "#4f46e5";
-
-/* ---------- tiny debounce helper ---------- */
+/* ─────────────────────────────────────────────────────────────────────────────
+   DEBOUNCE HELPER
+───────────────────────────────────────────────────────────────────────────── */
 function useDebouncedEffect(effect, deps, delay) {
   const saved = useRef(effect);
   useEffect(() => void (saved.current = effect), [effect]);
@@ -43,127 +41,118 @@ function useDebouncedEffect(effect, deps, delay) {
   }, [...deps, delay]);
 }
 
-function StatusChip({ status }) {
+/* ─────────────────────────────────────────────────────────────────────────────
+   STATUS BADGE
+───────────────────────────────────────────────────────────────────────────── */
+function StatusBadge({ status }) {
   const v = (status || "").toLowerCase();
-  const cls =
-    v === "approved"
-      ? "bg-emerald-100 text-emerald-700 ring-emerald-300"
-      : v === "rejected"
-      ? "bg-red-100 text-red-700 ring-red-300"
-      : v === "sent"
-      ? "bg-blue-100 text-blue-700 ring-blue-300"
-      : "bg-gray-100 text-gray-700 ring-gray-300";
+  const config = {
+    draft: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", dot: "bg-amber-500", Icon: FileText },
+    sent: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500", Icon: Send },
+    approved: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500", Icon: Check },
+    rejected: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", dot: "bg-red-500", Icon: X },
+  };
+  const c = config[v] || config.draft;
   return (
-    <span
-      className={`rounded-full px-2.5 py-0.5 text-xs capitalize ring-1 ${cls}`}
-    >
-      {status}
+    <span className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} border ${c.border} px-2.5 py-1 text-xs font-medium ${c.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {v.charAt(0).toUpperCase() + v.slice(1)}
     </span>
   );
 }
 
-/** Pretty icon mini */
-const Dot = ({ tone }) => {
-  const map = {
-    blue: "bg-blue-500",
-    red: "bg-red-500",
-    green: "bg-emerald-500",
-    gray: "bg-gray-400",
-  };
-  return <span className={`inline-block h-2 w-2 rounded-full ${map[tone]}`} />;
-};
+/* ─────────────────────────────────────────────────────────────────────────────
+   STAT CARD
+───────────────────────────────────────────────────────────────────────────── */
+function StatCard({ label, count, icon: Icon, gradient, iconColor }) {
+  return (
+    <div className="rounded-2xl p-4" style={{ background: gradient }}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">{label}</p>
+          <p className="mt-1 text-2xl font-bold text-neutral-900">{count}</p>
+        </div>
+        <div className={`p-2 rounded-xl ${iconColor} bg-white/50`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-/** Owner popup to respond to warehouse rejection (cleaner look, mobile-first) */
-function OwnerReviewModal({
-  item,
-  onClose,
-  onAcceptFix,
-  onApproveRemoval,
-  onResend,
-}) {
+/* ─────────────────────────────────────────────────────────────────────────────
+   OWNER REVIEW MODAL
+───────────────────────────────────────────────────────────────────────────── */
+function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onResend }) {
   if (!item) return null;
   const isQty = item.rejection_code === "qty_mismatch";
   const isNoSuch = item.rejection_code === "no_such_product";
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Dot tone="red" />
-            <h3 className="text-lg font-semibold">Warehouse response</h3>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">Warehouse Response</h3>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-md px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
-          >
-            Close
+          <button onClick={onClose} className="text-white/70 hover:text-white">
+            <X className="w-5 h-5" />
           </button>
         </div>
-
-        <div className="rounded-xl border p-3">
-          <div className="text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Product</span>
-              <span className="font-medium">{item.product_name || "—"}</span>
+        
+        <div className="p-6 space-y-4">
+          <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
+            <div className="flex justify-between px-4 py-2">
+              <span className="text-sm text-neutral-500">Product</span>
+              <span className="text-sm font-medium">{item.product_name || "—"}</span>
             </div>
-            <div className="mt-1 flex justify-between">
-              <span className="text-gray-500">SKU</span>
-              <span className="font-medium">{item.sku || "—"}</span>
+            <div className="flex justify-between px-4 py-2">
+              <span className="text-sm text-neutral-500">SKU</span>
+              <span className="text-sm font-mono">{item.sku || "—"}</span>
             </div>
-            <div className="mt-1 flex justify-between">
-              <span className="text-gray-500">Requested qty</span>
-              <span className="font-medium">{item.quantity ?? "—"}</span>
+            <div className="flex justify-between px-4 py-2">
+              <span className="text-sm text-neutral-500">Requested Qty</span>
+              <span className="text-sm font-medium">{item.quantity ?? "—"}</span>
             </div>
-            <div className="mt-1 flex justify-between">
-              <span className="text-gray-500">Reason</span>
-              <span className="font-medium">{item.rejection_code || "—"}</span>
+            <div className="flex justify-between px-4 py-2">
+              <span className="text-sm text-neutral-500">Rejection Reason</span>
+              <span className="text-sm font-medium text-red-600">{item.rejection_code?.replace(/_/g, " ") || "—"}</span>
             </div>
             {isQty && (
-              <div className="mt-1 flex justify-between">
-                <span className="text-gray-500">Corrected qty</span>
-                <span className="font-semibold">
-                  {item.corrected_quantity ?? "—"}
-                </span>
+              <div className="flex justify-between px-4 py-2 bg-amber-50">
+                <span className="text-sm text-neutral-500">Corrected Qty</span>
+                <span className="text-sm font-bold text-amber-700">{item.corrected_quantity ?? "—"}</span>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          {isQty ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {isQty && (
+              <button
+                onClick={onAcceptFix}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700"
+              >
+                <Check className="w-4 h-4" />
+                Accept Fix
+              </button>
+            )}
+            {isNoSuch && (
+              <button
+                onClick={onApproveRemoval}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700"
+              >
+                <Check className="w-4 h-4" />
+                Approve Removal
+              </button>
+            )}
             <button
-              onClick={onAcceptFix}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-white"
+              onClick={onResend}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-blue-600 hover:to-indigo-700"
             >
-              Accept fix & approve
+              <RefreshCw className="w-4 h-4" />
+              Resend to Warehouse
             </button>
-          ) : isNoSuch ? (
-            <button
-              onClick={onApproveRemoval}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-white"
-              title="Approve warehouse decision and remove this item from the batch"
-            >
-              Approve removal
-            </button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
-
-          <button
-            onClick={onResend}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-white"
-            title="Disagree with the warehouse decision and resend this item for review"
-          >
-            Resend to warehouse
-          </button>
-
-          {/* Safe note */}
-          <div className="sm:col-span-2 text-xs text-gray-500">
-            Actions are validated by database triggers; if something fails
-            you’ll see an error in the page.
           </div>
         </div>
       </div>
@@ -171,177 +160,153 @@ function OwnerReviewModal({
   );
 }
 
-/** Row (editable only for drafts; rejected rows clickable) */
-function Row({ row, readonly, onDelete, categories, onClickRejected }) {
-  const isFreshBlank =
-    !row.product_name &&
-    !row.category_id &&
-    Number(row.price ?? 0) === 0 &&
-    (row.quantity == null || row.quantity === 1);
+/* ─────────────────────────────────────────────────────────────────────────────
+   DRAFT ROW COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+function DraftRow({ row, onDelete, categories }) {
+  // If product has name AND category already filled, it came from an existing product - lock those fields
+  const isExistingProduct = !!(row.product_name && row.category_id);
 
   const [form, setForm] = useState({
     product_name: row.product_name ?? "",
     sku: row.sku ?? "",
     category_id: row.category_id ?? "",
-    quantity:
-      row.quantity == null || (isFreshBlank && row.quantity === 1)
-        ? ""
-        : row.quantity,
+    quantity: row.quantity ?? "",
   });
 
   useEffect(() => {
-    const fresh =
-      !row.product_name &&
-      !row.category_id &&
-      Number(row.price ?? 0) === 0 &&
-      (row.quantity == null || row.quantity === 1);
-
     setForm({
       product_name: row.product_name ?? "",
       sku: row.sku ?? "",
       category_id: row.category_id ?? "",
-      quantity:
-        row.quantity == null || (fresh && row.quantity === 1)
-          ? ""
-          : row.quantity,
+      quantity: row.quantity ?? "",
     });
-  }, [
-    row.id,
-    row.product_name,
-    row.sku,
-    row.category_id,
-    row.quantity,
-    row.price,
-  ]);
+  }, [row.id, row.product_name, row.sku, row.category_id, row.quantity]);
 
   useDebouncedEffect(
     () => {
-      if (readonly) return;
-      const qty =
-        form.quantity === "" || form.quantity == null
-          ? null
-          : Math.max(1, Number(form.quantity) || 1);
-      const payload = {
-        product_name: form.product_name?.trim() || null,
-        sku: form.sku?.trim() || null,
-        category_id: form.category_id || null,
-        quantity: qty,
-      };
-      updateDraftItem(row.id, payload).catch((e) =>
-        console.error("updateDraftItem error", {
-          itemId: row.id,
-          clean: payload,
-          error: e,
-        })
-      );
+      const qty = form.quantity === "" || form.quantity == null ? null : Math.max(1, Number(form.quantity) || 1);
+      // Only send editable fields
+      const payload = isExistingProduct 
+        ? { quantity: qty } // Existing product - only quantity can change
+        : {
+            product_name: form.product_name?.trim() || null,
+            sku: form.sku?.trim() || null,
+            category_id: form.category_id || null,
+            quantity: qty,
+          };
+      updateDraftItem(row.id, payload).catch((e) => console.error("updateDraftItem error", { itemId: row.id, error: e }));
     },
-    [form, readonly],
+    [form, isExistingProduct],
     300
   );
 
-  const cell = (children) => <td className="px-4 py-2">{children}</td>;
+  const lockedClass = "w-full rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-600";
+  const editableClass = "w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
   return (
-    <tr
-      className={`hover:bg-gray-50 ${
-        row.status === "rejected" ? "cursor-pointer" : ""
-      }`}
-      onClick={() =>
-        row.status === "rejected" ? onClickRejected?.(row) : undefined
-      }
-    >
-      {cell(
-        readonly ? (
-          row.product_name || <span className="text-gray-400">—</span>
+    <tr className={`hover:bg-neutral-50 transition-colors ${isExistingProduct ? "bg-indigo-50/30" : ""}`}>
+      <td className="px-4 py-3">
+        {isExistingProduct ? (
+          <div className={lockedClass}>{form.product_name}</div>
         ) : (
           <input
             value={form.product_name}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, product_name: e.target.value }))
-            }
-            className="w-full rounded border px-2 py-1"
-            placeholder="Enter name (optional)"
+            onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
+            className={editableClass}
+            placeholder="Product name"
           />
-        )
-      )}
-
-      {cell(
-        readonly ? (
-          row.sku || <span className="text-gray-400">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isExistingProduct ? (
+          <div className={`${lockedClass} font-mono`}>{form.sku}</div>
         ) : (
           <input
             value={form.sku}
             onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            className="w-full rounded border px-2 py-1"
+            className={`${editableClass} font-mono`}
             placeholder="SKU"
           />
-        )
-      )}
-
-      {cell(
-        readonly ? (
-          categories.find((c) => c.id === row.category_id)?.name || (
-            <span className="text-red-500">required</span>
-          )
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isExistingProduct ? (
+          <div className={lockedClass}>{categories.find((c) => c.id === form.category_id)?.name || "—"}</div>
         ) : (
           <select
             value={form.category_id}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, category_id: e.target.value || "" }))
-            }
-            className="w-full rounded border px-2 py-1"
+            onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || "" }))}
+            className={`${editableClass} ${!form.category_id ? "border-red-300 bg-red-50" : ""}`}
           >
             <option value="">Select category…</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-        )
-      )}
-
-      {cell(
-        readonly ? (
-          row.quantity ?? <span className="text-gray-400">—</span>
-        ) : (
-          <input
-            type="number"
-            min={1}
-            value={form.quantity}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                quantity: e.target.value === "" ? "" : Number(e.target.value),
-              }))
-            }
-            className="w-24 rounded border px-2 py-1"
-            placeholder="Qty"
-          />
-        )
-      )}
-
-      <td className="px-4 py-2">
-        {row.status === "draft" ? (
-          <div className="flex justify-end">
-            <button
-              onClick={() => onDelete?.(row)}
-              className="rounded bg-red-600 px-3 py-1 text-sm text-white"
-            >
-              Delete
-            </button>
-          </div>
-        ) : (
-          <StatusChip status={row.status} />
         )}
+      </td>
+      <td className="px-4 py-3">
+        <input
+          type="number"
+          min={1}
+          value={form.quantity}
+          onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value === "" ? "" : Number(e.target.value) }))}
+          className={`w-20 rounded-lg border px-3 py-1.5 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+            !form.quantity ? "border-red-300 bg-red-50" : "border-neutral-200"
+          }`}
+          placeholder="Qty"
+        />
+      </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          onClick={() => onDelete?.(row)}
+          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </td>
     </tr>
   );
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SENT/APPROVED/REJECTED ROW
+───────────────────────────────────────────────────────────────────────────── */
+function ItemRow({ row, categories, onClickRejected }) {
+  const isRejected = row.status === "rejected";
+  return (
+    <tr
+      onClick={() => isRejected && onClickRejected?.(row)}
+      className={`hover:bg-neutral-50 transition-colors ${isRejected ? "cursor-pointer bg-red-50/30" : ""}`}
+    >
+      <td className="px-4 py-3">
+        <span className="text-sm">{row.product_name || <span className="text-neutral-400">—</span>}</span>
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-sm font-mono text-neutral-600">{row.sku || "—"}</span>
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-sm">{categories.find((c) => c.id === row.category_id)?.name || <span className="text-red-500">missing</span>}</span>
+      </td>
+      <td className="px-4 py-3 text-center">
+        <span className="text-sm font-medium">{row.quantity ?? "—"}</span>
+      </td>
+      <td className="px-4 py-3">
+        <StatusBadge status={row.status} />
+      </td>
+    </tr>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
 export default function BatchDetail() {
   const { id } = useParams();
   const { userRow } = useCurrentUser();
+  const navigate = useNavigate();
 
   const [batch, setBatch] = useState(null);
   const [items, setItems] = useState([]);
@@ -349,30 +314,22 @@ export default function BatchDetail() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [sendErr, setSendErr] = useState("");
-  const [reviewing, setReviewing] = useState(null); // rejected row owner is reviewing
+  const [reviewing, setReviewing] = useState(null);
 
   const isOpen = (batch?.status || "").toLowerCase() === "open";
-  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr("");
-    const [{ data: b, error: bErr }, { data: it, error: iErr }] =
-      await Promise.all([getBatch(id), getBatchItems(id)]);
+    const [{ data: b, error: bErr }, { data: it, error: iErr }] = await Promise.all([getBatch(id), getBatchItems(id)]);
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
-
     setBatch(b || null);
-    setItems(
-      (it || [])
-        .slice()
-        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-    );
+    setItems((it || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
     setLoading(false);
   }, [id]);
 
   useEffect(() => void load(), [load]);
-
   useEffect(() => {
     (async () => {
       const { data: cats } = await getCategories();
@@ -380,52 +337,28 @@ export default function BatchDetail() {
     })();
   }, []);
 
-  const drafts = useMemo(
-    () => items.filter((i) => i.status === "draft"),
-    [items]
-  );
-
-  // sort non-drafts by status: sent → approved → rejected
+  const drafts = useMemo(() => items.filter((i) => i.status === "draft"), [items]);
   const others = useMemo(() => {
     const order = { sent: 0, approved: 1, rejected: 2 };
-    return items
-      .filter((i) => i.status !== "draft")
-      .slice()
-      .sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
+    return items.filter((i) => i.status !== "draft").slice().sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
   }, [items]);
 
   const onDeleteDraft = async (row) => {
     setItems((prev) => prev.filter((r) => r.id !== row.id));
-    try {
-      await removeDraftItem(row.id);
-    } catch {
-      await load();
-    }
+    try { await removeDraftItem(row.id); } catch { await load(); }
   };
 
   const onSendAll = async () => {
     setSendErr("");
     await new Promise((r) => setTimeout(r, 350));
     const { data: freshDrafts, error } = await getDraftItems(id);
-    if (error) {
-      setSendErr(error.message || "Failed to fetch draft items.");
-      return;
-    }
+    if (error) { setSendErr(error.message || "Failed to fetch draft items."); return; }
     if (!freshDrafts || freshDrafts.length === 0) return;
 
-    const invalids = freshDrafts
-      .map((d) => {
-        const hasCat = !!d.category_id;
-        const hasQty = d.quantity != null && Number(d.quantity) > 0;
-        return {
-          id: d.id,
-          sku: d.sku || "—",
-          name: d.product_name || "—",
-          missingCategory: !hasCat,
-          badQty: !hasQty,
-        };
-      })
-      .filter((x) => x.missingCategory || x.badQty);
+    const invalids = freshDrafts.map((d) => ({
+      id: d.id, sku: d.sku || "—", name: d.product_name || "—",
+      missingCategory: !d.category_id, badQty: d.quantity == null || Number(d.quantity) <= 0,
+    })).filter((x) => x.missingCategory || x.badQty);
 
     if (invalids.length > 0) {
       const lines = invalids.map((x) => {
@@ -437,238 +370,182 @@ export default function BatchDetail() {
       setSendErr(`Fix these draft row(s) before sending:\n${lines.join("\n")}`);
       return;
     }
-
     await sendAllDraftItems(id);
     await load();
   };
 
-  const existingSkus = (items || [])
-    .map((i) => (i.sku ? String(i.sku).toLowerCase() : ""))
-    .filter(Boolean);
+  const existingSkus = (items || []).map((i) => (i.sku ? String(i.sku).toLowerCase() : "")).filter(Boolean);
+
+  // Stats
+  const draftCount = drafts.length;
+  const sentCount = others.filter((i) => i.status === "sent").length;
+  const approvedCount = others.filter((i) => i.status === "approved").length;
+  const rejectedCount = others.filter((i) => i.status === "rejected").length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <button
-          onClick={() => navigate("/owner/incoming-product")}
-          className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="h-5 w-5"
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/owner/incoming-product")}
+            className="p-2 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
-            />
-          </svg>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Batch Details</h1>
+              {/* Origin Badge */}
+              {batch?.origin && (
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
+                  (batch.origin || "").toLowerCase() === "chinese" 
+                    ? "bg-red-100 border-2 border-red-300 text-red-700" 
+                    : "bg-emerald-100 border-2 border-emerald-300 text-emerald-700"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    (batch.origin || "").toLowerCase() === "chinese" ? "bg-red-500" : "bg-emerald-500"
+                  }`} />
+                  {(batch.origin || "").charAt(0).toUpperCase() + (batch.origin || "").slice(1)}
+                </span>
+              )}
+              {/* Status Badge */}
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                isOpen ? "bg-blue-50 border border-blue-200 text-blue-700" : "bg-neutral-50 border border-neutral-200 text-neutral-600"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-blue-500" : "bg-neutral-400"}`} />
+                {isOpen ? "Open" : "Closed"}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-neutral-500">
+              {items.length} total items
+              {batch?.created_at && ` • Created ${new Date(batch.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={load}
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
         </button>
-        <h1 className="text-2xl font-semibold">Batch detail</h1>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Draft" count={draftCount} icon={FileText} gradient="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" iconColor="text-amber-600" />
+        <StatCard label="Sent" count={sentCount} icon={Send} gradient="linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" iconColor="text-blue-600" />
+        <StatCard label="Approved" count={approvedCount} icon={Check} gradient="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" iconColor="text-emerald-600" />
+        <StatCard label="Rejected" count={rejectedCount} icon={X} gradient="linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" iconColor="text-red-600" />
+      </div>
+
+      {/* Error */}
       {err && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
           {err}
         </div>
       )}
-      {loading && <div className="mb-4 text-sm">Loading...</div>}
 
+      {/* Add Product (only when open) */}
       {isOpen && (
-        <div className="mb-6">
-          <InlineSearchAdd
-            batchId={id}
-            requestedBy={userRow?.id ?? null}
-            onAdded={load}
-            existingSkus={existingSkus}
-          />
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
+          <InlineSearchAdd batchId={id} requestedBy={userRow?.id ?? null} onAdded={load} existingSkus={existingSkus} />
         </div>
       )}
 
-      {/* Drafts */}
+      {/* Draft Items */}
       {drafts.length > 0 && (
-        <>
-          <div className="mb-4 text-sm font-semibold text-gray-700">
-            Draft items
-          </div>
-
-          {/* 🔵 Premium MUI table – ProductsTable / IncomingBatches bilan bir xil */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 0,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              overflow: "hidden",
-              bgcolor: "common.white",
-            }}
-          >
-            <TableContainer>
-              <Table
-                size="small"
-                stickyHeader
-                aria-label="Draft items table"
-                sx={{
-                  tableLayout: "fixed",
-                  width: "100%",
-                  "& th, & td": { p: "10px 16px" },
-                }}
-              >
-                <colgroup>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <col key={i} style={{ width: `calc(100% / 5)` }} />
-                  ))}
-                </colgroup>
-
-                <TableHead>
-                  <TableRow
-                    sx={{
-                      "& th": {
-                        bgcolor: INDIGO,
-                        color: "common.white",
-                        borderBottom: "1px solid",
-                        borderColor: INDIGO,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                        textTransform: "uppercase",
-                      },
-                    }}
-                  >
-                    <TableCell>Product</TableCell>
-                    <TableCell>SKU</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Qty</TableCell>
-                    <TableCell align="right" />
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {drafts.map((row) => (
-                    <Row
-                      key={row.id}
-                      row={row}
-                      readonly={!isOpen}
-                      onDelete={onDeleteDraft}
-                      categories={categories}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-
-          {isOpen && (
-            <div className="my-6 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {drafts.length} draft item{drafts.length !== 1 ? "s" : ""} ready
-                to send
-              </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-neutral-900">Draft Items</h2>
+            {isOpen && (
               <button
                 onClick={onSendAll}
-                className="rounded-xl bg-[#4f46e5] px-4 py-2 text-white"
                 disabled={drafts.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
               >
-                Send all drafts
+                <Send className="w-4 h-4" />
+                Send All ({drafts.length})
               </button>
-            </div>
-          )}
+            )}
+          </div>
+          
           {sendErr && (
-            <div className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 whitespace-pre-wrap">
               {sendErr}
             </div>
           )}
-        </>
-      )}
 
-      {/* Others (sorted: sent → approved → rejected). Rejected rows are clickable to review */}
-      {others.length > 0 && (
-        <>
-          <div className="mb-4 text-sm font-semibold text-gray-700">
-            Sent / Approved / Rejected
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-amber-500 to-orange-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">SKU</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Category</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white w-16"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {drafts.map((row) => (
+                  <DraftRow key={row.id} row={row} onDelete={onDeleteDraft} categories={categories} />
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          {/* 🔵 Premium MUI table – xuddi shunday UI */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 0,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              overflow: "hidden",
-              bgcolor: "common.white",
-            }}
-          >
-            <TableContainer>
-              <Table
-                size="small"
-                stickyHeader
-                aria-label="Sent / Approved / Rejected table"
-                sx={{
-                  tableLayout: "fixed",
-                  width: "100%",
-                  "& th, & td": { p: "10px 16px" },
-                }}
-              >
-                <colgroup>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <col key={i} style={{ width: `calc(100% / 5)` }} />
-                  ))}
-                </colgroup>
-
-                <TableHead>
-                  <TableRow
-                    sx={{
-                      "& th": {
-                        bgcolor: INDIGO,
-                        color: "common.white",
-                        borderBottom: "1px solid",
-                        borderColor: INDIGO,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                        textTransform: "uppercase",
-                      },
-                    }}
-                  >
-                    <TableCell>Product</TableCell>
-                    <TableCell>SKU</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Qty</TableCell>
-                    <TableCell>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {others.map((row) => (
-                    <Row
-                      key={row.id}
-                      row={row}
-                      readonly
-                      categories={categories}
-                      onClickRejected={(r) => setReviewing(r)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </>
+        </div>
       )}
 
-      {/* Owner review modal for rejected items */}
+      {/* Sent / Approved / Rejected Items */}
+      {others.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-neutral-900">Sent / Approved / Rejected</h2>
+          
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">SKU</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Category</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {others.map((row) => (
+                  <ItemRow key={row.id} row={row} categories={categories} onClickRejected={(r) => setReviewing(r)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {items.length === 0 && !loading && (
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-12 text-center">
+          <Package className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-neutral-500">No items in this batch yet</p>
+          <p className="text-xs text-neutral-400 mt-1">Use the search above to add products</p>
+        </div>
+      )}
+
+      {/* Owner Review Modal */}
       <OwnerReviewModal
         item={reviewing}
         onClose={() => setReviewing(null)}

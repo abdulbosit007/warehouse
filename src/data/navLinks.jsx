@@ -3,11 +3,13 @@ import {
   Home,
   GitBranch,
   ClipboardList,
+  ClipboardCheck,
   Clock,
   Users,
   User,
   UserCircle,
   Wrench,
+  AlertTriangle,
 } from "lucide-react";
 
 /* -----------------------------
@@ -26,8 +28,18 @@ export const warehouseLinks = [
   },
   {
     to: "/warehouse/owner-requests",
-    label: "Owner Requests",
+    label: "Incoming Batches",
     icon: <ClipboardList className="w-4 h-4" />,
+  },
+  {
+    to: "/warehouse/stock-corrections",
+    label: "Stock Corrections",
+    icon: <AlertTriangle className="w-4 h-4" />,
+  },
+  {
+    to: "/warehouse/audit-review",
+    label: "Audit Review",
+    icon: <ClipboardCheck className="w-4 h-4" />,
   },
   {
     to: "/warehouse/history",
@@ -51,13 +63,13 @@ export const ownerLinks = [
     icon: <Home className="w-4 h-4" />,
   },
   {
-    to: "/owner/requests",
-    label: "Requests",
+    to: "/owner/inventory-batches",
+    label: "Inventory Batches",
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
     to: "/owner/incoming-product",
-    label: "Incoming Product",
+    label: "Incoming Batches",
     icon: <Wrench className="w-4 h-4" />,
   },
   {
@@ -92,9 +104,14 @@ export const branchLinks = (branchId) => {
       icon: <Home className="w-4 h-4" />,
     },
     {
-      to: `${base}/requests`,
-      label: "Requests",
-      icon: <ClipboardList className="w-4 h-4" />,
+      to: `${base}/stock-corrections`,
+      label: "Stock Corrections",
+      icon: <AlertTriangle className="w-4 h-4" />,
+    },
+    {
+      to: `${base}/audit-review`,
+      label: "Audit Review",
+      icon: <ClipboardCheck className="w-4 h-4" />,
     },
     {
       to: `${base}/branch-requests`,
@@ -103,7 +120,7 @@ export const branchLinks = (branchId) => {
     },
     {
       to: `${base}/history`,
-      label: "History",
+      label: "Operations",
       icon: <Clock className="w-4 h-4" />,
     },
     {

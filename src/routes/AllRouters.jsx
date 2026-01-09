@@ -12,24 +12,28 @@ import WarehouseHistory from "../pages/warehouse/History";
 import WarehouseOwnerRequests from "../pages/warehouse/OwnerRequests";
 import WarehouseBatchReview from "../pages/warehouse/BatchDetail";
 import WarehouseHome from "../pages/warehouse/Home";
+import WarehouseStockCorrections from "../pages/warehouse/StockCorrections";
+import WarehouseAuditReview from "../pages/warehouse/AuditReview";
 
-// Owner Pages
 import OwnerIncomingProducts from "../pages/owner/IncomingProducts";
 import OwnerHistory from "../pages/owner/History";
-import OwnerRequests from "../pages/owner/Requests";
+import OwnerInventoryBatches from "../pages/owner/InventoryBatches";
+import OwnerInventoryBatchDetail from "../pages/owner/InventoryBatchDetail";
+import OwnerAuditDetail from "../pages/owner/AuditDetail";
 import OwnerUserManagement from "../pages/owner/UserManagement";
 import BatchDetail from "../pages/owner/BatchDetail";
 import OwnerHome from "../pages/owner/Home";
 
 // Branch Pages
-import BranchRequests from "../pages/branch/Requests";
+import BranchStockCorrections from "../pages/branch/StockCorrections";
 import BranchHistory from "../pages/branch/History";
 import BranchBranchRequests from "../pages/branch/BranchRequests";
 import BranchHome from "../pages/branch/Home";
+import BranchAuditReview from "../pages/branch/AuditReview";
 
 // Shared
 import Profile from "../pages/Profile";
-import { useEffect, useRef, useState } from "react";
+// import { useEffect, useRef, useState } from "react";
 
 /**
  * Protected route:
@@ -37,19 +41,6 @@ import { useEffect, useRef, useState } from "react";
  * - redirects to "/" only if user is truly absent.
  */
 function Protected({ user, children }) {
-  const [ready, setReady] = useState(false);
-  const tRef = useRef(null);
-  useEffect(() => {
-    tRef.current = setTimeout(() => setReady(true), 200); // small grace
-    return () => clearTimeout(tRef.current);
-  }, []);
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading…
-      </div>
-    );
-  }
   if (!user) return <Navigate to="/" replace />;
   return children;
 }
@@ -74,7 +65,9 @@ export default function AllRouters({ user }) {
           <Route path="home" element={<OwnerHome />} />
           <Route path="incoming-product" element={<OwnerIncomingProducts />} />
           <Route path="history" element={<OwnerHistory />} />
-          <Route path="requests" element={<OwnerRequests />} />
+          <Route path="inventory-batches" element={<OwnerInventoryBatches />} />
+          <Route path="inventory-batches/:locationId" element={<OwnerInventoryBatchDetail />} />
+          <Route path="audit/:id" element={<OwnerAuditDetail />} />
           <Route path="user-management" element={<OwnerUserManagement />} />
           <Route path="profile" element={<Profile />} />
           <Route path="batch/:id" element={<BatchDetail />} />
@@ -94,6 +87,8 @@ export default function AllRouters({ user }) {
           <Route path="history" element={<WarehouseHistory />} />
           <Route path="branch-requests" element={<WarehouseBranchRequests />} />
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
+          <Route path="stock-corrections" element={<WarehouseStockCorrections />} />
+          <Route path="audit-review" element={<WarehouseAuditReview />} />
           <Route path="batch/:id" element={<WarehouseBatchReview />} />
           <Route path="profile" element={<Profile />} />
         </Route>
@@ -112,7 +107,8 @@ export default function AllRouters({ user }) {
           <Route path="home" element={<BranchHome />} />
           <Route path="history" element={<BranchHistory />} />
           <Route path="branch-requests" element={<BranchBranchRequests />} />
-          <Route path="requests" element={<BranchRequests />} />
+          <Route path="stock-corrections" element={<BranchStockCorrections />} />
+          <Route path="audit-review" element={<BranchAuditReview />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 
@@ -129,7 +125,8 @@ export default function AllRouters({ user }) {
           <Route path="home" element={<BranchHome />} />
           <Route path="history" element={<BranchHistory />} />
           <Route path="branch-requests" element={<BranchBranchRequests />} />
-          <Route path="requests" element={<BranchRequests />} />
+          <Route path="stock-corrections" element={<BranchStockCorrections />} />
+          <Route path="audit-review" element={<BranchAuditReview />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 

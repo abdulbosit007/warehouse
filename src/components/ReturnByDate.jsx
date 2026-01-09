@@ -1,5 +1,6 @@
 import React from "react";
 import { DayPicker } from "react-day-picker";
+import { Calendar, Package, RotateCcw } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 
 export default function ReturnByDate({
@@ -15,143 +16,194 @@ export default function ReturnByDate({
   submitReturn,
   returnValid,
 }) {
+  const selectedCount = Array.from(retSelect.values()).filter((v) => v.qty > 0).length;
+  const totalQty = Array.from(retSelect.values()).reduce((s, v) => s + (v.qty || 0), 0);
+
+  // Handle quantity change with auto-clamp to max
+  const handleQtyChange = (key, value, max) => {
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      setRetQty(key, 0);
+      return;
+    }
+    // Auto-clamp to max
+    setRetQty(key, Math.min(parsed, max));
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div className="lg:col-span-1 rounded-xl border bg-white p-3">
-        <div className="text-sm font-semibold mb-2">Pick a day</div>
-        <DayPicker
-          mode="single"
-          selected={retSelectedDay}
-          onSelect={(d) => {
-            if (!d) return;
-            setRetSelectedDay(d);
-            loadReturnByDate(d);
-          }}
-          defaultMonth={retSelectedDay}
-          showOutsideDays
-        />
-        <div className="mt-2 flex items-center gap-2">
-          <button
-            onClick={() => {
-              const t = new Date();
-              setRetSelectedDay(t);
-              loadReturnByDate(t);
+      {/* Calendar Panel */}
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-white" />
+          <span className="text-sm font-semibold text-white">Select Date</span>
+        </div>
+        <div className="p-3">
+          {/* Override react-day-picker v9 CSS variables for amber theme */}
+          <style>{`
+            .rdp-amber.rdp-root {
+              --rdp-accent-color: #f59e0b;
+              --rdp-accent-background-color: #fef3c7;
+            }
+            /* Selected date - solid amber, no hover change */
+            .rdp-amber .rdp-selected > button,
+            .rdp-amber .rdp-day.rdp-selected button,
+            .rdp-amber td.rdp-selected button,
+            .rdp-amber [aria-selected="true"] button,
+            .rdp-amber .rdp-selected > button:hover,
+            .rdp-amber [aria-selected="true"] button:hover {
+              background-color: #f59e0b !important;
+              color: white !important;
+              border: none !important;
+              border-radius: 9999px !important;
+            }
+            /* Today when NOT selected - just border */
+            .rdp-amber .rdp-today:not(.rdp-selected) > button,
+            .rdp-amber .rdp-day.rdp-today:not(.rdp-selected) button,
+            .rdp-amber [data-today="true"]:not([aria-selected="true"]) button {
+              border: 2px solid #f59e0b !important;
+              color: #f59e0b !important;
+              background-color: transparent !important;
+            }
+            /* Hover state - only for non-selected days */
+            .rdp-amber .rdp-day:not(.rdp-selected) button:hover,
+            .rdp-amber td:not(.rdp-selected) button:hover {
+              background-color: #fef3c7 !important;
+            }
+          `}</style>
+          <DayPicker
+            mode="single"
+            selected={retSelectedDay}
+            onSelect={(d) => {
+              if (!d) return;
+              setRetSelectedDay(d);
+              loadReturnByDate(d);
             }}
-            className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-100"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => {
-              setRetSelectedDay(new Date());
-            }}
-            className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-100"
-          >
-            Clear
-          </button>
+            defaultMonth={retSelectedDay}
+            showOutsideDays
+            className="!font-sans rdp-amber"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => {
+                const t = new Date();
+                setRetSelectedDay(t);
+                loadReturnByDate(t);
+              }}
+              className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+            >
+              Today
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="lg:col-span-2 rounded-xl border bg-white overflow-hidden">
-        <div className="border-b px-4 py-2 text-sm">
-          Select source items on <b>{ymd(retSelectedDay)}</b>
+      {/* Items Table */}
+      <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3">
+          <span className="text-sm font-semibold text-white">
+            Items on {ymd(retSelectedDay)}
+          </span>
         </div>
-        <div className="px-4 py-2 text-xs text-neutral-600">
-          Check rows and enter quantities (max = remaining). You can select
-          multiple rows from this day only.
+        
+        <div className="px-4 py-2 border-b border-neutral-100 bg-neutral-50">
+          <p className="text-xs text-neutral-600">
+            Select rows and enter return quantities. Max = remaining quantity.
+          </p>
         </div>
 
         {retByDateLoading ? (
-          <div className="px-4 py-10 text-center text-neutral-500">
-            Loading…
+          <div className="flex flex-col items-center py-12">
+            <div className="w-6 h-6 border-3 border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+            <p className="text-sm text-neutral-500 mt-2">Loading...</p>
           </div>
         ) : retByDateRows.length === 0 ? (
-          <div className="px-4 py-10 text-center text-neutral-500">
-            No sale/loan items for this day
+          <div className="flex flex-col items-center py-12">
+            <Package className="w-10 h-10 text-neutral-300 mb-2" />
+            <p className="text-sm text-neutral-500">No items for this date</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-black text-white">
-                <th className="px-3 py-2 text-left w-10">✓</th>
-                <th className="px-3 py-2 text-left">Time</th>
-                <th className="px-3 py-2 text-left">Type</th>
-                <th className="px-3 py-2 text-left">SKU / Name</th>
-                <th className="px-3 py-2 text-left">Original</th>
-                <th className="px-3 py-2 text-left">Returned</th>
-                <th className="px-3 py-2 text-left">Remaining</th>
-                <th className="px-3 py-2 text-left">Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {retByDateRows.map((r) => {
-                const picked = retSelect.get(r.key);
-                return (
-                  <tr key={r.key} className="border-t">
-                    <td className="px-3 py-2 align-middle">
-                      <input
-                        type="checkbox"
-                        checked={!!picked}
-                        onChange={(e) => toggleRetSelect(r, e.target.checked)}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      {new Date(r.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td className="px-3 py-2 capitalize">
-                      {r.type.replace("_", " ")}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{r.sku || "(no sku)"}</div>
-                      <div className="text-xs text-neutral-600 truncate">
-                        {r.name || "Unnamed product"}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">{nf.format(r.original)}</td>
-                    <td className="px-3 py-2">{nf.format(r.returned)}</td>
-                    <td className="px-3 py-2">{nf.format(r.remaining)}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={picked?.max ?? r.remaining}
-                        value={picked?.qty ?? 0}
-                        onChange={(e) =>
-                          setRetQty(r.key, Number(e.target.value || 0))
-                        }
-                        className="w-20 rounded-lg border px-2 py-1 text-sm"
-                        disabled={!picked}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="max-h-[300px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+            <table className="w-full text-sm">
+              <thead className="sticky top-0">
+                <tr className="bg-neutral-100 text-neutral-600 text-xs font-medium uppercase">
+                  <th className="px-3 py-2 text-left w-10">✓</th>
+                  <th className="px-3 py-2 text-left">Time</th>
+                  <th className="px-3 py-2 text-left">Type</th>
+                  <th className="px-3 py-2 text-left">Product</th>
+                  <th className="px-3 py-2 text-center">Remaining</th>
+                  <th className="px-3 py-2 text-center">Return Qty</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {retByDateRows.map((r) => {
+                  const picked = retSelect.get(r.key);
+                  return (
+                    <tr 
+                      key={r.key} 
+                      className={`hover:bg-amber-50/50 transition-colors ${picked ? 'bg-amber-50/30' : ''}`}
+                    >
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={!!picked}
+                          onChange={(e) => toggleRetSelect(r, e.target.checked)}
+                          className="w-4 h-4 rounded border-neutral-300 text-amber-600 focus:ring-amber-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-neutral-600">
+                        {new Date(r.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          r.type === 'sale' 
+                            ? 'bg-emerald-100 text-emerald-700' 
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {r.type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-neutral-900">{r.name || "Unnamed"}</div>
+                        <div className="text-xs text-neutral-500">{r.sku}</div>
+                      </td>
+                      <td className="px-3 py-2 text-center font-semibold text-neutral-900">
+                        {nf.format(r.remaining)}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="number"
+                          min={0}
+                          max={picked?.max ?? r.remaining}
+                          value={picked?.qty ?? ''}
+                          onChange={(e) => handleQtyChange(r.key, e.target.value, picked?.max ?? r.remaining)}
+                          disabled={!picked}
+                          className="w-16 rounded-lg border border-neutral-200 px-2 py-1 text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-neutral-100 disabled:text-neutral-400"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
-        <div className="flex items-center justify-between border-t px-4 py-2">
-          <div className="text-xs text-neutral-600">
-            Selected:{" "}
-            <b>
-              {Array.from(retSelect.values()).filter((v) => v.qty > 0).length}{" "}
-              rows
-            </b>{" "}
-            • Total qty:{" "}
-            <b>
-              {Array.from(retSelect.values())
-                .reduce((s, v) => s + (v.qty || 0), 0)
-                .toLocaleString()}
-            </b>
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-neutral-200 bg-neutral-50 px-4 py-3">
+          <div className="text-sm text-neutral-600">
+            <span className="font-semibold text-amber-600">{selectedCount}</span> rows • 
+            <span className="font-semibold text-amber-600 ml-1">{totalQty}</span> items
           </div>
           <button
             onClick={submitReturn}
             disabled={!returnValid}
-            className="rounded-lg bg-[#4f46e5] px-3 py-1.5 text-sm font-semibold text-white"
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold shadow-lg shadow-amber-200 hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            <RotateCcw className="w-4 h-4" />
             Commit Return
           </button>
         </div>
