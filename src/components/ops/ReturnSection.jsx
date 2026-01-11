@@ -40,12 +40,12 @@ export default function ReturnSection({
       {/* Header with mode toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-amber-100">
-            <RotateCcw className="w-4 h-4 text-amber-600" />
+          <div className="p-2 rounded-lg bg-emerald-100">
+            <RotateCcw className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
             <h3 className="font-semibold text-neutral-900">Process Returns</h3>
-            <p className="text-xs text-neutral-500">Return items from sales or loans</p>
+            <p className="text-xs text-neutral-500">Return items from sales</p>
           </div>
         </div>
 
