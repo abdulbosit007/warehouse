@@ -821,15 +821,22 @@
     "errors": {
       "locationNotFound": "Location not found: {{locationName}}",
       "checkQuantities": "Please check quantities.",
-      "borrowerAndQtyRequired": "Borrower & quantities are required.",
+      "borrowerAndQtyRequired": "Borrower and quantities are required.",
       "selectItemsAndQty": "Please select items and quantities.",
-      "pickSkuRow": "Pick a SKU row first."
+      "pickSkuRow": "Pick a SKU row first.",
+      "invalidQuantity": "Invalid quantity",
+      "noItemsToSell": "No items to sell"
     },
     "success": {
       "saleCommitted": "Sale committed. TX: {{tx}}",
       "loanCommitted": "Loan committed. TX: {{tx}}",
       "returnCommittedOne": "Return committed. TX: {{tx}}",
-      "returnCommittedMany": "Committed {{count}} return transactions."
+      "returnCommittedMany": "Committed {{count}} return transactions.",
+      "noteUpdated": "Note updated",
+      "dueDateUpdated": "Due date updated",
+      "markedSold": "Marked {{qty}} as sold",
+      "soldAll": "Sold all {{qty}} items for {{name}}",
+      "returnedItems": "Returned {{qty}} items"
     }
   }
 }

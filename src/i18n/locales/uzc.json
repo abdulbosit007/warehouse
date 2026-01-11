@@ -822,13 +822,20 @@
       "checkQuantities": "Илтимос, сонларни текширинг.",
       "borrowerAndQtyRequired": "Қарз олувчи ва сонлар мажбурий.",
       "selectItemsAndQty": "Илтимос, маҳсулот ва сонини танланг.",
-      "pickSkuRow": "Аввал SKU қаторини танланг."
+      "pickSkuRow": "Аввал SKU қаторини танланг.",
+      "invalidQuantity": "Нотўғри сон",
+      "noItemsToSell": "Сотиш учун маҳсулот йўқ"
     },
     "success": {
       "saleCommitted": "Сотув тасдиқланди. TX: {{tx}}",
       "loanCommitted": "Қарз тасдиқланди. TX: {{tx}}",
       "returnCommittedOne": "Қайтариш тасдиқланди. TX: {{tx}}",
-      "returnCommittedMany": "{{count}} та қайтариш транзакцияси тасдиқланди."
+      "returnCommittedMany": "{{count}} та қайтариш транзакцияси тасдиқланди.",
+      "noteUpdated": "Изоҳ янгиланди",
+      "dueDateUpdated": "Муддат янгиланди",
+      "markedSold": "{{qty}} дона сотилди деб белгиланди",
+      "soldAll": "{{name}} учун барча {{qty}} дона сотилди",
+      "returnedItems": "{{qty}} дона қайтарилди"
     }
   }
 }

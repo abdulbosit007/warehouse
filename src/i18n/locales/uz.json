@@ -822,13 +822,21 @@
       "checkQuantities": "Iltimos, sonlarni tekshiring.",
       "borrowerAndQtyRequired": "Qarz oluvchi va sonlar majburiy.",
       "selectItemsAndQty": "Iltimos, mahsulot va sonini tanlang.",
-      "pickSkuRow": "Avval SKU qatorini tanlang."
+      "pickSkuRow": "Avval SKU qatorini tanlang.",
+      "invalidQuantity": "Noto‘g‘ri son",
+      "noItemsToSell": "Sotish uchun mahsulot yo‘q"
     },
     "success": {
       "saleCommitted": "Sotuv tasdiqlandi. TX: {{tx}}",
       "loanCommitted": "Qarz tasdiqlandi. TX: {{tx}}",
       "returnCommittedOne": "Qaytarish tasdiqlandi. TX: {{tx}}",
-      "returnCommittedMany": "{{count}} ta qaytarish tranzaksiyasi tasdiqlandi."
+      "returnCommittedMany": "{{count}} ta qaytarish tranzaksiyasi tasdiqlandi.",
+      "noteUpdated": "Izoh yangilandi",
+      "dueDateUpdated": "Muddat yangilandi",
+      "markedSold": "{{qty}} dona sotildi deb belgilandi",
+      "soldAll": "{{name}} uchun barcha {{qty}} dona sotildi",
+      "returnedItems": "{{qty}} dona qaytarildi"
     }
   }
+
 }

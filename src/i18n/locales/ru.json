@@ -814,21 +814,28 @@
     },
     "guard": {
       "errorTitle": "Ошибка",
-      "forbiddenTitle": "Доступ запрещён",
+      "forbiddenTitle": "Запрещено",
       "forbiddenMsg": "Только для филиала."
     },
     "errors": {
       "locationNotFound": "Локация не найдена: {{locationName}}",
       "checkQuantities": "Пожалуйста, проверьте количества.",
-      "borrowerAndQtyRequired": "Нужны данные заемщика и количества.",
-      "selectItemsAndQty": "Выберите позиции и количество.",
-      "pickSkuRow": "Сначала выберите строку SKU."
+      "borrowerAndQtyRequired": "Заемщик и количества обязательны.",
+      "selectItemsAndQty": "Пожалуйста, выберите товары и количество.",
+      "pickSkuRow": "Сначала выберите строку SKU.",
+      "invalidQuantity": "Некорректное количество",
+      "noItemsToSell": "Нет товаров для продажи"
     },
     "success": {
-      "saleCommitted": "Продажа проведена. TX: {{tx}}",
-      "loanCommitted": "Займ проведён. TX: {{tx}}",
-      "returnCommittedOne": "Возврат проведён. TX: {{tx}}",
-      "returnCommittedMany": "Проведено возвратов: {{count}}."
+      "saleCommitted": "Продажа подтверждена. TX: {{tx}}",
+      "loanCommitted": "Займ подтверждён. TX: {{tx}}",
+      "returnCommittedOne": "Возврат подтверждён. TX: {{tx}}",
+      "returnCommittedMany": "Подтверждено транзакций возврата: {{count}}.",
+      "noteUpdated": "Комментарий обновлён",
+      "dueDateUpdated": "Срок обновлён",
+      "markedSold": "Отмечено как продано: {{qty}} шт.",
+      "soldAll": "Проданы все товары ({{qty}} шт.) для {{name}}",
+      "returnedItems": "Возвращено: {{qty}} шт."
     }
   }
 }

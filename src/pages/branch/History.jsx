@@ -1340,7 +1340,7 @@ export default function BranchOperations() {
 /* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
 return (
   <div className="space-y-6">
-    {/* Clean Header - Matching BranchRequests */}
+    {/* Clean Header */}
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
       <div className="relative flex items-center gap-3">
@@ -1348,16 +1348,23 @@ return (
           <Package className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Branch Operations</h1>
-          <p className="text-slate-400 text-sm">Manage sales, loans and returns</p>
+          <h1 className="text-xl font-bold text-white tracking-tight">
+            {t("branchOperations.header.title")}
+          </h1>
+          <p className="text-slate-400 text-sm">
+            {t("branchOperations.header.subtitle")}
+          </p>
         </div>
       </div>
+    </div>
 
-    {/* Modern Pill Tabs */}
-    <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+    {/* Tabs */}
+    <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 flex-wrap">
       {[
-        { key: "sale", label: "Sale" },
-        { key: "loan", label: "Loan" },
+        { key: "sale", label: t("branchOperations.tabs.sale") },
+        { key: "loan", label: t("branchOperations.tabs.loan") },
+        { key: "return", label: t("branchOperations.tabs.return") },
+        { key: "history", label: t("branchOperations.tabs.history") },
       ].map((tabItem) => {
         const isActive = tab === tabItem.key;
         return (
@@ -1366,6 +1373,27 @@ return (
             onClick={() => {
               setTab(tabItem.key);
               setErr("");
+
+              if (tabItem.key === "history") {
+                setHistMode("date");
+                setSkuQuery("");
+                setHistoryBySku([]);
+                setTimeout(() => loadHistoryByDateWithParents(new Date()), 0);
+              }
+
+              if (tabItem.key === "return") {
+                setReturnMode("date");
+                setTimeout(() => loadReturnByDate(new Date()), 0);
+              }
+
+              if (tabItem.key === "loan") {
+                // active loans refresh
+                setTimeout(() => loadActiveLoans(), 0);
+              }
+
+              if (tabItem.key === "sale") {
+                setTimeout(() => loadSaleHistory(new Date()), 0);
+              }
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               isActive
@@ -1379,70 +1407,23 @@ return (
       })}
     </div>
 
-      {/* Alerts */}
-      {(err || ok) && (
-        <div className="space-y-3">
-          {err && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {err}
-            </div>
-          )}
-          {ok && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              {ok}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Content cards */}
-      <div className="space-y-6">
-        {tab === "sale" && (
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-            <SaleSection
-              locationName={locationName}
-              q={q}
-              setQ={setQ}
-              loading={loading}
-              rows={filteredCatalog}
-              onAdd={addToCart}
-              cart={cart}
-              note={note}
-              onNoteChange={setNote}
-              setCartQty={setCartQty}
-              removeFromCart={removeFromCart}
-              cartValid={cartValid}
-              onCommitSale={commitSale}
-              nf={nf}
-            />
+    {/* Alerts */}
+    {(err || ok) && (
+      <div className="space-y-3">
+        {err && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {err}
           </div>
         )}
-
-        {tab === "loan" && (
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-            <LoanSection
-              locationName={locationName}
-              q={q}
-              setQ={setQ}
-              loading={loading}
-              rows={filteredCatalog}
-              onAdd={addToCart}
-              cart={cart}
-              note={note}
-              onNoteChange={setNote}
-              setCartQty={setCartQty}
-              removeFromCart={removeFromCart}
-              borrower={borrower}
-              setBorrower={setBorrower}
-              cartValid={cartValid}
-              loanValid={loanValid}
-              onCommitLoan={commitLoan}
-              nf={nf}
-            />
+        {ok && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {ok}
           </div>
         )}
+      </div>
+    )}
 
-    {/* Content cards */}
+    {/* Content */}
     <div className="space-y-6">
       {tab === "sale" && (
         <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
@@ -1461,7 +1442,7 @@ return (
             cartValid={cartValid}
             onCommitSale={commitSale}
             nf={nf}
-            // History props
+            // Sale history props
             saleHistoryDay={saleHistoryDay}
             setSaleHistoryDay={setSaleHistoryDay}
             saleHistory={saleHistory}
@@ -1492,7 +1473,7 @@ return (
             loanValid={loanValid}
             onCommitLoan={commitLoan}
             nf={nf}
-            // Active Loans props
+            // Active loans props
             activeLoans={activeLoans}
             activeLoansLoading={activeLoansLoading}
             loadActiveLoans={loadActiveLoans}
@@ -1501,7 +1482,7 @@ return (
             onUpdateNote={updateLoanNote}
             onUpdateDueDate={updateLoanDueDate}
             onSellAll={sellAllLoanItems}
-            // History props
+            // Loan history props
             loanHistoryDay={loanHistoryDay}
             setLoanHistoryDay={setLoanHistoryDay}
             loanHistory={loanHistory}
@@ -1514,12 +1495,10 @@ return (
       {tab === "return" && (
         <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <ReturnSection
-            // common
             note={note}
             setNote={setNote}
             returnMode={returnMode}
             setReturnMode={setReturnMode}
-            // date
             nf={nf}
             retSelectedDay={retSelectedDay}
             setRetSelectedDay={setRetSelectedDay}
@@ -1529,7 +1508,6 @@ return (
             toggleRetSelect={toggleRetSelect}
             setRetQty={setRetQty}
             loadReturnByDate={loadReturnByDate}
-            // sku
             retSkuQuery={retSkuQuery}
             setRetSkuQuery={setRetSkuQuery}
             retSkuSuggestions={retSkuSuggestions}
@@ -1540,10 +1518,8 @@ return (
             loadReturnableItems={loadReturnableItems}
             setRetSkuPicked={setRetSkuPicked}
             setRetSkuQty={setRetSkuQty}
-            // submit
             submitReturn={submitReturn}
             returnValid={returnValid}
-            // resets
             resetDatePick={() => {
               setRetSelect(new Map());
               loadReturnByDate(retSelectedDay);
@@ -1558,6 +1534,34 @@ return (
           />
         </div>
       )}
+
+      {tab === "history" && (
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
+          <HistorySection
+            histMode={histMode}
+            setHistMode={setHistMode}
+            nf={nf}
+            selectedDay={selectedDay}
+            setSelectedDay={setSelectedDay}
+            historyDateRows={historyDateRows}
+            histLoading={histLoading}
+            loadHistoryByDateWithParents={loadHistoryByDateWithParents}
+            onJump={(ds) => jumpToHistoryDay(ds)}
+            skuQuery={skuQuery}
+            setSkuQuery={setSkuQuery}
+            histSkuSuggestions={histSkuSuggestions}
+            historyBySku={historyBySku}
+            histSkuLoading={histSkuLoading}
+            loadHistoryForProduct={loadHistoryForProduct}
+            resetHistSkuSearch={() => {
+              setSkuQuery("");
+              setHistSkuSuggestions([]);
+              setHistoryBySku([]);
+            }}
+          />
+        </div>
+      )}
     </div>
-  );
+  </div>
+)
 }
