@@ -25,7 +25,6 @@ begin
     raise exception 'Loan not found or access denied';
   end if;
 
-  -- Update the due date
   update public.transactions 
   set due_date = p_due_date
   where id = p_loan_id;
