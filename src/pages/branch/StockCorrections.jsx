@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Search,
@@ -16,11 +17,10 @@ import {
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   STATUS CONFIGURATION
+   STATUS CONFIGURATION (labels via i18n)
 ───────────────────────────────────────────────────────────────────────────── */
-const STATUS_CONFIG = {
+const STATUS_UI = {
   pending: {
-    label: "Pending",
     icon: Clock,
     bg: "bg-gradient-to-r from-amber-50 to-orange-50",
     border: "border-amber-200",
@@ -28,7 +28,6 @@ const STATUS_CONFIG = {
     dot: "bg-amber-500",
   },
   approved: {
-    label: "Approved",
     icon: Check,
     bg: "bg-gradient-to-r from-emerald-50 to-teal-50",
     border: "border-emerald-200",
@@ -36,7 +35,6 @@ const STATUS_CONFIG = {
     dot: "bg-emerald-500",
   },
   rejected: {
-    label: "Rejected",
     icon: X,
     bg: "bg-gradient-to-r from-rose-50 to-red-50",
     border: "border-rose-200",
@@ -45,18 +43,26 @@ const STATUS_CONFIG = {
   },
 };
 
+function getStatusKey(status) {
+  return status === "approved" || status === "rejected" ? status : "pending";
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    STATUS PILL COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 function StatusPill({ status }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const { t } = useTranslation();
+  const key = getStatusKey(status);
+  const config = STATUS_UI[key];
+  const Icon = config.icon;
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${config.bg} ${config.border} ${config.text} transition-all duration-200`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot} animate-pulse`} />
-      {config.label}
+      <Icon className="w-3 h-3" />
+      {t(`branch.stockCorrections.status.${key}`)}
     </span>
   );
 }
@@ -69,19 +75,13 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onCli
     <button
       onClick={onClick}
       className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${
-        active
-          ? "ring-2 ring-emerald-500 ring-offset-2"
-          : "hover:ring-1 hover:ring-neutral-200"
+        active ? "ring-2 ring-emerald-500 ring-offset-2" : "hover:ring-1 hover:ring-neutral-200"
       }`}
-      style={{
-        background: gradient,
-      }}
+      style={{ background: gradient }}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
-            {label}
-          </p>
+          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">{label}</p>
           <p className="mt-1 text-3xl font-bold text-neutral-900">{count}</p>
         </div>
         <div className={`p-2 rounded-xl ${iconColor} bg-white/50 backdrop-blur-sm`}>
@@ -96,8 +96,8 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onCli
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function BranchStockCorrections() {
-  const { loading, error, roleBase, roleId, locationName, userRow } =
-    useCurrentUser();
+  const { t } = useTranslation();
+  const { loading, error, roleBase, roleId, locationName, userRow } = useCurrentUser();
 
   // Branch location
   const [branchLocation, setBranchLocation] = useState(null);
@@ -150,9 +150,7 @@ export default function BranchStockCorrections() {
       if (err) {
         console.error("Branch stock corrections: location error:", err);
         setBranchLocation(null);
-        setBranchLocationError(
-          err.message || "Could not find branch location for this user."
-        );
+        setBranchLocationError(err.message || t("branch.stockCorrections.errors.noBranchLocation"));
       } else {
         setBranchLocation(data);
       }
@@ -161,7 +159,7 @@ export default function BranchStockCorrections() {
     return () => {
       ignore = true;
     };
-  }, [loading, error, roleBase, roleId]);
+  }, [loading, error, roleBase, roleId, t]);
 
   /* ─────────────────────────────────────────────────────────────────────────
      LOAD CORRECTIONS
@@ -204,7 +202,7 @@ export default function BranchStockCorrections() {
 
     if (err) {
       console.error("Branch corrections: load error:", err);
-      setListError(err.message || "Failed to load stock correction requests.");
+      setListError(err.message || t("branch.stockCorrections.errors.loadFailed"));
       setCorrections([]);
     } else {
       setCorrections(data || []);
@@ -275,8 +273,7 @@ export default function BranchStockCorrections() {
 
     const total =
       data?.reduce(
-        (sum, row) =>
-          row.status === "available" ? sum + (row.quantity || 0) : sum,
+        (sum, row) => (row.status === "available" ? sum + (row.quantity || 0) : sum),
         0
       ) || 0;
 
@@ -292,31 +289,13 @@ export default function BranchStockCorrections() {
     setSaveError(null);
     setSuccessMsg(null);
 
-    if (!branchLocation) {
-      setSaveError("Branch location not loaded.");
-      return;
-    }
-
-    if (!userRow?.user_id) {
-      setSaveError("User not loaded. Please re-login.");
-      return;
-    }
-
-    if (!selectedProduct) {
-      setSaveError("Choose a product first.");
-      return;
-    }
-
-    if (systemQty === null || systemQtyLoading) {
-      setSaveError("System quantity is still loading. Please wait.");
-      return;
-    }
+    if (!branchLocation) return setSaveError(t("branch.stockCorrections.errors.branchNotLoaded"));
+    if (!userRow?.user_id) return setSaveError(t("branch.stockCorrections.errors.userNotLoaded"));
+    if (!selectedProduct) return setSaveError(t("branch.stockCorrections.errors.pickProductFirst"));
+    if (systemQty === null || systemQtyLoading) return setSaveError(t("branch.stockCorrections.errors.systemQtyLoading"));
 
     const qtyNum = Number(reportedQty);
-    if (Number.isNaN(qtyNum) || qtyNum < 0) {
-      setSaveError("Enter a non-negative physical quantity.");
-      return;
-    }
+    if (Number.isNaN(qtyNum) || qtyNum < 0) return setSaveError(t("branch.stockCorrections.errors.nonNegativeQty"));
 
     setSaving(true);
 
@@ -335,27 +314,22 @@ export default function BranchStockCorrections() {
       if (insertErr) {
         if (
           insertErr.code === "23505" ||
-          (insertErr.message &&
-            insertErr.message
-              .toLowerCase()
-              .includes("inventory_corrections_one_pending"))
+          (insertErr.message && insertErr.message.toLowerCase().includes("inventory_corrections_one_pending"))
         ) {
-          throw new Error(
-            "There is already a pending correction for this product in this branch. Wait for owner decision."
-          );
+          throw new Error(t("branch.stockCorrections.errors.alreadyPending"));
         }
         throw insertErr;
       }
 
       setSaving(false);
-      setSuccessMsg("Correction request sent to owner!");
+      setSuccessMsg(t("branch.stockCorrections.messages.sentToOwner"));
       setReportedQty("");
       setComment("");
       await loadCorrections();
     } catch (err) {
       console.error("Create correction error:", err);
       setSaving(false);
-      setSaveError(err.message || "Failed to send correction request.");
+      setSaveError(err.message || t("branch.stockCorrections.errors.sendFailed"));
     }
   }
 
@@ -382,12 +356,7 @@ export default function BranchStockCorrections() {
       const requesterName = c.requester?.name?.toLowerCase() || "";
       const ownerName = c.owner_user?.name?.toLowerCase() || "";
 
-      return (
-        productName.includes(q) ||
-        sku.includes(q) ||
-        requesterName.includes(q) ||
-        ownerName.includes(q)
-      );
+      return productName.includes(q) || sku.includes(q) || requesterName.includes(q) || ownerName.includes(q);
     });
   }, [corrections, statusFilter, search]);
 
@@ -399,7 +368,7 @@ export default function BranchStockCorrections() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-500">Loading...</p>
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -411,7 +380,7 @@ export default function BranchStockCorrections() {
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6" />
-            <span className="font-medium">Auth error: {error}</span>
+            <span className="font-medium">{t("branch.stockCorrections.errors.authError", { error })}</span>
           </div>
         </div>
       </div>
@@ -424,9 +393,7 @@ export default function BranchStockCorrections() {
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6" />
-            <span className="font-medium">
-              Only branch users can view this page.
-            </span>
+            <span className="font-medium">{t("branch.stockCorrections.errors.branchOnly")}</span>
           </div>
         </div>
       </div>
@@ -446,27 +413,18 @@ export default function BranchStockCorrections() {
     );
   }
 
-  const branchLabel =
-    branchLocation?.location_name ||
-    locationName ||
-    branchLocation?.name ||
-    "—";
+  const branchLabel = branchLocation?.location_name || locationName || branchLocation?.name || "—";
 
-  /* ─────────────────────────────────────────────────────────────────────────
-     RENDER
-  ───────────────────────────────────────────────────────────────────────── */
   return (
     <div className="space-y-6">
-      {/* ──────────────── HEADER ──────────────── */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            Stock Corrections
+            {t("branch.stockCorrections.title")}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Branch:{" "}
-            <span className="font-medium text-neutral-700">{branchLabel}</span>{" "}
-            — Report and track inventory discrepancies
+            {t("branch.stockCorrections.subtitle", { branch: branchLabel })}
           </p>
         </div>
         <button
@@ -474,14 +432,14 @@ export default function BranchStockCorrections() {
           className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
 
-      {/* ──────────────── STATS CARDS ──────────────── */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          label="All Requests"
+          label={t("branch.stockCorrections.stats.all")}
           count={stats.all}
           icon={Package}
           gradient="linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)"
@@ -490,7 +448,7 @@ export default function BranchStockCorrections() {
           onClick={() => setStatusFilter("")}
         />
         <StatCard
-          label="Pending"
+          label={t("branch.stockCorrections.stats.pending")}
           count={stats.pending}
           icon={Clock}
           gradient="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)"
@@ -499,7 +457,7 @@ export default function BranchStockCorrections() {
           onClick={() => setStatusFilter("pending")}
         />
         <StatCard
-          label="Approved"
+          label={t("branch.stockCorrections.stats.approved")}
           count={stats.approved}
           icon={Check}
           gradient="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"
@@ -508,7 +466,7 @@ export default function BranchStockCorrections() {
           onClick={() => setStatusFilter("approved")}
         />
         <StatCard
-          label="Rejected"
+          label={t("branch.stockCorrections.stats.rejected")}
           count={stats.rejected}
           icon={X}
           gradient="linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"
@@ -518,15 +476,15 @@ export default function BranchStockCorrections() {
         />
       </div>
 
-      {/* ──────────────── CREATE CORRECTION CARD ──────────────── */}
+      {/* Create Correction Card */}
       <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-4 rounded-t-2xl">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <AlertTriangle className="w-5 h-5" />
-            Report Stock Discrepancy
+            {t("branch.stockCorrections.form.title")}
           </h2>
           <p className="text-sm text-emerald-100 mt-1">
-            Found a difference between physical and system inventory? Report it here.
+            {t("branch.stockCorrections.form.subtitle")}
           </p>
         </div>
 
@@ -534,7 +492,7 @@ export default function BranchStockCorrections() {
           {/* Product Search */}
           <div className="relative z-30">
             <label className="block text-xs font-medium text-neutral-700 mb-1.5">
-              Search Product
+              {t("branch.stockCorrections.form.searchProduct")}
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -550,13 +508,15 @@ export default function BranchStockCorrections() {
                   setSaveError(null);
                   setSuccessMsg(null);
                 }}
-                placeholder="Type product name or SKU..."
+                placeholder={t("branch.stockCorrections.form.searchPlaceholder")}
                 className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
               />
             </div>
 
             {productSearching && (
-              <p className="mt-1 text-xs text-neutral-500">Searching...</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                {t("branch.stockCorrections.form.searching")}
+              </p>
             )}
 
             {productResults.length > 0 && (
@@ -570,16 +530,10 @@ export default function BranchStockCorrections() {
                     }`}
                   >
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">
-                        {p.name}
-                      </p>
-                      <p className="text-xs font-mono text-neutral-500">
-                        {p.sku}
-                      </p>
+                      <p className="text-sm font-medium text-neutral-900">{p.name}</p>
+                      <p className="text-xs font-mono text-neutral-500">{p.sku}</p>
                     </div>
-                    {selectedProduct?.id === p.id && (
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    )}
+                    {selectedProduct?.id === p.id && <Check className="w-4 h-4 text-emerald-600" />}
                   </button>
                 ))}
               </div>
@@ -590,15 +544,14 @@ export default function BranchStockCorrections() {
           {selectedProduct && (
             <form onSubmit={handleCreateCorrection} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                {/* System Qty Card */}
                 <div className="rounded-xl bg-gradient-to-br from-neutral-50 to-neutral-100 border border-neutral-200 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-neutral-600">
-                      System Quantity
+                      {t("branch.stockCorrections.form.systemQty")}
                     </span>
                     {systemQtyLoading && (
                       <span className="text-[10px] text-neutral-400 animate-pulse">
-                        loading...
+                        {t("branch.stockCorrections.form.loadingMini")}
                       </span>
                     )}
                   </div>
@@ -607,28 +560,26 @@ export default function BranchStockCorrections() {
                   </p>
                 </div>
 
-                {/* Physical Count Input */}
                 <div className="flex flex-col">
                   <label className="text-xs font-medium text-neutral-700 mb-1.5">
-                    Your Physical Count
+                    {t("branch.stockCorrections.form.physicalQty")}
                   </label>
                   <input
                     type="number"
                     min={0}
                     value={reportedQty}
                     onChange={(e) => setReportedQty(e.target.value)}
-                    placeholder="Enter counted quantity"
+                    placeholder={t("branch.stockCorrections.form.physicalPlaceholder")}
                     className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
-              {/* Difference Preview */}
               {reportedQty !== "" && systemQty !== null && (
                 <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-purple-50 border border-emerald-200 p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-emerald-700">
-                      Difference
+                      {t("branch.stockCorrections.form.difference")}
                     </span>
                     <div className="flex items-center gap-2">
                       {Number(reportedQty) > systemQty ? (
@@ -653,22 +604,22 @@ export default function BranchStockCorrections() {
                 </div>
               )}
 
-              {/* Comment */}
               <div>
                 <label className="text-xs font-medium text-neutral-700 mb-1.5 block">
-                  Comment{" "}
-                  <span className="text-neutral-400 font-normal">(optional)</span>
+                  {t("branch.stockCorrections.form.comment")}{" "}
+                  <span className="text-neutral-400 font-normal">
+                    {t("branch.stockCorrections.form.optional")}
+                  </span>
                 </label>
                 <textarea
                   rows={3}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Explain the reason for the discrepancy..."
+                  placeholder={t("branch.stockCorrections.form.commentPlaceholder")}
                   className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                 />
               </div>
 
-              {/* Messages */}
               {saveError && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
                   <X className="w-4 h-4" />
@@ -683,7 +634,6 @@ export default function BranchStockCorrections() {
                 </div>
               )}
 
-              {/* Submit */}
               <div className="flex justify-end">
                 <button
                   type="submit"
@@ -693,12 +643,12 @@ export default function BranchStockCorrections() {
                   {saving ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending...
+                      {t("branch.stockCorrections.form.sending")}
                     </>
                   ) : (
                     <>
                       <AlertTriangle className="w-4 h-4" />
-                      Submit Correction
+                      {t("branch.stockCorrections.form.submit")}
                     </>
                   )}
                 </button>
@@ -708,7 +658,7 @@ export default function BranchStockCorrections() {
         </div>
       </div>
 
-      {/* ──────────────── SEARCH BAR ──────────────── */}
+      {/* Search corrections */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -716,13 +666,13 @@ export default function BranchStockCorrections() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search corrections..."
+            placeholder={t("branch.stockCorrections.search.placeholder")}
             className="w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm transition-all"
           />
         </div>
       </div>
 
-      {/* ──────────────── CORRECTIONS LIST ──────────────── */}
+      {/* Corrections list */}
       <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
         {listLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -733,69 +683,45 @@ export default function BranchStockCorrections() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
             <Package className="w-12 h-12 mb-3 text-neutral-300" />
-            <p className="text-sm">No correction requests found</p>
-            <p className="text-xs text-neutral-400 mt-1">
-              Use the form above to report a discrepancy
-            </p>
+            <p className="text-sm">{t("branch.stockCorrections.empty.title")}</p>
+            <p className="text-xs text-neutral-400 mt-1">{t("branch.stockCorrections.empty.subtitle")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-emerald-600 to-teal-600">
                 <tr className="text-xs font-medium text-white uppercase tracking-wider">
-                  <th className="px-6 py-4 text-left">Date</th>
-                  <th className="px-6 py-4 text-left">Product</th>
-                  <th className="px-6 py-4 text-center">System</th>
-                  <th className="px-6 py-4 text-center">Reported</th>
-                  <th className="px-6 py-4 text-center">Diff</th>
-                  <th className="px-6 py-4 text-left">Status</th>
-                  <th className="px-6 py-4 text-right">Action</th>
+                  <th className="px-6 py-4 text-left">{t("branch.stockCorrections.table.date")}</th>
+                  <th className="px-6 py-4 text-left">{t("branch.stockCorrections.table.product")}</th>
+                  <th className="px-6 py-4 text-center">{t("branch.stockCorrections.table.system")}</th>
+                  <th className="px-6 py-4 text-center">{t("branch.stockCorrections.table.reported")}</th>
+                  <th className="px-6 py-4 text-center">{t("branch.stockCorrections.table.diff")}</th>
+                  <th className="px-6 py-4 text-left">{t("branch.stockCorrections.table.status")}</th>
+                  <th className="px-6 py-4 text-right">{t("branch.stockCorrections.table.action")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {filtered.map((c) => {
-                  const diff =
-                    c.difference ?? c.reported_quantity - c.current_quantity;
+                  const diff = c.difference ?? c.reported_quantity - c.current_quantity;
 
                   return (
-                    <tr
-                      key={c.id}
-                      className="hover:bg-neutral-50 transition-colors"
-                    >
+                    <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-6 py-4 text-xs text-neutral-500">
-                        {c.requested_at
-                          ? new Date(c.requested_at).toLocaleDateString()
-                          : "—"}
+                        {c.requested_at ? new Date(c.requested_at).toLocaleDateString() : "—"}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-neutral-900">
-                          {c.product?.name || "—"}
-                        </p>
-                        <p className="text-xs font-mono text-neutral-500">
-                          {c.product?.sku || "—"}
-                        </p>
+                        <p className="text-sm font-medium text-neutral-900">{c.product?.name || "—"}</p>
+                        <p className="text-xs font-mono text-neutral-500">{c.product?.sku || "—"}</p>
                       </td>
-                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">
-                        {c.current_quantity}
-                      </td>
-                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">
-                        {c.reported_quantity}
-                      </td>
+                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">{c.current_quantity}</td>
+                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">{c.reported_quantity}</td>
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`inline-flex items-center gap-1 font-mono text-sm font-semibold ${
-                            diff > 0
-                              ? "text-emerald-600"
-                              : diff < 0
-                              ? "text-rose-600"
-                              : "text-neutral-600"
+                            diff > 0 ? "text-emerald-600" : diff < 0 ? "text-rose-600" : "text-neutral-600"
                           }`}
                         >
-                          {diff > 0 ? (
-                            <ArrowUpRight className="w-3 h-3" />
-                          ) : diff < 0 ? (
-                            <ArrowDownRight className="w-3 h-3" />
-                          ) : null}
+                          {diff > 0 ? <ArrowUpRight className="w-3 h-3" /> : diff < 0 ? <ArrowDownRight className="w-3 h-3" /> : null}
                           {diff > 0 ? `+${diff}` : diff}
                         </span>
                       </td>
@@ -807,7 +733,7 @@ export default function BranchStockCorrections() {
                           onClick={() => setSelected(c)}
                           className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-800 transition-colors"
                         >
-                          View
+                          {t("branch.stockCorrections.table.view")}
                           <ChevronRight className="w-3 h-3" />
                         </button>
                       </td>
@@ -820,7 +746,7 @@ export default function BranchStockCorrections() {
         )}
       </div>
 
-      {/* ──────────────── DETAIL MODAL ──────────────── */}
+      {/* Detail Modal */}
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
@@ -830,132 +756,94 @@ export default function BranchStockCorrections() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300"
           >
-            {/* Modal Header */}
             <div className="bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-4 flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">
-                  Correction Details
+                  {t("branch.stockCorrections.modal.title")}
                 </h3>
                 <p className="text-sm text-emerald-100 mt-0.5">
-                  Request #{selected.id.slice(0, 8)}
+                  {t("branch.stockCorrections.modal.request", { id: selected.id?.slice(0, 8) })}
                 </p>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="text-white/70 hover:text-white transition-colors"
-              >
+              <button onClick={() => setSelected(null)} className="text-white/70 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 space-y-4">
-              {/* Product Info */}
               <div className="flex items-center gap-3 p-4 rounded-xl bg-neutral-50">
                 <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600">
                   <Package className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-medium text-neutral-900">
-                    {selected.product?.name || "—"}
-                  </p>
-                  <p className="text-xs font-mono text-neutral-500">
-                    {selected.product?.sku || "—"}
-                  </p>
+                  <p className="font-medium text-neutral-900">{selected.product?.name || "—"}</p>
+                  <p className="text-xs font-mono text-neutral-500">{selected.product?.sku || "—"}</p>
                 </div>
               </div>
 
-              {/* Quantities Grid */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-neutral-50 p-3 text-center">
-                  <p className="text-xs font-medium text-neutral-500">System</p>
-                  <p className="text-lg font-bold font-mono text-neutral-900 mt-1">
-                    {selected.current_quantity}
-                  </p>
+                  <p className="text-xs font-medium text-neutral-500">{t("branch.stockCorrections.modal.system")}</p>
+                  <p className="text-lg font-bold font-mono text-neutral-900 mt-1">{selected.current_quantity}</p>
                 </div>
                 <div className="rounded-xl bg-neutral-50 p-3 text-center">
-                  <p className="text-xs font-medium text-neutral-500">Reported</p>
-                  <p className="text-lg font-bold font-mono text-neutral-900 mt-1">
-                    {selected.reported_quantity}
-                  </p>
+                  <p className="text-xs font-medium text-neutral-500">{t("branch.stockCorrections.modal.reported")}</p>
+                  <p className="text-lg font-bold font-mono text-neutral-900 mt-1">{selected.reported_quantity}</p>
                 </div>
                 <div
                   className={`rounded-xl p-3 text-center ${
-                    (selected.difference ?? 0) > 0
-                      ? "bg-emerald-50"
-                      : (selected.difference ?? 0) < 0
-                      ? "bg-rose-50"
-                      : "bg-neutral-50"
+                    (selected.difference ?? 0) > 0 ? "bg-emerald-50" : (selected.difference ?? 0) < 0 ? "bg-rose-50" : "bg-neutral-50"
                   }`}
                 >
-                  <p className="text-xs font-medium text-neutral-500">Diff</p>
+                  <p className="text-xs font-medium text-neutral-500">{t("branch.stockCorrections.modal.diff")}</p>
                   <p
                     className={`text-lg font-bold font-mono mt-1 ${
-                      (selected.difference ?? 0) > 0
-                        ? "text-emerald-600"
-                        : (selected.difference ?? 0) < 0
-                        ? "text-rose-600"
-                        : "text-neutral-600"
+                      (selected.difference ?? 0) > 0 ? "text-emerald-600" : (selected.difference ?? 0) < 0 ? "text-rose-600" : "text-neutral-600"
                     }`}
                   >
-                    {selected.difference > 0
-                      ? `+${selected.difference}`
-                      : selected.difference}
+                    {selected.difference > 0 ? `+${selected.difference}` : selected.difference}
                   </p>
                 </div>
               </div>
 
-              {/* Status */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-600">Status</span>
+                <span className="text-sm text-neutral-600">{t("branch.stockCorrections.modal.status")}</span>
                 <StatusPill status={selected.status} />
               </div>
 
-              {/* Metadata */}
               <div className="space-y-2 text-xs text-neutral-500">
                 <p>
-                  Requested by{" "}
-                  <span className="font-medium text-neutral-700">
-                    {selected.requester?.name || "—"}
-                  </span>{" "}
-                  on{" "}
-                  {selected.requested_at
-                    ? new Date(selected.requested_at).toLocaleString()
-                    : "—"}
+                  {t("branch.stockCorrections.modal.requestedBy", {
+                    name: selected.requester?.name || "—",
+                    date: selected.requested_at ? new Date(selected.requested_at).toLocaleString() : "—",
+                  })}
                 </p>
                 {selected.owner_user && (
                   <p>
-                    Decision by{" "}
-                    <span className="font-medium text-neutral-700">
-                      {selected.owner_user.name}
-                    </span>
-                    {selected.owner_decided_at && (
-                      <> on {new Date(selected.owner_decided_at).toLocaleString()}</>
-                    )}
+                    {t("branch.stockCorrections.modal.decidedBy", {
+                      name: selected.owner_user.name,
+                      date: selected.owner_decided_at ? new Date(selected.owner_decided_at).toLocaleString() : "",
+                    })}
                   </p>
                 )}
               </div>
 
-              {/* Owner Comment */}
               {selected.owner_comment && (
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
                   <p className="text-xs font-medium text-amber-700 mb-1">
-                    Comment
+                    {t("branch.stockCorrections.modal.comment")}
                   </p>
-                  <p className="text-sm text-amber-800">
-                    {selected.owner_comment}
-                  </p>
+                  <p className="text-sm text-amber-800">{selected.owner_comment}</p>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end">
               <button
                 onClick={() => setSelected(null)}
                 className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
               >
-                Close
+                {t("common.close")}
               </button>
             </div>
           </div>

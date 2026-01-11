@@ -31,8 +31,8 @@
     "ownerOnly": "Owner access only.",
     "showingRange": "Showing {{from}}–{{to}} of {{total}}",
     "authError": "Auth error",
-    "failedLoad": "Failed to load data"
-
+    "failedLoad": "Failed to load data",
+    "close": "Close"
   },
   "ownerHome": {
     "title": "Inventory Overview",
@@ -444,6 +444,392 @@
       "addedLinked": "User added and linked!",
       "autoAssigned": "Location auto-assigned to \"{{label}}\".",
       "autoAssignedFirst": "Location auto-assigned to \"{{label}}\" (first of multiple)."
+    }
+  },
+  "branch1": {
+    "home": {
+      "title": "Branch Inventory",
+      "yourBranch": "Your branch",
+      "productsCount": "{{count}} products",
+      "errors": {
+        "noLocation": "No branch location assigned",
+        "loadFailed": "Failed to load data",
+        "branchOnly": "Branch access only."
+      },
+      "stats": {
+        "products": "Products",
+        "totalItems": "Total Items",
+        "lowStock": "Low Stock",
+        "stockValue": "Stock Value"
+      },
+      "search": {
+        "placeholder": "Search by name or SKU..."
+      },
+      "meta": {
+        "products": "{{count}} products",
+        "productsOfTotal": "{{shown}} of {{total}}"
+      },
+      "filters": {
+        "button": "Filters",
+        "title": "Filters",
+        "activeCount": "{{count}} active",
+        "category": {
+          "label": "Category",
+          "all": "All Categories"
+        },
+        "price": {
+          "label": "Price Range",
+          "min": "Min",
+          "max": "Max",
+          "pill": "Price: {{min}} – {{max}}"
+        },
+        "stock": {
+          "label": "Stock Status",
+          "all": "All Products",
+          "inStock": "In Stock (> 5)",
+          "lowStock": "Low Stock (1-5)",
+          "outOfStock": "Out of Stock",
+          "inStockShort": "In Stock",
+          "lowStockShort": "Low Stock",
+          "outOfStockShort": "Out of Stock"
+        }
+      },
+      "table": {
+        "emptyTitle": "No products found",
+        "clearFilters": "Clear filters",
+        "product": "Product",
+        "sku": "SKU",
+        "category": "Category",
+        "price": "Price",
+        "quantity": "Quantity",
+        "value": "Value"
+      },
+      "pagination": {
+        "showing": "Showing {{from}}–{{to}} of {{total}}",
+        "rows": "Rows:"
+      }
+    }
+  },
+  "branch": {
+    "stockCorrections": {
+      "title": "Stock Corrections",
+      "subtitle": "Branch: {{branch}} — Report and track inventory discrepancies",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "stats": {
+        "all": "All Requests",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "errors": {
+        "authError": "Auth error: {{error}}",
+        "branchOnly": "Only branch users can view this page.",
+        "noBranchLocation": "Could not find branch location for this user.",
+        "loadFailed": "Failed to load stock correction requests.",
+        "branchNotLoaded": "Branch location not loaded.",
+        "userNotLoaded": "User not loaded. Please re-login.",
+        "pickProductFirst": "Choose a product first.",
+        "systemQtyLoading": "System quantity is still loading. Please wait.",
+        "nonNegativeQty": "Enter a non-negative physical quantity.",
+        "alreadyPending": "There is already a pending correction for this product in this branch. Wait for owner decision.",
+        "sendFailed": "Failed to send correction request."
+      },
+      "messages": {
+        "sentToOwner": "Correction request sent to owner!"
+      },
+      "form": {
+        "title": "Report Stock Discrepancy",
+        "subtitle": "Found a difference between physical and system inventory? Report it here.",
+        "searchProduct": "Search Product",
+        "searchPlaceholder": "Type product name or SKU...",
+        "searching": "Searching...",
+        "systemQty": "System Quantity",
+        "loadingMini": "loading...",
+        "physicalQty": "Your Physical Count",
+        "physicalPlaceholder": "Enter counted quantity",
+        "difference": "Difference",
+        "comment": "Comment",
+        "optional": "(optional)",
+        "commentPlaceholder": "Explain the reason for the discrepancy...",
+        "sending": "Sending...",
+        "submit": "Submit Correction"
+      },
+      "search": {
+        "placeholder": "Search corrections..."
+      },
+      "empty": {
+        "title": "No correction requests found",
+        "subtitle": "Use the form above to report a discrepancy"
+      },
+      "table": {
+        "date": "Date",
+        "product": "Product",
+        "system": "System",
+        "reported": "Reported",
+        "diff": "Diff",
+        "status": "Status",
+        "action": "Action",
+        "view": "View"
+      },
+      "modal": {
+        "title": "Correction Details",
+        "request": "Request #{{id}}",
+        "system": "System",
+        "reported": "Reported",
+        "diff": "Diff",
+        "status": "Status",
+        "requestedBy": "Requested by {{name}} on {{date}}",
+        "decidedBy": "Decision by {{name}}{{date}}",
+        "comment": "Comment"
+      }
+    }
+  },
+   "branchAudit": {
+    "title": "Inventory Audit",
+    "subtitle": "{{branch}}",
+    "status": {
+      "completed": "Completed",
+      "inProgress": "In Progress"
+    },
+    "stats": {
+      "confirmed": "Confirmed",
+      "discrepancies": "Discrepancies",
+      "pending": "Pending"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "back": "Back to Audits",
+      "submit": "Submit Audit to Owner",
+      "submitting": "Submitting...",
+      "next": "Next",
+      "previous": "Previous",
+      "undo": "Undo",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close"
+    },
+    "product": {
+      "systemQty": "System Qty",
+      "verifiedCorrect": "Verified Correct",
+      "discrepancyFound": "Discrepancy Found",
+      "actual": "Actual",
+      "enterActualQty": "Enter Actual Quantity",
+      "correct": "Correct",
+      "wrong": "Wrong",
+      "invalidQty": "Please enter a valid quantity"
+    },
+    "progress": {
+      "title": "Review Progress",
+      "remaining": "Remaining"
+    },
+    "search": {
+      "placeholder": "Search by name or SKU..."
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "discrepancies": "Discrepancies",
+      "allCategories": "All Categories",
+      "defaultOrder": "Default Order",
+      "qtyAsc": "Quantity: Low → High",
+      "qtyDesc": "Quantity: High → Low"
+    },
+    "list": {
+      "activeAudit": "Active Audit",
+      "yourAudits": "Your Audits",
+      "auditLabel": "Audit",
+      "tapToContinue": "Tap to continue",
+      "productsCount": "{{count}} products",
+      "reviewedCount": "{{count}} reviewed"
+    },
+    "empty": {
+      "noActiveAudit": "No Active Audit",
+      "waitForOwner": "Wait for the owner to start an inventory audit session",
+      "noAudits": "No audits submitted yet",
+      "noProducts": "No products match your filters"
+    },
+    "messages": {
+      "submittedTitle": "Audit Submitted Successfully!",
+      "submittedText": "Your audit responses have been recorded. The owner will review the results."
+    },
+    "modal": {
+      "audit": "Audit",
+      "unknownProduct": "Unknown Product",
+      "correctionsReported": "Corrections Reported ({{count}})",
+      "confirmedItems": "Confirmed Items ({{count}})",
+      "confirmedText": "{{count}} products confirmed as matching system quantities.",
+      "noResponses": "No responses recorded",
+      "system": "System",
+      "actual": "Actual"
+    },
+    "errors": {
+      "loadFailed": "Failed to load audit data",
+      "submitFailed": "Failed to submit audit",
+      "branchOnly": "Branch access only"
+    },
+    "common": {
+      "loading": "Loading...",
+      "yourBranch": "Your branch"
+    }
+  },
+  "branchRequests": {
+    "title": "Product Requests",
+    "subtitle": "Manage incoming and outgoing product transfers",
+
+    "tabs": {
+      "new": "New Request",
+      "outgoing": "My Requests",
+      "incoming": "Incoming",
+      "history": "History"
+    },
+
+    "status": {
+      "sent": "Pending Review",
+      "approved": "In Transit",
+      "rejected": "Rejected",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+
+    "toast": {
+      "requestSentSuccess": "Request sent successfully!",
+      "requestSentFail": "Failed to send request",
+      "cancelSuccess": "Request cancelled",
+      "cancelFail": "Failed to cancel request",
+      "approveSuccess": "Request approved! Inventory deducted.",
+      "approveFail": "Failed to approve request",
+      "rejectInfo": "Request rejected",
+      "confirmReceiptSuccess": "Items received! Inventory updated.",
+      "confirmReceiptFail": "Failed to confirm receipt"
+    },
+
+    "common": {
+      "loading": "Loading...",
+      "searching": "Searching...",
+      "unknown": "Unknown",
+      "qty": "qty"
+    },
+
+    "newRequest": {
+      "searchTitle": "Search Products",
+      "searchPlaceholder": "Search by name or SKU...",
+      "skuLabel": "SKU",
+      "stockHint": "Enter quantities from each location:",
+      "available": "Available",
+      "addLocationsToCart": "Add {{count}} location(s) to cart",
+      "cartItems": "Request Cart ({{count}} items)",
+      "emptyCartTitle": "Cart is empty",
+      "emptyCartText": "Search and add products to send a request",
+      "from": "From",
+      "sendRequest": "Send Request",
+      "sending": "Sending..."
+    },
+
+    "outgoing": {
+      "emptyTitle": "No Active Requests",
+      "emptyText": "Create a new request to get started",
+      "summary": "active requests",
+
+      "columns": {
+        "products": "Products",
+        "source": "Source",
+        "qty": "Qty",
+        "status": "Status",
+        "date": "Date",
+        "actions": "Actions"
+      },
+
+      "pending": "Pending",
+      "approved": "Approved",
+      "cancelBtn": "Cancel",
+      "receivedBtn": "Received"
+    },
+
+    "incoming": {
+      "emptyTitle": "No Incoming Requests",
+      "emptyText": "You'll see requests from other locations here",
+      "summary": "requests need your decision",
+
+      "columns": {
+        "products": "Products",
+        "requester": "Requester",
+        "qty": "Qty",
+        "date": "Date",
+        "actions": "Actions"
+      },
+
+      "rejectBtn": "Reject",
+      "approveBtn": "Approve"
+    },
+
+    "history": {
+      "direction": {
+        "outgoing": "Outgoing",
+        "incoming": "Incoming"
+      },
+
+      "searchPlaceholder": "Search product or SKU...",
+
+      "statusPills": {
+        "all": "All",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "rejected": "Rejected"
+      },
+
+      "noResultsTitle": "No Results",
+      "noResultsText": "No requests match your filters",
+
+      "columns": {
+        "products": "Products",
+        "from": "From",
+        "to": "To",
+        "qty": "Qty",
+        "status": "Status",
+        "date": "Date"
+      },
+
+      "showing": "Showing {{filtered}} of {{all}} requests",
+      "loadMore": "Load More (showing {{count}})"
+    }
+  },
+  "branchOperations": {
+    "header": {
+      "title": "Branch Operations",
+      "subtitle": "Manage sales, loans, returns and history"
+    },
+    "tabs": {
+      "sale": "Sale",
+      "loan": "Loan",
+      "return": "Return",
+      "history": "History"
+    },
+    "common": {
+      "loading": "Loading..."
+    },
+    "guard": {
+      "errorTitle": "Error",
+      "forbiddenTitle": "Forbidden",
+      "forbiddenMsg": "Branch access only."
+    },
+    "errors": {
+      "locationNotFound": "Location not found: {{locationName}}",
+      "checkQuantities": "Please check quantities.",
+      "borrowerAndQtyRequired": "Borrower & quantities are required.",
+      "selectItemsAndQty": "Please select items and quantities.",
+      "pickSkuRow": "Pick a SKU row first."
+    },
+    "success": {
+      "saleCommitted": "Sale committed. TX: {{tx}}",
+      "loanCommitted": "Loan committed. TX: {{tx}}",
+      "returnCommittedOne": "Return committed. TX: {{tx}}",
+      "returnCommittedMany": "Committed {{count}} return transactions."
     }
   }
 }

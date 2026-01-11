@@ -31,7 +31,8 @@
     "ownerOnly": "Фақат owner кириши мумкин.",
     "showingRange": "{{total}} дан {{from}}–{{to}} кўрсатилмоқда",
     "authError": "Авторизация хатоси",
-    "failedLoad": "Маълумотларни юклаб бўлмади"
+    "failedLoad": "Маълумотларни юклаб бўлмади",
+    "close": "Ёпиш"
   },
   "ownerHome": {
     "title": "Инвентар кўриниши",
@@ -442,6 +443,392 @@
       "addedLinked": "Фойдаланувчи қўшилди ва боғланди!",
       "autoAssigned": "Локация автоматик бириктирилди: \"{{label}}\".",
       "autoAssignedFirst": "Локация автоматик бириктирилди: \"{{label}}\" (биринчиси)."
+    }
+  },
+  "branch1": {
+    "home": {
+      "title": "Филиал омбори",
+      "yourBranch": "Сизнинг филиал",
+      "productsCount": "{{count}} та маҳсулот",
+      "errors": {
+        "noLocation": "Филиал локацияси бириктирилмаган",
+        "loadFailed": "Маълумотларни юклашда хатолик",
+        "branchOnly": "Фақат филиал учун."
+      },
+      "stats": {
+        "products": "Маҳсулотлар",
+        "totalItems": "Жами бирлик",
+        "lowStock": "Кам қолдиқ",
+        "stockValue": "Омбор қиймати"
+      },
+      "search": {
+        "placeholder": "Ном ёки SKU бўйича қидиринг..."
+      },
+      "meta": {
+        "products": "{{count}} та маҳсулот",
+        "productsOfTotal": "{{shown}} / {{total}}"
+      },
+      "filters": {
+        "button": "Фильтрлар",
+        "title": "Фильтрлар",
+        "activeCount": "{{count}} та фаол",
+        "category": {
+          "label": "Категория",
+          "all": "Барча категориялар"
+        },
+        "price": {
+          "label": "Нарх оралиғи",
+          "min": "Мин",
+          "max": "Макс",
+          "pill": "Нарх: {{min}} – {{max}}"
+        },
+        "stock": {
+          "label": "Қолдиқ ҳолати",
+          "all": "Барча маҳсулотлар",
+          "inStock": "Бор (> 5)",
+          "lowStock": "Кам (1-5)",
+          "outOfStock": "Тугаган",
+          "inStockShort": "Бор",
+          "lowStockShort": "Кам",
+          "outOfStockShort": "Тугаган"
+        }
+      },
+      "table": {
+        "emptyTitle": "Маҳсулот топилмади",
+        "clearFilters": "Фильтрларни тозалаш",
+        "product": "Маҳсулот",
+        "sku": "SKU",
+        "category": "Категория",
+        "price": "Нарх",
+        "quantity": "Сони",
+        "value": "Қиймат"
+      },
+      "pagination": {
+        "showing": "{{from}}–{{to}} / {{total}} кўрсатилмоқда",
+        "rows": "Қатор:"
+      }
+    }
+  },
+  "branch": {
+    "stockCorrections": {
+      "title": "Қолдиқ тузатишлар",
+      "subtitle": "Филиал: {{branch}} — Омбор тафовутларини юборинг ва кузатинг",
+      "status": {
+        "pending": "Кутилмоқда",
+        "approved": "Тасдиқланган",
+        "rejected": "Рад этилган"
+      },
+      "stats": {
+        "all": "Барча сўровлар",
+        "pending": "Кутилмоқда",
+        "approved": "Тасдиқланган",
+        "rejected": "Рад этилган"
+      },
+      "errors": {
+        "authError": "Auth хатолик: {{error}}",
+        "branchOnly": "Фақат филиал фойдаланувчилари кўра олади.",
+        "noBranchLocation": "Ушбу фойдаланувчи учун филиал топилмади.",
+        "loadFailed": "Тузатиш сўровлари юкланмади.",
+        "branchNotLoaded": "Филиал локацияси юкланмади.",
+        "userNotLoaded": "User юкланмади. Қайта login қилинг.",
+        "pickProductFirst": "Аввал маҳсулот танланг.",
+        "systemQtyLoading": "Системадаги сон ҳали юкланмоқда. Кутинг.",
+        "nonNegativeQty": "Манфий бўлмаган сон киритинг.",
+        "alreadyPending": "Бу маҳсулот учун ушбу филиалда аллақачон кутилayotgan сўров бор. Owner қарорини кутинг.",
+        "sendFailed": "Сўров юборилмади."
+      },
+      "messages": {
+        "sentToOwner": "Тузатиш сўрови owner’га юборилди!"
+      },
+      "form": {
+        "title": "Қолдиқ тафовутини билдириш",
+        "subtitle": "Физик ва система қолдиғида фарқ борми? Шу ерда юборинг.",
+        "searchProduct": "Маҳсулот қидириш",
+        "searchPlaceholder": "Номи ёки SKU ёзинг...",
+        "searching": "Қидирилмоқда...",
+        "systemQty": "Система сони",
+        "loadingMini": "юкланмоқда...",
+        "physicalQty": "Сиз санаган сон",
+        "physicalPlaceholder": "Санаган миқдорни киритинг",
+        "difference": "Фарқ",
+        "comment": "Изоҳ",
+        "optional": "(ихтиёрий)",
+        "commentPlaceholder": "Тафовут сабабини ёзинг...",
+        "sending": "Юборилмоқда...",
+        "submit": "Тузатишни юбориш"
+      },
+      "search": {
+        "placeholder": "Тузатишларни қидириш..."
+      },
+      "empty": {
+        "title": "Сўровлар топилмади",
+        "subtitle": "Юқоридаги форма орқали тафовутни юборинг"
+      },
+      "table": {
+        "date": "Сана",
+        "product": "Маҳсулот",
+        "system": "Система",
+        "reported": "Физик",
+        "diff": "Фарқ",
+        "status": "Ҳолат",
+        "action": "Амал",
+        "view": "Кўриш"
+      },
+      "modal": {
+        "title": "Тузатиш тафсилотлари",
+        "request": "Сўров #{{id}}",
+        "system": "Система",
+        "reported": "Физик",
+        "diff": "Фарқ",
+        "status": "Ҳолат",
+        "requestedBy": "{{name}} юборди — {{date}}",
+        "decidedBy": "Қарор: {{name}}{{date}}",
+        "comment": "Изоҳ"
+      }
+    }
+  },
+  "branchAudit": {
+    "title": "Инвентаризация",
+    "subtitle": "{{branch}}",
+    "status": {
+      "completed": "Якунланган",
+      "inProgress": "Жараёнда"
+    },
+    "stats": {
+      "confirmed": "Тасдиқланган",
+      "discrepancies": "Фарқлар",
+      "pending": "Кутилмоқда"
+    },
+    "actions": {
+      "refresh": "Янгилаш",
+      "back": "Аудитлар рўйхатига қайтиш",
+      "submit": "Аудитни эгасига юбориш",
+      "submitting": "Юборилмоқда...",
+      "next": "Кейинги",
+      "previous": "Олдинги",
+      "undo": "Бекор қилиш",
+      "edit": "Таҳрирлаш",
+      "save": "Сақлаш",
+      "cancel": "Бекор қилиш",
+      "close": "Ёпиш"
+    },
+    "product": {
+      "systemQty": "Системадаги сон",
+      "verifiedCorrect": "Текширилди: тўғри",
+      "discrepancyFound": "Фарқ аниқланди",
+      "actual": "Ҳақиқий",
+      "enterActualQty": "Ҳақиқий миқдорни киритинг",
+      "correct": "Тўғри",
+      "wrong": "Нотўғри",
+      "invalidQty": "Илтимос, тўғри миқдор киритинг"
+    },
+    "progress": {
+      "title": "Текширув жараёни",
+      "remaining": "Қолган"
+    },
+    "search": {
+      "placeholder": "Номи ёки SKU бўйича қидириш..."
+    },
+    "filters": {
+      "all": "Барчаси",
+      "pending": "Кутилмоқда",
+      "confirmed": "Тасдиқланган",
+      "discrepancies": "Фарқлар",
+      "allCategories": "Барча категориялар",
+      "defaultOrder": "Стандарт тартиб",
+      "qtyAsc": "Миқдор: кам → кўп",
+      "qtyDesc": "Миқдор: кўп → кам"
+    },
+    "list": {
+      "activeAudit": "Фаол аудит",
+      "yourAudits": "Сизнинг аудитларингиз",
+      "auditLabel": "Аудит",
+      "tapToContinue": "Давом этиш учун босинг",
+      "productsCount": "{{count}} та маҳсулот",
+      "reviewedCount": "{{count}} та текширилди"
+    },
+    "empty": {
+      "noActiveAudit": "Фаол аудит йўқ",
+      "waitForOwner": "Эга аудит сессиясини бошлашини кутинг",
+      "noAudits": "Ҳали аудит юборилмаган",
+      "noProducts": "Филтрларга мос маҳсулот топилмади"
+    },
+    "messages": {
+      "submittedTitle": "Аудит муваффақиятли юборилди!",
+      "submittedText": "Жавобларингиз сақланди. Эга натижаларни кўриб чиқади."
+    },
+    "modal": {
+      "audit": "Аудит",
+      "unknownProduct": "Номаълум маҳсулот",
+      "correctionsReported": "Фарқлар ({{count}})",
+      "confirmedItems": "Тасдиқланганлар ({{count}})",
+      "confirmedText": "{{count}} та маҳсулот системадаги миқдор билан мос.",
+      "noResponses": "Жавоблар йўқ",
+      "system": "Система",
+      "actual": "Ҳақиқий"
+    },
+    "errors": {
+      "loadFailed": "Маълумотларни юклаб бўлмади",
+      "submitFailed": "Аудитни юбориб бўлмади",
+      "branchOnly": "Фақат филиал учун"
+    },
+    "common": {
+      "loading": "Юкланмоқда...",
+      "yourBranch": "Сизнинг филиал"
+    }
+  },
+  "branchRequests": {
+    "title": "Маҳсулот сўровлари",
+    "subtitle": "Кирувчи ва чиқувчи маҳсулот кўчирмаларини бошқаринг",
+
+    "tabs": {
+      "new": "Янги сўров",
+      "outgoing": "Менинг сўровларим",
+      "incoming": "Кирувчи",
+      "history": "Тарих"
+    },
+
+    "status": {
+      "sent": "Кўриб чиқиш кутилмоқда",
+      "approved": "Йўлда",
+      "rejected": "Рад этилди",
+      "completed": "Якунланди",
+      "cancelled": "Бекор қилинди"
+    },
+
+    "toast": {
+      "requestSentSuccess": "Сўров муваффақиятли юборилди!",
+      "requestSentFail": "Сўровни юбориб бўлмади",
+      "cancelSuccess": "Сўров бекор қилинди",
+      "cancelFail": "Сўровни бекор қилиб бўлмади",
+      "approveSuccess": "Сўров тасдиқланди! Захира камайтирилди.",
+      "approveFail": "Сўровни тасдиқлаб бўлмади",
+      "rejectInfo": "Сўров рад этилди",
+      "confirmReceiptSuccess": "Маҳсулот қабул қилинди! Захира янгиланди.",
+      "confirmReceiptFail": "Қабул қилишни тасдиқлаб бўлмади"
+    },
+
+    "common": {
+      "loading": "Юкланмоқда...",
+      "searching": "Қидирилмоқда...",
+      "unknown": "Номаълум",
+      "qty": "сони"
+    },
+
+    "newRequest": {
+      "searchTitle": "Маҳсулот қидириш",
+      "searchPlaceholder": "Номи ёки SKU бўйича қидиринг...",
+      "skuLabel": "SKU",
+      "stockHint": "Ҳар бир манзилдан қанча олишингизни киритинг:",
+      "available": "Мавжуд",
+      "addLocationsToCart": "{{count}} та манзилни саватга қўшиш",
+      "cartItems": "Сават ({{count}} та позиция)",
+      "emptyCartTitle": "Сават бўш",
+      "emptyCartText": "Қидириб маҳсулот қўшинг ва сўров юборинг",
+      "from": "Қайердан",
+      "sendRequest": "Сўров юбориш",
+      "sending": "Юборилмоқда..."
+    },
+
+    "outgoing": {
+      "emptyTitle": "Фаол сўровлар йўқ",
+      "emptyText": "Бошлаш учун янги сўров яратинг",
+      "summary": "та фаол сўров",
+
+      "columns": {
+        "products": "Маҳсулотлар",
+        "source": "Манба",
+        "qty": "Сон",
+        "status": "Ҳолат",
+        "date": "Сана",
+        "actions": "Амаллар"
+      },
+
+      "pending": "Кутилмоқда",
+      "approved": "Тасдиқланган",
+      "cancelBtn": "Бекор қилиш",
+      "receivedBtn": "Қабул қилинди"
+    },
+
+    "incoming": {
+      "emptyTitle": "Кирувчи сўровлар йўқ",
+      "emptyText": "Бу ерда бошқа жойлардан келган сўровлар кўринади",
+      "summary": "та сўров сиздан қарор кутмоқда",
+
+      "columns": {
+        "products": "Маҳсулотлар",
+        "requester": "Сўровчи",
+        "qty": "Сон",
+        "date": "Сана",
+        "actions": "Амаллар"
+      },
+
+      "rejectBtn": "Рад этиш",
+      "approveBtn": "Тасдиқлаш"
+    },
+
+    "history": {
+      "direction": {
+        "outgoing": "Чиқувчи",
+        "incoming": "Кирувчи"
+      },
+
+      "searchPlaceholder": "Маҳсулот ёки SKU қидириш...",
+
+      "statusPills": {
+        "all": "Барчаси",
+        "completed": "Якунланган",
+        "cancelled": "Бекор қилинган",
+        "rejected": "Рад этилган"
+      },
+
+      "noResultsTitle": "Натижа топилмади",
+      "noResultsText": "Фильтрларга мос сўровлар йўқ",
+
+      "columns": {
+        "products": "Маҳсулотлар",
+        "from": "Қайердан",
+        "to": "Қаерга",
+        "qty": "Сон",
+        "status": "Ҳолат",
+        "date": "Сана"
+      },
+
+      "showing": "{{filtered}} / {{all}} та сўров кўрсатилмоқда",
+      "loadMore": "Яна юклаш (ҳозир: {{count}})"
+    }
+  },
+  "branchOperations": {
+    "header": {
+      "title": "Филиал операциялари",
+      "subtitle": "Сотув, қарз, қайтариш ва тарихни бошқаринг"
+    },
+    "tabs": {
+      "sale": "Сотув",
+      "loan": "Қарз",
+      "return": "Қайтариш",
+      "history": "Тарих"
+    },
+    "common": {
+      "loading": "Юкланмоқда..."
+    },
+    "guard": {
+      "errorTitle": "Хатолик",
+      "forbiddenTitle": "Тақиқланган",
+      "forbiddenMsg": "Фақат филиал учун."
+    },
+    "errors": {
+      "locationNotFound": "Манзил топилмади: {{locationName}}",
+      "checkQuantities": "Илтимос, сонларни текширинг.",
+      "borrowerAndQtyRequired": "Қарз олувчи ва сонлар мажбурий.",
+      "selectItemsAndQty": "Илтимос, маҳсулот ва сонини танланг.",
+      "pickSkuRow": "Аввал SKU қаторини танланг."
+    },
+    "success": {
+      "saleCommitted": "Сотув тасдиқланди. TX: {{tx}}",
+      "loanCommitted": "Қарз тасдиқланди. TX: {{tx}}",
+      "returnCommittedOne": "Қайтариш тасдиқланди. TX: {{tx}}",
+      "returnCommittedMany": "{{count}} та қайтариш транзакцияси тасдиқланди."
     }
   }
 }
