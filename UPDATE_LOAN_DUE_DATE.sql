@@ -15,7 +15,6 @@ begin
     raise exception 'User has no assigned location';
   end if;
 
-  -- Verify the loan belongs to user's location
   if not exists (
     select 1 from public.transactions 
     where id = p_loan_id 
@@ -25,7 +24,6 @@ begin
     raise exception 'Loan not found or access denied';
   end if;
 
-  -- Update the due date
   update public.transactions 
   set due_date = p_due_date
   where id = p_loan_id;
