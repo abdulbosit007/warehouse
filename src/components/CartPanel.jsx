@@ -58,7 +58,7 @@ export default function CartPanel({
               <p className="text-sm">No items yet.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
               {cart.map((l) => (
                 <div
                   key={l.product_id}

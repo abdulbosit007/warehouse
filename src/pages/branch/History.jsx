@@ -65,6 +65,12 @@ export default function BranchOperations() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  
+  // Helper to show success message with auto-dismiss
+  const showOk = (msg) => {
+    setOk(msg);
+    setTimeout(() => setOk(""), 3000);
+  };
 
   // search + cart
   const [q, setQ] = useState("");
@@ -102,8 +108,20 @@ export default function BranchOperations() {
   const [historyDateRows, setHistoryDateRows] = useState([]);
   const [skuQuery, setSkuQuery] = useState("");
   const [histSkuLoading, setHistSkuLoading] = useState(false);
-  const [histSkuSuggestions, setHistSkuSuggestions] = useState([]); // Product suggestions dropdown
+  const [histSkuSuggestions, setHistSkuSuggestions] = useState([]);
   const [historyBySku, setHistoryBySku] = useState([]);
+
+  // active loans state
+  const [activeLoans, setActiveLoans] = useState([]);
+  const [activeLoansLoading, setActiveLoansLoading] = useState(false);
+  const [loanHistoryDay, setLoanHistoryDay] = useState(new Date());
+  const [loanHistory, setLoanHistory] = useState([]);
+  const [loanHistoryLoading, setLoanHistoryLoading] = useState(false);
+
+  // sale history state
+  const [saleHistoryDay, setSaleHistoryDay] = useState(new Date());
+  const [saleHistory, setSaleHistory] = useState([]);
+  const [saleHistoryLoading, setSaleHistoryLoading] = useState(false);
 
   /* -------------------------------- MEMOS -------------------------------- */
   const filteredCatalog = useMemo(() => {
@@ -246,7 +264,7 @@ export default function BranchOperations() {
   }, [isBranch, locationName, roleBase]);
 
   /* -------- fetch returned sums for parent transactions (for caps/badges) --- */
-  // Map parent_tx_id -> Map product_id -> returned_qty_sum
+  // Map parent_tx_id -> Map product_id -> { total, returned, sold }
   async function fetchReturnedSums(parentIds) {
     if (!parentIds || parentIds.length === 0) return new Map();
     const unique = [...new Set(parentIds)];
@@ -254,7 +272,7 @@ export default function BranchOperations() {
     const { data, error } = await supabase
       .from("transactions")
       .select(
-        `id, type, parent_tx_id, created_at,
+        `id, type, parent_tx_id, created_at, note,
          items:transaction_items ( product_id, qty )`
       )
       .in("type", ["sale_return", "loan_return"])
@@ -269,9 +287,21 @@ export default function BranchOperations() {
       if (!pid) continue;
       if (!out.has(pid)) out.set(pid, new Map());
       const m = out.get(pid);
+      
+      // Check if this was a "sold" transaction based on note
+      const isSold = (r.note || "").toLowerCase().includes("sold");
+      
       for (const it of r.items || []) {
         const k = it.product_id;
-        m.set(k, (m.get(k) || 0) + (it.qty || 0));
+        const qty = it.qty || 0;
+        const existing = m.get(k) || { total: 0, returned: 0, sold: 0 };
+        existing.total += qty;
+        if (isSold) {
+          existing.sold += qty;
+        } else {
+          existing.returned += qty;
+        }
+        m.set(k, existing);
       }
     }
     return out;
@@ -547,7 +577,7 @@ export default function BranchOperations() {
         p: payload,
       });
       if (error) throw error;
-      setOk(`Sale committed. TX: ${data}`);
+      showOk(`Sale committed. TX: ${data}`);
       setCart([]);
       setNote("");
       setLoading(true);
@@ -572,7 +602,7 @@ export default function BranchOperations() {
         p: payload,
       });
       if (error) throw error;
-      setOk(`Loan committed. TX: ${data}`);
+      showOk(`Loan committed. TX: ${data}`);
       setCart([]);
       setNote("");
       // Reset borrower details
@@ -603,6 +633,348 @@ export default function BranchOperations() {
     setRetSkuQty(0);
   };
 
+  /* ------------------------- ACTIVE LOANS ------------------------------ */
+  async function loadActiveLoans() {
+    setActiveLoansLoading(true);
+    try {
+      setErr("");
+      const loc = await getBranchLocation();
+      const sinceISO = oneYearAgoISO();
+
+      // Fetch all loan transactions with items
+      const { data: txs, error } = await supabase
+        .from("transactions")
+        .select(
+          `id, type, status, created_at, note, borrower_name, borrower_phone, borrower_store_no, due_date,
+           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
+        )
+        .eq("type", "loan")
+        .eq("status", "committed")
+        .eq("location_id", loc.id)
+        .gte("created_at", sinceISO)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      // Fetch returned sums for these loans
+      const parentIds = (txs || []).map((t) => t.id);
+      const returnedMap = await fetchReturnedSums(parentIds);
+
+      // Build active loans with remaining quantities
+      const loans = (txs || [])
+        .map((tx) => {
+          const items = (tx.transaction_items || []).map((item) => {
+            const sums = returnedMap.get(tx.id)?.get(item.product_id) || { total: 0, returned: 0, sold: 0 };
+            return {
+              id: item.id,
+              product_id: item.product_id,
+              name: item.product?.name || "",
+              sku: item.product?.sku || "",
+              qty: item.qty,
+              sold: sums.sold || 0,
+              returned: sums.returned || 0,
+              remaining: Math.max(0, item.qty - sums.total),
+            };
+          });
+          // Check if any items have remaining qty
+          const hasRemaining = items.some((i) => i.remaining > 0);
+          return {
+            id: tx.id,
+            created_at: tx.created_at,
+            borrower_name: tx.borrower_name || "",
+            borrower_phone: tx.borrower_phone || "",
+            borrower_store_no: tx.borrower_store_no || "",
+            due_date: tx.due_date,
+            note: tx.note,
+            items: items, // Keep ALL items, including completed ones
+            is_completed: !hasRemaining,
+          };
+        })
+        .filter((loan) => loan.items.length > 0); // Only active loans
+
+      console.log("Active loans with notes:", loans.map(l => ({ id: l.id, borrower: l.borrower_name, note: l.note }))); // DEBUG
+      setActiveLoans(loans);
+    } catch (e) {
+      setErr(e.message || String(e));
+      setActiveLoans([]);
+    } finally {
+      setActiveLoansLoading(false);
+    }
+  }
+
+  async function updateLoanNote(loanId, newNote) {
+    try {
+      setErr("");
+      const { error } = await supabase.rpc("fn_update_loan_note", {
+        p_loan_id: loanId,
+        p_note: newNote,
+      });
+      if (error) throw error;
+      showOk("Note updated");
+      loadActiveLoans(); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  async function updateLoanDueDate(loanId, newDueDate) {
+    try {
+      setErr("");
+      const { error } = await supabase.rpc("fn_update_loan_due_date", {
+        p_loan_id: loanId,
+        p_due_date: newDueDate,
+      });
+      if (error) throw error;
+      showOk("Due date updated");
+      loadActiveLoans(); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  async function loadLoanHistory(day) {
+    setLoanHistoryLoading(true);
+    try {
+      setErr("");
+      const loc = await getBranchLocation();
+      const startISO = startOfDayUTC(day);
+      const endISO = nextDayUTC(day);
+
+      const { data: txs, error } = await supabase
+        .from("transactions")
+        .select(
+          `id, type, status, created_at, note, borrower_name, borrower_phone, borrower_store_no, due_date,
+           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
+        )
+        .eq("type", "loan")
+        .eq("status", "committed")
+        .eq("location_id", loc.id)
+        .gte("created_at", startISO)
+        .lt("created_at", endISO)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const parentIds = (txs || []).map((t) => t.id);
+      const returnedMap = await fetchReturnedSums(parentIds);
+
+      const history = (txs || []).map((tx) => ({
+        id: tx.id,
+        created_at: tx.created_at,
+        borrower_name: tx.borrower_name || "",
+        borrower_phone: tx.borrower_phone || "",
+        borrower_store_no: tx.borrower_store_no || "",
+        due_date: tx.due_date,
+        note: tx.note,
+        items: (tx.transaction_items || []).map((item) => {
+          const sums = returnedMap.get(tx.id)?.get(item.product_id) || { total: 0, returned: 0, sold: 0 };
+          return {
+            id: item.id,
+            product_id: item.product_id,
+            name: item.product?.name || "",
+            sku: item.product?.sku || "",
+            qty: item.qty,
+            returned: sums.returned,
+            sold: sums.sold,
+            totalReturned: sums.total,
+          };
+        }),
+      }));
+
+      setLoanHistory(history);
+    } catch (e) {
+      setErr(e.message || String(e));
+      setLoanHistory([]);
+    } finally {
+      setLoanHistoryLoading(false);
+    }
+  }
+
+  async function loadSaleHistory(day) {
+    setSaleHistoryLoading(true);
+    try {
+      setErr("");
+      const loc = await getBranchLocation();
+      const startISO = startOfDayUTC(day);
+      const endISO = nextDayUTC(day);
+
+      const { data: txs, error } = await supabase
+        .from("transactions")
+        .select(
+          `id, type, status, created_at, note,
+           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
+        )
+        .eq("type", "sale")
+        .eq("status", "committed")
+        .eq("location_id", loc.id)
+        .gte("created_at", startISO)
+        .lt("created_at", endISO)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      // Fetch returned amounts for these sales
+      const parentIds = (txs || []).map((t) => t.id);
+      const returnedMap = await fetchReturnedSums(parentIds);
+
+      const history = (txs || []).map((tx) => ({
+        id: tx.id,
+        created_at: tx.created_at,
+        note: tx.note,
+        items: (tx.transaction_items || []).map((item) => {
+          const sums = returnedMap.get(tx.id)?.get(item.product_id) || { total: 0, returned: 0, sold: 0 };
+          return {
+            id: item.id,
+            product_id: item.product_id,
+            name: item.product?.name || "",
+            sku: item.product?.sku || "",
+            qty: item.qty,
+            returned: sums.total,
+            remaining: Math.max(0, item.qty - sums.total),
+          };
+        }),
+      }));
+
+      setSaleHistory(history);
+    } catch (e) {
+      setErr(e.message || String(e));
+      setSaleHistory([]);
+    } finally {
+      setSaleHistoryLoading(false);
+    }
+  }
+
+  async function convertLoanToSale(loan, item, qty) {
+    try {
+      setErr("");
+      setOk("");
+      if (qty <= 0 || qty > item.remaining) {
+        throw new Error("Invalid quantity");
+      }
+
+      // Mark items as sold from loan
+      // Backend will also create a sale transaction for Sale History
+      const payload = {
+        note: "Sold (money received)",
+        return_kind: "loan_return",
+        parent_tx_id: loan.id,
+        no_stock_return: true, // Tell backend NOT to return stock + create sale record
+        items: [
+          {
+            product_id: item.product_id,
+            qty: qty,
+          },
+        ],
+      };
+      const { error } = await supabase.rpc("fn_branch_commit_return", {
+        p: payload,
+      });
+      if (error) throw error;
+
+      showOk(`Marked ${qty} as sold`);
+      loadActiveLoans(); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  async function sellAllLoanItems(loan) {
+    try {
+      setErr("");
+      setOk("");
+      
+      // Get all items with remaining quantity
+      const itemsToSell = (loan.items || []).filter(i => (i.remaining || 0) > 0);
+      if (itemsToSell.length === 0) {
+        throw new Error("No items to sell");
+      }
+
+      // Sell each item - backend will create sale transaction for each
+      for (const item of itemsToSell) {
+        const payload = {
+          note: "Sold (all items)",
+          return_kind: "loan_return",
+          parent_tx_id: loan.id,
+          no_stock_return: true, // Backend also creates sale record
+          items: [
+            {
+              product_id: item.product_id,
+              qty: item.remaining,
+            },
+          ],
+        };
+        const { error } = await supabase.rpc("fn_branch_commit_return", {
+          p: payload,
+        });
+        if (error) throw error;
+      }
+
+      const totalQty = itemsToSell.reduce((sum, i) => sum + i.remaining, 0);
+      showOk(`Sold all ${totalQty} items from ${loan.borrower_name}`);
+      loadActiveLoans(); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  async function markLoanReturned(loan, item, qty) {
+    try {
+      setErr("");
+      setOk("");
+      if (qty <= 0 || qty > item.remaining) {
+        throw new Error("Invalid quantity");
+      }
+
+      const payload = {
+        note: "Product returned",
+        return_kind: "loan_return",
+        parent_tx_id: loan.id,
+        items: [
+          {
+            product_id: item.product_id,
+            qty: qty,
+          },
+        ],
+      };
+      const { data, error } = await supabase.rpc("fn_branch_commit_return", {
+        p: payload,
+      });
+      if (error) throw error;
+
+      showOk(`Returned ${qty} items`);
+      loadActiveLoans(); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  async function commitSaleReturn(sale, item, qty) {
+    try {
+      setErr("");
+      if (qty <= 0 || qty > item.remaining) {
+        throw new Error("Invalid quantity");
+      }
+
+      const payload = {
+        note: "Sale return",
+        return_kind: "sale_return",
+        parent_tx_id: sale.id,
+        items: [
+          {
+            product_id: item.product_id,
+            qty: qty,
+          },
+        ],
+      };
+      const { error } = await supabase.rpc("fn_branch_commit_return", {
+        p: payload,
+      });
+      if (error) throw error;
+
+      showOk(`Returned ${qty} items`);
+      loadSaleHistory(saleHistoryDay || new Date()); // Refresh
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
   /* ------------------------- RETURN: BY DATE ------------------------------ */
   async function loadReturnByDate(day) {
     setRetByDateLoading(true);
@@ -630,35 +1002,67 @@ export default function BranchOperations() {
       const parentIds = (txs || []).map((t) => t.id);
       const returnedMap = await fetchReturnedSums(parentIds);
 
-      const flat = [];
+      // Group by product_id for sales to avoid duplicates
+      const grouped = new Map();
       for (const t of txs || []) {
         for (const it of t.transaction_items || []) {
           const original = it.qty || 0;
-          const retSum = returnedMap.get(t.id)?.get(it.product_id) || 0;
+          const sums = returnedMap.get(t.id)?.get(it.product_id) || { total: 0, returned: 0, sold: 0 };
+          const retSum = sums.total;
           const remaining = Math.max(0, original - retSum);
           if (remaining <= 0) continue;
-          flat.push({
-            key: `${t.id}:${it.product_id}`,
-            parent_tx_id: t.id,
-            return_kind: t.type === "sale" ? "sale_return" : "loan_return",
-            created_at: t.created_at,
-            type: t.type,
-            product_id: it.product_id,
-            sku: it.product?.sku || "",
-            name: it.product?.name || "",
-            original,
-            returned: retSum,
-            remaining,
-            note: t.note || "",
-          });
+          
+          // For sales, group by product_id
+          if (t.type === "sale") {
+            const gkey = `sale:${it.product_id}`;
+            if (grouped.has(gkey)) {
+              const existing = grouped.get(gkey);
+              existing.original += original;
+              existing.returned += retSum;
+              existing.remaining += remaining;
+              // Keep track of all parent tx ids
+              existing.parent_tx_ids.push(t.id);
+            } else {
+              grouped.set(gkey, {
+                key: gkey,
+                parent_tx_id: t.id,
+                parent_tx_ids: [t.id],
+                return_kind: "sale_return",
+                created_at: t.created_at,
+                type: t.type,
+                product_id: it.product_id,
+                sku: it.product?.sku || "",
+                name: it.product?.name || "",
+                original,
+                returned: retSum,
+                remaining,
+                note: t.note || "",
+              });
+            }
+          } else {
+            // For loans, keep individual rows (in case we need them later)
+            const key = `${t.id}:${it.product_id}`;
+            grouped.set(key, {
+              key,
+              parent_tx_id: t.id,
+              parent_tx_ids: [t.id],
+              return_kind: "loan_return",
+              created_at: t.created_at,
+              type: t.type,
+              product_id: it.product_id,
+              sku: it.product?.sku || "",
+              name: it.product?.name || "",
+              original,
+              returned: retSum,
+              remaining,
+              note: t.note || "",
+            });
+          }
         }
       }
 
-      flat.sort(
-        (a, b) =>
-          new Date(b.created_at) - new Date(a.created_at) ||
-          a.sku.localeCompare(b.sku)
-      );
+      const flat = Array.from(grouped.values());
+      flat.sort((a, b) => a.name.localeCompare(b.name));
       setRetByDateRows(flat);
     } catch (e) {
       setErr(e.message || String(e));
@@ -861,7 +1265,7 @@ export default function BranchOperations() {
         results.push(data);
       }
 
-      setOk(
+      showOk(
         results.length === 1
           ? `Return committed. TX: ${results[0]}`
           : `Committed ${results.length} return transactions.`
@@ -956,18 +1360,16 @@ return (
         </div>
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight">Branch Operations</h1>
-          <p className="text-slate-400 text-sm">Manage sales, loans, returns and history</p>
+          <p className="text-slate-400 text-sm">Manage sales, loans and returns</p>
         </div>
       </div>
     </div>
 
-    {/* Modern Pill Tabs - Same as BranchRequests */}
+    {/* Modern Pill Tabs */}
     <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
       {[
         { key: "sale", label: "Sale" },
         { key: "loan", label: "Loan" },
-        { key: "return", label: "Return" },
-        { key: "history", label: "History" },
       ].map((tabItem) => {
         const isActive = tab === tabItem.key;
         return (
@@ -976,21 +1378,6 @@ return (
             onClick={() => {
               setTab(tabItem.key);
               setErr("");
-
-              if (tabItem.key === "history") {
-                setHistMode("date");
-                setSkuQuery("");
-                setHistoryBySku([]);
-                setTimeout(
-                  () => loadHistoryByDateWithParents(new Date()),
-                  0
-                );
-              }
-
-              if (tabItem.key === "return") {
-                setReturnMode("date");
-                setTimeout(() => loadReturnByDate(new Date()), 0);
-              }
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               isActive
@@ -1039,6 +1426,13 @@ return (
             cartValid={cartValid}
             onCommitSale={commitSale}
             nf={nf}
+            // History props
+            saleHistoryDay={saleHistoryDay}
+            setSaleHistoryDay={setSaleHistoryDay}
+            saleHistory={saleHistory}
+            saleHistoryLoading={saleHistoryLoading}
+            loadSaleHistory={loadSaleHistory}
+            commitSaleReturn={commitSaleReturn}
           />
         </div>
       )}
@@ -1063,6 +1457,21 @@ return (
             loanValid={loanValid}
             onCommitLoan={commitLoan}
             nf={nf}
+            // Active Loans props
+            activeLoans={activeLoans}
+            activeLoansLoading={activeLoansLoading}
+            loadActiveLoans={loadActiveLoans}
+            onConvertToSale={convertLoanToSale}
+            onMarkReturned={markLoanReturned}
+            onUpdateNote={updateLoanNote}
+            onUpdateDueDate={updateLoanDueDate}
+            onSellAll={sellAllLoanItems}
+            // History props
+            loanHistoryDay={loanHistoryDay}
+            setLoanHistoryDay={setLoanHistoryDay}
+            loanHistory={loanHistory}
+            loanHistoryLoading={loanHistoryLoading}
+            loadLoanHistory={loadLoanHistory}
           />
         </div>
       )}
@@ -1110,36 +1519,6 @@ return (
               setRetSkuOptions([]);
               setRetSkuPicked(null);
               setRetSkuQty(0);
-            }}
-          />
-        </div>
-      )}
-
-      {tab === "history" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <HistorySection
-            histMode={histMode}
-            setHistMode={setHistMode}
-            // date
-            nf={nf}
-            selectedDay={selectedDay}
-            setSelectedDay={setSelectedDay}
-            historyDateRows={historyDateRows}
-            histLoading={histLoading}
-            loadHistoryByDateWithParents={loadHistoryByDateWithParents}
-            onJump={(ds) => jumpToHistoryDay(ds)}
-            // sku
-            skuQuery={skuQuery}
-            setSkuQuery={setSkuQuery}
-            histSkuSuggestions={histSkuSuggestions}
-            historyBySku={historyBySku}
-            histSkuLoading={histSkuLoading}
-            loadHistoryForProduct={loadHistoryForProduct}
-            // reset
-            resetHistSkuSearch={() => {
-              setSkuQuery("");
-              setHistSkuSuggestions([]);
-              setHistoryBySku([]);
             }}
           />
         </div>
