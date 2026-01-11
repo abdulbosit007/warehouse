@@ -15,7 +15,6 @@ begin
     raise exception 'User has no assigned location';
   end if;
 
-  -- Verify the loan belongs to user's location
   if not exists (
     select 1 from public.transactions 
     where id = p_loan_id 
