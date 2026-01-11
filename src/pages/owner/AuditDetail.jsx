@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Warehouse,
@@ -13,19 +14,42 @@ import {
   RefreshCw,
   AlertCircle,
   Package,
-  ChevronRight,
 } from "lucide-react";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Locale helpers
+───────────────────────────────────────────────────────────────────────────── */
+function getLocale(lang) {
+  const map = { en: "en-US", ru: "ru-RU", uz: "uz-UZ", uzc: "uz-Cyrl-UZ" };
+  return map[lang] || "en-US";
+}
+
+function formatDate(iso, lang) {
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat(getLocale(lang), {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(d);
+  } catch {
+    return "—";
+  }
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    HELPER COMPONENTS
 ───────────────────────────────────────────────────────────────────────────── */
 function LocationProgress({ location, stats, onClick }) {
+  const { t } = useTranslation();
   const Icon = location.kind === "warehouse" ? Warehouse : Store;
-  const kindColor = location.kind === "warehouse" 
-    ? "bg-indigo-100 text-indigo-700" 
-    : "bg-emerald-100 text-emerald-700";
 
-  const { total, confirmed, rejected, pending, submitted } = stats;
+  const kindColor =
+    location.kind === "warehouse"
+      ? "bg-indigo-100 text-indigo-700"
+      : "bg-emerald-100 text-emerald-700";
+
+  const { total, confirmed, rejected, submitted } = stats;
   const progress = total > 0 ? Math.round(((confirmed + rejected) / total) * 100) : 0;
 
   return (
@@ -35,32 +59,47 @@ function LocationProgress({ location, stats, onClick }) {
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${location.kind === "warehouse" ? "bg-indigo-50" : "bg-emerald-50"}`}>
-            <Icon className={`w-4 h-4 ${location.kind === "warehouse" ? "text-indigo-600" : "text-emerald-600"}`} />
+          <div
+            className={`p-2 rounded-xl ${
+              location.kind === "warehouse" ? "bg-indigo-50" : "bg-emerald-50"
+            }`}
+          >
+            <Icon
+              className={`w-4 h-4 ${
+                location.kind === "warehouse" ? "text-indigo-600" : "text-emerald-600"
+              }`}
+            />
           </div>
           <div>
-            <h4 className="font-medium text-neutral-900">{location.location_name || location.name}</h4>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${kindColor}`}>
-              {location.kind === "warehouse" ? "Warehouse" : "Branch"}
+            <h4 className="font-medium text-neutral-900">
+              {location.location_name || location.name}
+            </h4>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${kindColor}`}
+            >
+              {location.kind === "warehouse"
+                ? t("ownerAuditDetail.kinds.warehouse")
+                : t("ownerAuditDetail.kinds.branch")}
             </span>
           </div>
         </div>
+
         {submitted ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
             <Check className="w-3 h-3" />
-            Submitted
+            {t("ownerAuditDetail.badges.submitted")}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
             <Clock className="w-3 h-3" />
-            Pending
+            {t("ownerAuditDetail.badges.pending")}
           </span>
         )}
       </div>
 
       {/* Progress bar */}
       <div className="h-2 rounded-full bg-neutral-100 overflow-hidden mb-2">
-        <div 
+        <div
           className={`h-full transition-all ${submitted ? "bg-emerald-500" : "bg-amber-400"}`}
           style={{ width: `${submitted ? 100 : progress}%` }}
         />
@@ -71,16 +110,16 @@ function LocationProgress({ location, stats, onClick }) {
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1 text-emerald-600">
             <Check className="w-3 h-3" />
-            {confirmed} confirmed
+            {t("ownerAuditDetail.locationStats.confirmed", { count: confirmed })}
           </span>
           <span className="flex items-center gap-1 text-red-600">
             <X className="w-3 h-3" />
-            {rejected} corrections
+            {t("ownerAuditDetail.locationStats.corrections", { count: rejected })}
           </span>
         </div>
       ) : (
         <p className="text-xs text-neutral-500">
-          {total} products to review
+          {t("ownerAuditDetail.locationStats.toReview", { count: total })}
         </p>
       )}
     </button>
@@ -91,6 +130,7 @@ function LocationProgress({ location, stats, onClick }) {
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function OwnerAuditDetail() {
+  const { t, i18n } = useTranslation();
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
@@ -110,6 +150,7 @@ export default function OwnerAuditDetail() {
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, sessionId]);
 
   async function loadData() {
@@ -136,7 +177,7 @@ export default function OwnerAuditDetail() {
       setTotalProducts(productsRes.data?.length || 0);
     } catch (err) {
       console.error("Error loading audit:", err);
-      setError(err.message || "Failed to load audit");
+      setError(err.message || t("ownerAuditDetail.errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -151,13 +192,10 @@ export default function OwnerAuditDetail() {
     // Group responses by location
     const responsesByLocation = {};
     for (const resp of responses) {
-      if (!responsesByLocation[resp.location_id]) {
-        responsesByLocation[resp.location_id] = [];
-      }
+      if (!responsesByLocation[resp.location_id]) responsesByLocation[resp.location_id] = [];
       responsesByLocation[resp.location_id].push(resp);
     }
 
-    // All locations should review the same total number of products
     for (const loc of locations) {
       const locResponses = responsesByLocation[loc.id] || [];
       const confirmed = locResponses.filter((r) => r.status === "confirmed").length;
@@ -165,7 +203,7 @@ export default function OwnerAuditDetail() {
       const submitted = locResponses.length > 0;
 
       stats[loc.id] = {
-        total: totalProducts,  // Same for all locations
+        total: totalProducts,
         confirmed,
         rejected,
         pending: totalProducts - confirmed - rejected,
@@ -197,18 +235,15 @@ export default function OwnerAuditDetail() {
      CLOSE SESSION
   ───────────────────────────────────────────────────────────────────────── */
   async function handleClose() {
-    if (!confirm("Close this audit session? This cannot be undone.")) return;
-    
+    const ok = window.confirm(t("ownerAuditDetail.confirm.close"));
+    if (!ok) return;
+
     try {
-      await supabase
-        .from("inventory_audit_sessions")
-        .update({ status: "closed" })
-        .eq("id", sessionId);
-      
+      await supabase.from("inventory_audit_sessions").update({ status: "closed" }).eq("id", sessionId);
       navigate("/owner/inventory-batches");
     } catch (err) {
       console.error("Error closing session:", err);
-      setError(err.message);
+      setError(err.message || t("ownerAuditDetail.errors.closeFailed"));
     }
   }
 
@@ -220,7 +255,7 @@ export default function OwnerAuditDetail() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-500">Loading...</p>
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -245,7 +280,7 @@ export default function OwnerAuditDetail() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
-            <span className="font-medium">Owner access only</span>
+            <span className="font-medium">{t("common.ownerOnly")}</span>
           </div>
         </div>
       </div>
@@ -257,7 +292,7 @@ export default function OwnerAuditDetail() {
       <div className="p-6">
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center">
           <Package className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-          <p className="text-neutral-500">Audit session not found</p>
+          <p className="text-neutral-500">{t("ownerAuditDetail.notFound")}</p>
         </div>
       </div>
     );
@@ -268,6 +303,14 @@ export default function OwnerAuditDetail() {
   /* ─────────────────────────────────────────────────────────────────────────
      RENDER
   ───────────────────────────────────────────────────────────────────────── */
+  const rejectedCount = responses.filter(
+    (r) => r.location_id === selectedLocation?.id && r.status === "rejected"
+  ).length;
+
+  const confirmedCount = responses.filter(
+    (r) => r.location_id === selectedLocation?.id && r.status === "confirmed"
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -276,38 +319,49 @@ export default function OwnerAuditDetail() {
           <button
             onClick={() => navigate("/owner/inventory-batches")}
             className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50"
+            title={t("common.back")}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Inventory Audit</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">
+              {t("ownerAuditDetail.title")}
+            </h1>
             <p className="text-sm text-neutral-500">
-              Started {new Date(session.created_at).toLocaleDateString()}
+              {t("ownerAuditDetail.started")} {formatDate(session.created_at, i18n.language)}
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            {t("common.refresh")}
           </button>
+
           {isOpen && overallStats.allSubmitted && (
             <button
               onClick={handleClose}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-sm font-semibold text-white"
             >
               <Check className="w-4 h-4" />
-              Close Audit
+              {t("ownerAuditDetail.actions.closeAudit")}
             </button>
           )}
         </div>
       </div>
 
       {/* Status Banner */}
-      <div className={`rounded-2xl p-4 ${isOpen ? "bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200" : "bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200"}`}>
+      <div
+        className={`rounded-2xl p-4 ${
+          isOpen
+            ? "bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200"
+            : "bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200"
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isOpen ? (
@@ -317,10 +371,13 @@ export default function OwnerAuditDetail() {
             )}
             <div>
               <h3 className={`font-semibold ${isOpen ? "text-amber-800" : "text-emerald-800"}`}>
-                {isOpen ? "Audit in Progress" : "Audit Completed"}
+                {isOpen ? t("ownerAuditDetail.banner.inProgress") : t("ownerAuditDetail.banner.completed")}
               </h3>
               <p className={`text-sm ${isOpen ? "text-amber-600" : "text-emerald-600"}`}>
-                {overallStats.submitted} of {overallStats.total} locations submitted
+                {t("ownerAuditDetail.banner.submittedOf", {
+                  submitted: overallStats.submitted,
+                  total: overallStats.total,
+                })}
               </p>
             </div>
           </div>
@@ -330,16 +387,15 @@ export default function OwnerAuditDetail() {
       {/* Location Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sortedLocations.map((loc) => {
-          const locStats = locationStats[loc.id] || { total: 0, confirmed: 0, rejected: 0, pending: 0, submitted: false };
+          const locStats =
+            locationStats[loc.id] || { total: 0, confirmed: 0, rejected: 0, pending: 0, submitted: false };
           return (
             <LocationProgress
               key={loc.id}
               location={loc}
               stats={locStats}
               onClick={() => {
-                if (locStats.submitted) {
-                  setSelectedLocation(loc);
-                }
+                if (locStats.submitted) setSelectedLocation(loc);
               }}
             />
           );
@@ -348,8 +404,11 @@ export default function OwnerAuditDetail() {
 
       {/* Correction Detail Modal */}
       {selectedLocation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedLocation(null)}>
-          <div 
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSelectedLocation(null)}
+        >
+          <div
             className="w-full max-w-2xl max-h-[80vh] rounded-2xl bg-white shadow-xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -366,13 +425,17 @@ export default function OwnerAuditDetail() {
                   </div>
                 )}
                 <div>
-                  <h3 className="font-bold text-neutral-900">{selectedLocation.location_name || selectedLocation.name}</h3>
-                  <p className="text-xs text-neutral-500">Audit Results</p>
+                  <h3 className="font-bold text-neutral-900">
+                    {selectedLocation.location_name || selectedLocation.name}
+                  </h3>
+                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.title")}</p>
                 </div>
               </div>
-              <button 
+
+              <button
                 onClick={() => setSelectedLocation(null)}
                 className="p-2 rounded-xl hover:bg-neutral-100"
+                aria-label="Close"
               >
                 <X className="w-5 h-5 text-neutral-500" />
               </button>
@@ -382,22 +445,16 @@ export default function OwnerAuditDetail() {
             <div className="p-4 bg-neutral-50 border-b border-neutral-200">
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-600">
-                    {responses.filter(r => r.location_id === selectedLocation.id && r.status === "confirmed").length}
-                  </p>
-                  <p className="text-xs text-neutral-500">Confirmed</p>
+                  <p className="text-2xl font-bold text-emerald-600">{confirmedCount}</p>
+                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.confirmed")}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">
-                    {responses.filter(r => r.location_id === selectedLocation.id && r.status === "rejected").length}
-                  </p>
-                  <p className="text-xs text-neutral-500">Corrections</p>
+                  <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.corrections")}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-neutral-900">
-                    {totalProducts}
-                  </p>
-                  <p className="text-xs text-neutral-500">Total Products</p>
+                  <p className="text-2xl font-bold text-neutral-900">{totalProducts}</p>
+                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.totalProducts")}</p>
                 </div>
               </div>
             </div>
@@ -407,52 +464,60 @@ export default function OwnerAuditDetail() {
               <h4 className="font-semibold text-neutral-800 mb-3">
                 <span className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-red-500" />
-                  Corrections ({responses.filter(r => r.location_id === selectedLocation.id && r.status === "rejected").length})
+                  {t("ownerAuditDetail.modal.correctionsWithCount", { count: rejectedCount })}
                 </span>
               </h4>
+
               {responses
-                .filter(r => r.location_id === selectedLocation.id && r.status === "rejected")
+                .filter((r) => r.location_id === selectedLocation.id && r.status === "rejected")
                 .map((resp) => {
-                  const product = products.find(p => p.id === resp.product_id);
+                  const product = products.find((p) => p.id === resp.product_id);
+                  const diff = resp.reported_qty - resp.system_qty_at_submit;
+
                   return (
                     <div key={resp.id} className="rounded-xl border border-red-200 bg-red-50 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-neutral-900 truncate">{product?.name || "Unknown Product"}</h5>
+                          <h5 className="font-medium text-neutral-900 truncate">
+                            {product?.name || t("ownerAuditDetail.modal.unknownProduct")}
+                          </h5>
                           <p className="text-xs text-neutral-500 font-mono">{product?.sku || ""}</p>
                         </div>
+
                         <div className="text-right flex-shrink-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm text-neutral-500">System:</span>
+                            <span className="text-sm text-neutral-500">{t("ownerAuditDetail.modal.system")}:</span>
                             <span className="text-sm font-bold text-neutral-700">{resp.system_qty_at_submit}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm text-neutral-500">Actual:</span>
+                            <span className="text-sm text-neutral-500">{t("ownerAuditDetail.modal.actual")}:</span>
                             <span className="text-sm font-bold text-red-600">{resp.reported_qty}</span>
                           </div>
                           <div className="mt-1 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium">
-                            {resp.reported_qty - resp.system_qty_at_submit > 0 ? "+" : ""}{resp.reported_qty - resp.system_qty_at_submit}
+                            {diff > 0 ? "+" : ""}
+                            {diff}
                           </div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-              {responses.filter(r => r.location_id === selectedLocation.id && r.status === "rejected").length === 0 && (
+
+              {rejectedCount === 0 && (
                 <div className="text-center py-8 text-neutral-500">
                   <Check className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-                  <p>No corrections needed - all quantities match!</p>
+                  <p>{t("ownerAuditDetail.modal.noCorrections")}</p>
                 </div>
               )}
             </div>
 
             {/* Modal Footer */}
             <div className="p-4 border-t border-neutral-200 bg-neutral-50">
-              <button 
+              <button
                 onClick={() => setSelectedLocation(null)}
                 className="w-full rounded-xl bg-neutral-900 text-white py-3 font-medium hover:bg-neutral-800 transition-colors"
               >
-                Close
+                {t("common.close")}
               </button>
             </div>
           </div>
@@ -461,4 +526,3 @@ export default function OwnerAuditDetail() {
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // Theme color configurations
 const THEMES = {
@@ -32,6 +33,13 @@ const THEMES = {
   },
 };
 
+const LANG_OPTIONS = [
+  { value: "uz", label: "UZ" },
+  { value: "uzc", label: "ЎЗ" },
+  { value: "ru", label: "RU" },
+  { value: "en", label: "EN" },
+];
+
 export default function Navbar({
   links = [],
   brand = { code: "W", title: "Warehouse" },
@@ -41,11 +49,14 @@ export default function Navbar({
 }) {
   const themeConfig = THEMES[theme] || THEMES.indigo;
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState("EN");
   const navigate = useNavigate();
 
+  // ✅ i18n
+  const { t, i18n } = useTranslation();
+  const lang = i18n.resolvedLanguage || i18n.language || "uz";
+
   // --- FIXED: always normalize to an array ---
-  const resolved = (() => {
+  const resolved = useMemo(() => {
     if (Array.isArray(links) && links.length) return links;
 
     if (typeof role === "function") {
@@ -59,14 +70,25 @@ export default function Navbar({
     }
 
     if (Array.isArray(role)) return role; // support direct array
-    // role is string or undefined → ignore
     return [];
-  })();
+  }, [links, role, branchId]);
 
-  const computedLinks = resolved.map((l) => ({
-    ...l,
-    to: typeof l.to === "function" ? l.to(branchId) : l.to,
-  }));
+  const computedLinks = useMemo(
+    () =>
+      resolved.map((l) => ({
+        ...l,
+        to: typeof l.to === "function" ? l.to(branchId) : l.to,
+      })),
+    [resolved, branchId]
+  );
+
+  // ✅ change language
+  const changeLang = (lng) => {
+    i18n.changeLanguage(lng);
+    try {
+      localStorage.setItem("i18nextLng", lng);
+    } catch {}
+  };
 
   // --- prevent background scroll when mobile menu open ---
   useEffect(() => {
@@ -87,18 +109,8 @@ export default function Navbar({
               className="p-2 rounded-lg hover:bg-neutral-100 lg:hidden"
               aria-label="Open menu"
             >
-              <svg
-                className="w-6 h-6"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                fill="none"
-              >
-                <path
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+              <svg className="w-6 h-6" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
 
@@ -126,14 +138,13 @@ export default function Navbar({
                   className={({ isActive }) =>
                     [
                       "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
-                      isActive
-                        ? `${themeConfig.bg} text-white font-semibold`
-                        : "text-black hover:bg-neutral-100",
+                      isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
                     ].join(" ")
                   }
                 >
                   {l.icon ?? null}
-                  <span>{l.label}</span>
+                  {/* ✅ label key -> translate */}
+                  <span>{t(l.label)}</span>
                 </NavLink>
               ))}
             </nav>
@@ -141,36 +152,23 @@ export default function Navbar({
             {/* Language selector (desktop / lg+) */}
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${themeConfig.bgLight} border ${themeConfig.border}`}>
               {/* globe icon */}
-              <svg
-                className={`w-4 h-4 ${themeConfig.text}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M3.6 9h16.8M3.6 15h16.8"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z"
-                  strokeWidth="1.4"
-                />
+              <svg className={`w-4 h-4 ${themeConfig.text}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
+                <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
               </svg>
 
               <select
                 value={lang}
-                onChange={(e) => setLang(e.target.value)}
+                onChange={(e) => changeLang(e.target.value)}
                 className={`bg-transparent border-none text-xs font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
                 aria-label="Select language"
               >
-                <option value="UZ">UZ</option>
-                <option value="RU">RU</option>
-                <option value="EN">EN</option>
+                {LANG_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -180,9 +178,7 @@ export default function Navbar({
       {/* MOBILE+TABLET: overlay */}
       <div
         className={`fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] transition-opacity lg:hidden ${
-          open
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
         aria-hidden="true"
@@ -210,55 +206,29 @@ export default function Navbar({
           <div className="flex items-center gap-2">
             {/* Language selector (mobile+tablet) */}
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${themeConfig.bgLighter} border ${themeConfig.borderLight}`}>
-              <svg
-                className={`w-4 h-4 ${themeConfig.text}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M3.6 9h16.8M3.6 15h16.8"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z"
-                  strokeWidth="1.4"
-                />
+              <svg className={`w-4 h-4 ${themeConfig.text}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
+                <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
               </svg>
 
               <select
                 value={lang}
-                onChange={(e) => setLang(e.target.value)}
+                onChange={(e) => changeLang(e.target.value)}
                 className={`bg-transparent border-none text-[11px] font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
+                aria-label="Select language mobile"
               >
-                <option value="UZ">UZ</option>
-                <option value="RU">RU</option>
-                <option value="EN">EN</option>
+                {LANG_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
-              className="p-2 rounded-lg hover:bg-neutral-100"
-            >
-              <svg
-                className="w-6 h-6 text-black"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                fill="none"
-              >
-                <path
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
+            <button onClick={() => setOpen(false)} aria-label="Close menu" className="p-2 rounded-lg hover:bg-neutral-100">
+              <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -275,16 +245,12 @@ export default function Navbar({
                 className={({ isActive }) =>
                   [
                     "flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors",
-                    isActive
-                      ? `${themeConfig.bg} text-white font-semibold`
-                      : "text-black hover:bg-neutral-100",
+                    isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
                   ].join(" ")
                 }
               >
-                {l.icon ?? (
-                  <span className="h-2.5 w-2.5 rounded-full bg-neutral-400" />
-                )}
-                <span>{l.label}</span>
+                {l.icon ?? <span className="h-2.5 w-2.5 rounded-full bg-neutral-400" />}
+                <span>{t(l.label)}</span>
               </NavLink>
             ))}
           </div>

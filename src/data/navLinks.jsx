@@ -18,37 +18,37 @@ import {
 export const warehouseLinks = [
   {
     to: "/warehouse/home",
-    label: "Home",
+    label: "nav.home",
     icon: <Home className="w-4 h-4" />,
   },
   {
     to: "/warehouse/branch-requests",
-    label: "Branch Requests",
+    label: "nav.branchRequests",
     icon: <GitBranch className="w-4 h-4" />,
   },
   {
     to: "/warehouse/owner-requests",
-    label: "Incoming Batches",
+    label: "nav.incomingBatches",
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
     to: "/warehouse/stock-corrections",
-    label: "Stock Corrections",
+    label: "nav.stockCorrections",
     icon: <AlertTriangle className="w-4 h-4" />,
   },
   {
     to: "/warehouse/audit-review",
-    label: "Audit Review",
+    label: "nav.auditReview",
     icon: <ClipboardCheck className="w-4 h-4" />,
   },
   {
     to: "/warehouse/history",
-    label: "History",
+    label: "nav.history",
     icon: <Clock className="w-4 h-4" />,
   },
   {
     to: "/warehouse/profile",
-    label: "Profile",
+    label: "nav.profile",
     icon: <User className="w-4 h-4" />,
   },
 ];
@@ -59,32 +59,32 @@ export const warehouseLinks = [
 export const ownerLinks = [
   {
     to: "/owner/home",
-    label: "Home",
+    label: "nav.home",
     icon: <Home className="w-4 h-4" />,
   },
   {
     to: "/owner/inventory-batches",
-    label: "Inventory Batches",
+    label: "nav.inventoryBatches",
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
     to: "/owner/incoming-product",
-    label: "Incoming Batches",
+    label: "nav.incomingBatches",
     icon: <Wrench className="w-4 h-4" />,
   },
   {
     to: "/owner/history",
-    label: "History",
+    label: "nav.history",
     icon: <Clock className="w-4 h-4" />,
   },
   {
     to: "/owner/user-management",
-    label: "User Management",
+    label: "nav.userManagement",
     icon: <Users className="w-4 h-4" />,
   },
   {
     to: "/owner/profile",
-    label: "Profile",
+    label: "nav.profile",
     icon: <UserCircle className="w-4 h-4" />,
   },
 ];
@@ -95,37 +95,37 @@ export const ownerLinks = [
    - Safely falls back to `/branch` if undefined
 ----------------------------- */
 export const branchLinks = (branchId) => {
-  // ensure we never render links like "undefined/home"
   const base = branchId ? `/branch/${branchId}` : "/branch";
+
   return [
     {
       to: `${base}/home`,
-      label: "Home",
+      label: "nav.home",
       icon: <Home className="w-4 h-4" />,
     },
     {
       to: `${base}/stock-corrections`,
-      label: "Stock Corrections",
+      label: "nav.stockCorrections",
       icon: <AlertTriangle className="w-4 h-4" />,
     },
     {
       to: `${base}/audit-review`,
-      label: "Audit Review",
+      label: "nav.auditReview",
       icon: <ClipboardCheck className="w-4 h-4" />,
     },
     {
       to: `${base}/branch-requests`,
-      label: "Branch Requests",
+      label: "nav.branchRequests",
       icon: <GitBranch className="w-4 h-4" />,
     },
     {
       to: `${base}/history`,
-      label: "Operations",
+      label: "nav.operations",
       icon: <Clock className="w-4 h-4" />,
     },
     {
       to: `${base}/profile`,
-      label: "Profile",
+      label: "nav.profile",
       icon: <UserCircle className="w-4 h-4" />,
     },
   ];

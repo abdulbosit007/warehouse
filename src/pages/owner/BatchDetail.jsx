@@ -15,6 +15,7 @@ import {
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Package,
@@ -24,9 +25,29 @@ import {
   AlertCircle,
   Trash2,
   RefreshCw,
-  Clock,
   FileText,
 } from "lucide-react";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Locale helpers
+───────────────────────────────────────────────────────────────────────────── */
+function getLocale(lang) {
+  const map = { en: "en-US", ru: "ru-RU", uz: "uz-UZ", uzc: "uz-Cyrl-UZ" };
+  return map[lang] || "en-US";
+}
+
+function formatDate(iso, lang) {
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat(getLocale(lang), {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "—";
+  }
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DEBOUNCE HELPER
@@ -45,18 +66,24 @@ function useDebouncedEffect(effect, deps, delay) {
    STATUS BADGE
 ───────────────────────────────────────────────────────────────────────────── */
 function StatusBadge({ status }) {
+  const { t } = useTranslation();
   const v = (status || "").toLowerCase();
+
   const config = {
-    draft: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", dot: "bg-amber-500", Icon: FileText },
-    sent: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500", Icon: Send },
-    approved: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500", Icon: Check },
-    rejected: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", dot: "bg-red-500", Icon: X },
+    draft: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", dot: "bg-amber-500" },
+    sent: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500" },
+    approved: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
+    rejected: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", dot: "bg-red-500" },
   };
+
   const c = config[v] || config.draft;
+
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} border ${c.border} px-2.5 py-1 text-xs font-medium ${c.text}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} border ${c.border} px-2.5 py-1 text-xs font-medium ${c.text}`}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-      {v.charAt(0).toUpperCase() + v.slice(1)}
+      {t(`ownerBatchDetail.status.${v}`, { defaultValue: v })}
     </span>
   );
 }
@@ -84,44 +111,56 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor }) {
    OWNER REVIEW MODAL
 ───────────────────────────────────────────────────────────────────────────── */
 function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onResend }) {
+  const { t } = useTranslation();
   if (!item) return null;
+
   const isQty = item.rejection_code === "qty_mismatch";
   const isNoSuch = item.rejection_code === "no_such_product";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+      >
         <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-white" />
-            <h3 className="text-lg font-semibold text-white">Warehouse Response</h3>
+            <h3 className="text-lg font-semibold text-white">
+              {t("ownerBatchDetail.reviewModal.title")}
+            </h3>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white">
+          <button onClick={onClose} className="text-white/70 hover:text-white" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="p-6 space-y-4">
           <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
             <div className="flex justify-between px-4 py-2">
-              <span className="text-sm text-neutral-500">Product</span>
+              <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.product")}</span>
               <span className="text-sm font-medium">{item.product_name || "—"}</span>
             </div>
             <div className="flex justify-between px-4 py-2">
-              <span className="text-sm text-neutral-500">SKU</span>
+              <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.sku")}</span>
               <span className="text-sm font-mono">{item.sku || "—"}</span>
             </div>
             <div className="flex justify-between px-4 py-2">
-              <span className="text-sm text-neutral-500">Requested Qty</span>
+              <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.requestedQty")}</span>
               <span className="text-sm font-medium">{item.quantity ?? "—"}</span>
             </div>
             <div className="flex justify-between px-4 py-2">
-              <span className="text-sm text-neutral-500">Rejection Reason</span>
-              <span className="text-sm font-medium text-red-600">{item.rejection_code?.replace(/_/g, " ") || "—"}</span>
+              <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.rejectionReason")}</span>
+              <span className="text-sm font-medium text-red-600">
+                {t(`ownerBatchDetail.rejectionCodes.${item.rejection_code}`, {
+                  defaultValue: item.rejection_code?.replace(/_/g, " ") || "—",
+                })}
+              </span>
             </div>
+
             {isQty && (
               <div className="flex justify-between px-4 py-2 bg-amber-50">
-                <span className="text-sm text-neutral-500">Corrected Qty</span>
+                <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.correctedQty")}</span>
                 <span className="text-sm font-bold text-amber-700">{item.corrected_quantity ?? "—"}</span>
               </div>
             )}
@@ -134,24 +173,26 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
                 className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700"
               >
                 <Check className="w-4 h-4" />
-                Accept Fix
+                {t("ownerBatchDetail.actions.acceptFix")}
               </button>
             )}
+
             {isNoSuch && (
               <button
                 onClick={onApproveRemoval}
                 className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700"
               >
                 <Check className="w-4 h-4" />
-                Approve Removal
+                {t("ownerBatchDetail.actions.approveRemoval")}
               </button>
             )}
+
             <button
               onClick={onResend}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-blue-600 hover:to-indigo-700"
             >
               <RefreshCw className="w-4 h-4" />
-              Resend to Warehouse
+              {t("ownerBatchDetail.actions.resend")}
             </button>
           </div>
         </div>
@@ -164,6 +205,8 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
    DRAFT ROW COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 function DraftRow({ row, onDelete, categories }) {
+  const { t } = useTranslation();
+
   // If product has name AND category already filled, it came from an existing product - lock those fields
   const isExistingProduct = !!(row.product_name && row.category_id);
 
@@ -186,8 +229,9 @@ function DraftRow({ row, onDelete, categories }) {
   useDebouncedEffect(
     () => {
       const qty = form.quantity === "" || form.quantity == null ? null : Math.max(1, Number(form.quantity) || 1);
+
       // Only send editable fields
-      const payload = isExistingProduct 
+      const payload = isExistingProduct
         ? { quantity: qty } // Existing product - only quantity can change
         : {
             product_name: form.product_name?.trim() || null,
@@ -195,14 +239,18 @@ function DraftRow({ row, onDelete, categories }) {
             category_id: form.category_id || null,
             quantity: qty,
           };
-      updateDraftItem(row.id, payload).catch((e) => console.error("updateDraftItem error", { itemId: row.id, error: e }));
+
+      updateDraftItem(row.id, payload).catch((e) =>
+        console.error("updateDraftItem error", { itemId: row.id, error: e })
+      );
     },
     [form, isExistingProduct],
     300
   );
 
   const lockedClass = "w-full rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-600";
-  const editableClass = "w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+  const editableClass =
+    "w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
   return (
     <tr className={`hover:bg-neutral-50 transition-colors ${isExistingProduct ? "bg-indigo-50/30" : ""}`}>
@@ -214,10 +262,11 @@ function DraftRow({ row, onDelete, categories }) {
             value={form.product_name}
             onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
             className={editableClass}
-            placeholder="Product name"
+            placeholder={t("ownerBatchDetail.placeholders.productName")}
           />
         )}
       </td>
+
       <td className="px-4 py-3">
         {isExistingProduct ? (
           <div className={`${lockedClass} font-mono`}>{form.sku}</div>
@@ -226,10 +275,11 @@ function DraftRow({ row, onDelete, categories }) {
             value={form.sku}
             onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
             className={`${editableClass} font-mono`}
-            placeholder="SKU"
+            placeholder={t("ownerBatchDetail.placeholders.sku")}
           />
         )}
       </td>
+
       <td className="px-4 py-3">
         {isExistingProduct ? (
           <div className={lockedClass}>{categories.find((c) => c.id === form.category_id)?.name || "—"}</div>
@@ -239,13 +289,16 @@ function DraftRow({ row, onDelete, categories }) {
             onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || "" }))}
             className={`${editableClass} ${!form.category_id ? "border-red-300 bg-red-50" : ""}`}
           >
-            <option value="">Select category…</option>
+            <option value="">{t("ownerBatchDetail.placeholders.selectCategory")}</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         )}
       </td>
+
       <td className="px-4 py-3">
         <input
           type="number"
@@ -255,13 +308,15 @@ function DraftRow({ row, onDelete, categories }) {
           className={`w-20 rounded-lg border px-3 py-1.5 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
             !form.quantity ? "border-red-300 bg-red-50" : "border-neutral-200"
           }`}
-          placeholder="Qty"
+          placeholder={t("ownerBatchDetail.placeholders.qty")}
         />
       </td>
+
       <td className="px-4 py-3 text-right">
         <button
           onClick={() => onDelete?.(row)}
           className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+          title={t("ownerBatchDetail.actions.delete")}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -270,12 +325,13 @@ function DraftRow({ row, onDelete, categories }) {
   );
 }
 
-
 /* ─────────────────────────────────────────────────────────────────────────────
    SENT/APPROVED/REJECTED ROW
 ───────────────────────────────────────────────────────────────────────────── */
 function ItemRow({ row, categories, onClickRejected }) {
+  const { t } = useTranslation();
   const isRejected = row.status === "rejected";
+
   return (
     <tr
       onClick={() => isRejected && onClickRejected?.(row)}
@@ -288,7 +344,11 @@ function ItemRow({ row, categories, onClickRejected }) {
         <span className="text-sm font-mono text-neutral-600">{row.sku || "—"}</span>
       </td>
       <td className="px-4 py-3">
-        <span className="text-sm">{categories.find((c) => c.id === row.category_id)?.name || <span className="text-red-500">missing</span>}</span>
+        <span className="text-sm">
+          {categories.find((c) => c.id === row.category_id)?.name || (
+            <span className="text-red-500">{t("ownerBatchDetail.missing")}</span>
+          )}
+        </span>
       </td>
       <td className="px-4 py-3 text-center">
         <span className="text-sm font-medium">{row.quantity ?? "—"}</span>
@@ -304,6 +364,7 @@ function ItemRow({ row, categories, onClickRejected }) {
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function BatchDetail() {
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const { userRow } = useCurrentUser();
   const navigate = useNavigate();
@@ -321,9 +382,13 @@ export default function BatchDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     setErr("");
-    const [{ data: b, error: bErr }, { data: it, error: iErr }] = await Promise.all([getBatch(id), getBatchItems(id)]);
+    const [{ data: b, error: bErr }, { data: it, error: iErr }] = await Promise.all([
+      getBatch(id),
+      getBatchItems(id),
+    ]);
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
+
     setBatch(b || null);
     setItems((it || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
     setLoading(false);
@@ -340,41 +405,63 @@ export default function BatchDetail() {
   const drafts = useMemo(() => items.filter((i) => i.status === "draft"), [items]);
   const others = useMemo(() => {
     const order = { sent: 0, approved: 1, rejected: 2 };
-    return items.filter((i) => i.status !== "draft").slice().sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
+    return items
+      .filter((i) => i.status !== "draft")
+      .slice()
+      .sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
   }, [items]);
 
   const onDeleteDraft = async (row) => {
     setItems((prev) => prev.filter((r) => r.id !== row.id));
-    try { await removeDraftItem(row.id); } catch { await load(); }
+    try {
+      await removeDraftItem(row.id);
+    } catch {
+      await load();
+    }
   };
 
   const onSendAll = async () => {
     setSendErr("");
     await new Promise((r) => setTimeout(r, 350));
+
     const { data: freshDrafts, error } = await getDraftItems(id);
-    if (error) { setSendErr(error.message || "Failed to fetch draft items."); return; }
+    if (error) {
+      setSendErr(error.message || t("ownerBatchDetail.errors.fetchDraftFailed"));
+      return;
+    }
     if (!freshDrafts || freshDrafts.length === 0) return;
 
-    const invalids = freshDrafts.map((d) => ({
-      id: d.id, sku: d.sku || "—", name: d.product_name || "—",
-      missingCategory: !d.category_id, badQty: d.quantity == null || Number(d.quantity) <= 0,
-    })).filter((x) => x.missingCategory || x.badQty);
+    const invalids = freshDrafts
+      .map((d) => ({
+        id: d.id,
+        sku: d.sku || "—",
+        name: d.product_name || "—",
+        missingCategory: !d.category_id,
+        badQty: d.quantity == null || Number(d.quantity) <= 0,
+      }))
+      .filter((x) => x.missingCategory || x.badQty);
 
     if (invalids.length > 0) {
       const lines = invalids.map((x) => {
         const r = [];
-        if (x.missingCategory) r.push("category");
-        if (x.badQty) r.push("quantity");
+        if (x.missingCategory) r.push(t("ownerBatchDetail.validation.category"));
+        if (x.badQty) r.push(t("ownerBatchDetail.validation.quantity"));
         return `• ${x.sku} (${x.name}) → ${r.join(" & ")}`;
       });
-      setSendErr(`Fix these draft row(s) before sending:\n${lines.join("\n")}`);
+
+      setSendErr(
+        `${t("ownerBatchDetail.errors.fixBeforeSending")}\n${lines.join("\n")}`
+      );
       return;
     }
+
     await sendAllDraftItems(id);
     await load();
   };
 
-  const existingSkus = (items || []).map((i) => (i.sku ? String(i.sku).toLowerCase() : "")).filter(Boolean);
+  const existingSkus = (items || [])
+    .map((i) => (i.sku ? String(i.sku).toLowerCase() : ""))
+    .filter(Boolean);
 
   // Stats
   const draftCount = drafts.length;
@@ -387,7 +474,7 @@ export default function BatchDetail() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-500">Loading...</p>
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -401,54 +488,97 @@ export default function BatchDetail() {
           <button
             onClick={() => navigate("/owner/incoming-product")}
             className="p-2 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+            title={t("common.back")}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Batch Details</h1>
+              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                {t("ownerBatchDetail.title")}
+              </h1>
+
               {/* Origin Badge */}
               {batch?.origin && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
-                  (batch.origin || "").toLowerCase() === "chinese" 
-                    ? "bg-red-100 border-2 border-red-300 text-red-700" 
-                    : "bg-emerald-100 border-2 border-emerald-300 text-emerald-700"
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${
-                    (batch.origin || "").toLowerCase() === "chinese" ? "bg-red-500" : "bg-emerald-500"
-                  }`} />
-                  {(batch.origin || "").charAt(0).toUpperCase() + (batch.origin || "").slice(1)}
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
+                    (batch.origin || "").toLowerCase() === "chinese"
+                      ? "bg-red-100 border-2 border-red-300 text-red-700"
+                      : "bg-emerald-100 border-2 border-emerald-300 text-emerald-700"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      (batch.origin || "").toLowerCase() === "chinese" ? "bg-red-500" : "bg-emerald-500"
+                    }`}
+                  />
+                  {t(`ownerIncomingBatches.origins.${(batch.origin || "").toLowerCase()}`, {
+                    defaultValue: (batch.origin || "").charAt(0).toUpperCase() + (batch.origin || "").slice(1),
+                  })}
                 </span>
               )}
+
               {/* Status Badge */}
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-                isOpen ? "bg-blue-50 border border-blue-200 text-blue-700" : "bg-neutral-50 border border-neutral-200 text-neutral-600"
-              }`}>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  isOpen
+                    ? "bg-blue-50 border border-blue-200 text-blue-700"
+                    : "bg-neutral-50 border border-neutral-200 text-neutral-600"
+                }`}
+              >
                 <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-blue-500" : "bg-neutral-400"}`} />
-                {isOpen ? "Open" : "Closed"}
+                {isOpen ? t("ownerIncomingBatches.status.open") : t("ownerIncomingBatches.status.closed")}
               </span>
             </div>
+
             <p className="mt-1 text-sm text-neutral-500">
-              {items.length} total items
-              {batch?.created_at && ` • Created ${new Date(batch.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+              {t("ownerBatchDetail.totalItems", { count: items.length })}
+              {batch?.created_at &&
+                ` • ${t("ownerBatchDetail.created")} ${formatDate(batch.created_at, i18n.language)}`}
             </p>
           </div>
         </div>
+
         <button
           onClick={load}
           className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Draft" count={draftCount} icon={FileText} gradient="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" iconColor="text-amber-600" />
-        <StatCard label="Sent" count={sentCount} icon={Send} gradient="linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" iconColor="text-blue-600" />
-        <StatCard label="Approved" count={approvedCount} icon={Check} gradient="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" iconColor="text-emerald-600" />
-        <StatCard label="Rejected" count={rejectedCount} icon={X} gradient="linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" iconColor="text-red-600" />
+        <StatCard
+          label={t("ownerBatchDetail.stats.draft")}
+          count={draftCount}
+          icon={FileText}
+          gradient="linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)"
+          iconColor="text-amber-600"
+        />
+        <StatCard
+          label={t("ownerBatchDetail.stats.sent")}
+          count={sentCount}
+          icon={Send}
+          gradient="linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)"
+          iconColor="text-blue-600"
+        />
+        <StatCard
+          label={t("ownerBatchDetail.stats.approved")}
+          count={approvedCount}
+          icon={Check}
+          gradient="linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"
+          iconColor="text-emerald-600"
+        />
+        <StatCard
+          label={t("ownerBatchDetail.stats.rejected")}
+          count={rejectedCount}
+          icon={X}
+          gradient="linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"
+          iconColor="text-red-600"
+        />
       </div>
 
       {/* Error */}
@@ -462,7 +592,12 @@ export default function BatchDetail() {
       {/* Add Product (only when open) */}
       {isOpen && (
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
-          <InlineSearchAdd batchId={id} requestedBy={userRow?.id ?? null} onAdded={load} existingSkus={existingSkus} />
+          <InlineSearchAdd
+            batchId={id}
+            requestedBy={userRow?.id ?? null}
+            onAdded={load}
+            existingSkus={existingSkus}
+          />
         </div>
       )}
 
@@ -470,7 +605,10 @@ export default function BatchDetail() {
       {drafts.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-neutral-900">Draft Items</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">
+              {t("ownerBatchDetail.sections.draftItems")}
+            </h2>
+
             {isOpen && (
               <button
                 onClick={onSendAll}
@@ -478,11 +616,11 @@ export default function BatchDetail() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
-                Send All ({drafts.length})
+                {t("ownerBatchDetail.actions.sendAll", { count: drafts.length })}
               </button>
             )}
           </div>
-          
+
           {sendErr && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 whitespace-pre-wrap">
               {sendErr}
@@ -493,13 +631,22 @@ export default function BatchDetail() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-amber-500 to-orange-500">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">SKU</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Category</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white w-16"></th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.product")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.sku")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.category")}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.qty")}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white w-16" />
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-neutral-100">
                 {drafts.map((row) => (
                   <DraftRow key={row.id} row={row} onDelete={onDeleteDraft} categories={categories} />
@@ -513,22 +660,40 @@ export default function BatchDetail() {
       {/* Sent / Approved / Rejected Items */}
       {others.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-neutral-900">Sent / Approved / Rejected</h2>
-          
+          <h2 className="text-lg font-semibold text-neutral-900">
+            {t("ownerBatchDetail.sections.otherItems")}
+          </h2>
+
           <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">SKU</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Category</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.product")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.sku")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.category")}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.qty")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                    {t("ownerBatchDetail.table.status")}
+                  </th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-neutral-100">
                 {others.map((row) => (
-                  <ItemRow key={row.id} row={row} categories={categories} onClickRejected={(r) => setReviewing(r)} />
+                  <ItemRow
+                    key={row.id}
+                    row={row}
+                    categories={categories}
+                    onClickRejected={(r) => setReviewing(r)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -540,8 +705,8 @@ export default function BatchDetail() {
       {items.length === 0 && !loading && (
         <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-12 text-center">
           <Package className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-          <p className="text-sm font-medium text-neutral-500">No items in this batch yet</p>
-          <p className="text-xs text-neutral-400 mt-1">Use the search above to add products</p>
+          <p className="text-sm font-medium text-neutral-500">{t("ownerBatchDetail.empty.title")}</p>
+          <p className="text-xs text-neutral-400 mt-1">{t("ownerBatchDetail.empty.subtitle")}</p>
         </div>
       )}
 

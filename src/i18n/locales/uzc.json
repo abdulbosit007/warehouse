@@ -1,0 +1,447 @@
+{
+  "nav": {
+    "home": "Бош саҳифа",
+    "branchRequests": "Филиал сўровлари",
+    "incomingBatches": "Кирувчи партиялар",
+    "stockCorrections": "Омбор тузатишлари",
+    "auditReview": "Аудит текшируви",
+    "history": "Тарих",
+    "operations": "Операциялар",
+    "profile": "Профил",
+    "inventoryBatches": "Инвентар партиялари",
+    "userManagement": "Фойдаланувчилар бошқаруви"
+  },
+  "app": {
+    "title": "Омбор"
+  },
+  "common": {
+    "loading": "Юкланмоқда...",
+    "refresh": "Янгилаш",
+    "filters": "Филтрлар",
+    "edit": "Таҳрирлаш",
+    "cancel": "Бекор қилиш",
+    "saving": "Сақланмоқда...",
+    "saveChanges": "Ўзгаришларни сақлаш",
+    "clearFilters": "Филтрларни тозалаш",
+    "clearAll": "Ҳаммасини тозалаш",
+    "applyFilters": "Филтрларни қўллаш",
+    "rows": "Қаторлар",
+    "prev": "Олдинги",
+    "next": "Кейинги",
+    "ownerOnly": "Фақат owner кириши мумкин.",
+    "showingRange": "{{total}} дан {{from}}–{{to}} кўрсатилмоқда",
+    "authError": "Авторизация хатоси",
+    "failedLoad": "Маълумотларни юклаб бўлмади"
+  },
+  "ownerHome": {
+    "title": "Инвентар кўриниши",
+    "subtitle": "{{count}} та маҳсулот • Таҳрирлаш учун босинг",
+    "searchPlaceholder": "Ном ёки SKU бўйича қидириш...",
+    "productsCount": "{{count}} та маҳсулот",
+    "productsCountOf": "{{filtered}} / {{total}}",
+    "stats": {
+      "products": "Маҳсулотлар",
+      "warehouses": "Омборлар",
+      "branches": "Филиаллар",
+      "totalStock": "Жами қолдиқ"
+    },
+    "table": {
+      "product": "Маҳсулот",
+      "sku": "SKU",
+      "category": "Категория",
+      "price": "Нарх",
+      "total": "Жами"
+    },
+    "empty": {
+      "noProducts": "Маҳсулот топилмади"
+    },
+    "editModal": {
+      "title": "Маҳсулотни таҳрирлаш",
+      "productName": "Маҳсулот номи",
+      "sku": "SKU",
+      "category": "Категория",
+      "noCategory": "Категория йўқ",
+      "price": "Нарх",
+      "salePrice": "Сотув нархи"
+    },
+    "filters": {
+      "category": "Категория",
+      "allCategories": "Барча категориялар",
+      "price": "Нарх",
+      "min": "Мин",
+      "max": "Макс",
+      "noPrice": "Нарх белгиланмаган (текширув керак)",
+      "stockStatus": "Қолдиқ ҳолати",
+      "location": "Жойлашув",
+      "allLocations": "Барча жойлар",
+      "warehousesGroup": "Омборлар",
+      "branchesGroup": "Филиаллар",
+      "stock": {
+        "all": "Барча маҳсулотлар",
+        "inStock": "Бор (> 10)",
+        "lowStock": "Кам (1-10)",
+        "outOfStock": "Тугаган"
+      }
+    },
+    "errors": {
+      "productNameRequired": "Маҳсулот номи мажбурий",
+      "skuRequired": "SKU мажбурий",
+      "failedUpdate": "Маҳсулотни янгилаб бўлмади"
+    }
+  },
+  "ownerInventoryBatches": {
+    "title": "Инвентар партиялари",
+    "subtitle": "Локациялар бўйича инвентар сессиялари ва тузатишларни кузатинг",
+    "locationsTitle": "Локациялар",
+    "loadingLocations": "Локациялар юкланмоқда...",
+    "empty": {
+      "noLocations": "Локациялар топилмади"
+    },
+    "kinds": {
+      "warehouse": "Омбор",
+      "branch": "Филиал"
+    },
+    "card": {
+      "audits": "Аудитлар",
+      "corrections": "Тузатишлар",
+      "pending": "{{count}} та кутилмоқда"
+    },
+    "buttons": {
+      "startAudit": "Аудитни бошлаш",
+      "viewOpenAudit": "Очиқ аудитни кўриш"
+    },
+    "openAudit": {
+      "title": "Аудит давом этмоқда",
+      "started": "{{date}} санада бошланган"
+    },
+    "confirm": {
+      "startAudit": "Янги инвентар аудитини бошлайсизми?\n\nБу барча локацияларга маҳсулот миқдорларини текшириш учун билдиришнома юборади."
+    },
+    "errors": {
+      "failedCreateAudit": "Аудит сессиясини яратиб бўлмади"
+    }
+  },
+  "ownerInventoryBatchDetail": {
+    "subtitle": "Инвентар сессиялари ва фойдаланувчи тузатишлари",
+    "kinds": { "warehouse": "Омбор", "branch": "Филиал" },
+
+    "tabs": { "ownerAudits": "Owner аудитлари", "userDetected": "Фойдаланувчи аниқлаган" },
+
+    "empty": {
+      "noUserCorrections": "Бу локация учун фойдаланувчи тузатишлари йўқ",
+      "noOwnerAudits": "Бу локация учун owner аудитлари йўқ"
+    },
+
+    "status": {
+      "pending": "Кутилмоқда",
+      "approved": "Тасдиқланди",
+      "rejected": "Рад этилди",
+      "open": "Очиқ",
+      "closed": "Ёпиқ",
+      "confirmed": "Тасдиқланган"
+    },
+
+    "itemsCount": "{{count}} та item",
+    "correctionsCount": "{{count}} та тузатиш",
+    "pendingCount": "{{count}} та кутилмоқда",
+    "approvedCount": "{{count}} та тасдиқланди",
+    "rejectedCount": "{{count}} та рад этилди",
+
+    "audit": {
+      "titleWithDate": "Аудит — {{date}}",
+      "inProgress": "Жараёнда",
+      "completed": "Якунланган",
+      "submitted": "Юборилган",
+      "notSubmitted": "Юборилмаган"
+    },
+
+    "buttons": { "viewDetails": "Тафсилотлар" },
+
+    "table": {
+      "date": "Сана",
+      "product": "Маҳсулот",
+      "system": "Система",
+      "counted": "Саналди",
+      "reported": "Киритилди",
+      "diff": "Фарқ",
+      "status": "Ҳолат",
+      "actions": "Амаллар",
+      "systemQty": "Система миқдори",
+      "actualQty": "Ҳақиқий миқдор",
+      "difference": "Фарқ"
+    },
+
+    "modals": {
+      "sessionDetails": {
+        "title": "Сессия тафсилотлари",
+        "empty": "Бу сессияда item йўқ"
+      },
+      "auditCorrections": {
+        "title": "Аудит тузатишлари",
+        "confirmed": "Тасдиқланган",
+        "corrections": "Тузатишлар",
+        "empty": "Бу аудитда тузатиш йўқ"
+      }
+    },
+
+    "actions": { "approved": "Тасдиқлаш", "rejected": "Рад этиш" },
+
+    "confirm": {
+      "decideCorrection": "Ростдан ҳам бу тузатишни {{decision}} қилмоқчимисиз?"
+    },
+
+    "errors": { "errorPrefix": "Хатолик: " },
+
+    "locationNotFound": "Локация топилмади",
+    "unknown": "Номаълум"
+  },
+  "ownerIncomingBatches": {
+    "title": "Кирувчи партиялар",
+    "totalBatches": "Жами партиялар: {{count}}",
+
+    "stats": { "open": "Очиқ", "closed": "Ёпиқ" },
+
+    "origins": { "chinese": "Хитой", "uzbek": "Ўзбекистон" },
+    "unknown": "Номаълум",
+
+    "status": { "open": "Очиқ", "closed": "Ёпиқ" },
+
+    "buttons": {
+      "createBatch": "Партия яратиш",
+      "delete": "Партияни ўчириш"
+    },
+
+    "originModal": {
+      "title": "Партия манбасини танланг",
+      "openBatchExists": "(Очиқ партия мавжуд)"
+    },
+
+    "empty": {
+      "title": "Ҳали партиялар йўқ",
+      "subtitle": "Бошлаш учун биринчи партияни яратинг"
+    },
+
+    "table": {
+      "date": "Сана",
+      "origin": "Манба",
+      "status": "Ҳолат",
+      "draft": "Қоралама",
+      "sent": "Юборилган",
+      "approved": "Тасдиқланган",
+      "rejected": "Рад этилган",
+      "actions": "Амаллар"
+    },
+
+    "confirm": {
+      "deleteBatch": "Бу партия ўчирилсинми? Бу амални ортга қайтариб бўлмайди."
+    },
+
+    "errors": {
+      "cannotCreateNew": "Янги {{origin}} партиясини яратиб бўлмайди. Аллақачон очиқ {{origin}} партияси бор."
+    }
+  },
+  "ownerBatchDetail": {
+    "title": "Партия тафсилотлари",
+    "totalItems": "Жами позициялар: {{count}}",
+    "created": "Яратилган",
+
+    "status": {
+      "draft": "Қоралама",
+      "sent": "Юборилган",
+      "approved": "Тасдиқланган",
+      "rejected": "Рад этилган"
+    },
+
+    "stats": {
+      "draft": "Қоралама",
+      "sent": "Юборилган",
+      "approved": "Тасдиқланган",
+      "rejected": "Рад этилган"
+    },
+
+    "sections": {
+      "draftItems": "Қоралама позициялар",
+      "otherItems": "Юборилган / Тасдиқланган / Рад этилган"
+    },
+
+    "table": {
+      "product": "Маҳсулот",
+      "sku": "SKU",
+      "category": "Категория",
+      "qty": "Сони",
+      "status": "Ҳолат"
+    },
+
+    "placeholders": {
+      "productName": "Маҳсулот номи",
+      "sku": "SKU",
+      "selectCategory": "Категория танланг…",
+      "qty": "Сони"
+    },
+
+    "actions": {
+      "delete": "Ўчириш",
+      "sendAll": "Ҳаммасини юбориш ({{count}})",
+      "acceptFix": "Тузатишни қабул қилиш",
+      "approveRemoval": "Ўчиришни тасдиқлаш",
+      "resend": "Омборга қайта юбориш"
+    },
+
+    "fields": {
+      "product": "Маҳсулот",
+      "sku": "SKU",
+      "requestedQty": "Сўралган сон",
+      "rejectionReason": "Рад этиш сабаби",
+      "correctedQty": "Тузатилган сон"
+    },
+
+    "rejectionCodes": {
+      "qty_mismatch": "Миқдор мос келмади",
+      "no_such_product": "Бундай маҳсулот йўқ"
+    },
+
+    "reviewModal": {
+      "title": "Омбор жавоби"
+    },
+
+    "empty": {
+      "title": "Бу партияда ҳали позициялар йўқ",
+      "subtitle": "Юқоридаги қидирув орқали маҳсулот қўшинг"
+    },
+
+    "missing": "йўқ",
+
+    "validation": {
+      "category": "категория",
+      "quantity": "сон"
+    },
+
+    "errors": {
+      "fetchDraftFailed": "Қоралама позицияларни олишда хатолик.",
+      "fixBeforeSending": "Юборишдан олдин қуйидаги қаторларни тўғриланг:"
+    }
+  },
+  "ownerAuditDetail": {
+    "title": "Инвентар аудити",
+    "started": "Бошланган",
+    "notFound": "Аудит сессияси топилмади",
+
+    "kinds": {
+      "warehouse": "Омбор",
+      "branch": "Филиал"
+    },
+
+    "badges": {
+      "submitted": "Юборилди",
+      "pending": "Кутилмоқда"
+    },
+
+    "locationStats": {
+      "confirmed": "{{count}} тасдиқланди",
+      "corrections": "{{count}} тузатиш",
+      "toReview": "Кўриб чиқиш учун {{count}} та маҳсулот"
+    },
+
+    "banner": {
+      "inProgress": "Аудит жараёнда",
+      "completed": "Аудит якунланди",
+      "submittedOf": "{{submitted}} / {{total}} локация юборди"
+    },
+
+    "actions": {
+      "closeAudit": "Аудитни ёпиш"
+    },
+
+    "confirm": {
+      "close": "Ушбу аудит сессиясини ёпасизми? Буни ортга қайтариб бўлмайди."
+    },
+
+    "errors": {
+      "loadFailed": "Аудитни юклаб бўлмади",
+      "closeFailed": "Аудитни ёпиб бўлмади"
+    },
+
+    "modal": {
+      "title": "Аудит натижалари",
+      "confirmed": "Тасдиқланган",
+      "corrections": "Тузатишлар",
+      "totalProducts": "Жами маҳсулотлар",
+      "correctionsWithCount": "Тузатишлар ({{count}})",
+      "unknownProduct": "Номаълум маҳсулот",
+      "system": "Тизим",
+      "actual": "Амалдаги",
+      "noCorrections": "Тузатиш керак эмас — ҳамма миқдор мос!"
+    }
+  },
+  "userManagement": {
+    "title": "Фойдаланувчилар бошқаруви",
+    "subtitle": "Фойдаланувчи аккаунтлари ва рухсатларни бошқаринг",
+
+    "stats": {
+      "all": "Барча фойдаланувчилар",
+      "approved": "Тасдиқланган",
+      "pending": "Кутилмоқда"
+    },
+
+    "roles": {
+      "owner": "Эга",
+      "warehouse": "Омбор",
+      "branch": "Филиал"
+    },
+
+    "status": {
+      "approved": "Тасдиқланган",
+      "pending": "Кутилмоқда"
+    },
+
+    "table": {
+      "user": "Фойдаланувчи",
+      "role": "Рол",
+      "location": "Локация",
+      "status": "Ҳолат",
+      "actions": "Амаллар"
+    },
+
+    "actions": {
+      "addUser": "Қўшиш",
+      "approve": "Тасдиқлаш",
+      "revoke": "Бекор қилиш",
+      "adding": "Қўшилмоқда..."
+    },
+
+    "empty": "Фойдаланувчи топилмади",
+
+    "modal": {
+      "title": "Янги фойдаланувчи қўшиш",
+      "subtitle": "Янги аккаунт яратинг"
+    },
+
+    "form": {
+      "emailLabel": "Email (Google аккаунт)",
+      "emailPlaceholder": "user@example.com",
+      "nameLabel": "Тўлиқ исм",
+      "namePlaceholder": "Али Валиев",
+      "roleLabel": "Рол",
+      "rolePlaceholder": "Рол танланг...",
+      "locationAuto": "Локация танланган филиал роли бўйича автоматик бириктирилади.",
+      "groups": {
+        "owner": "Эга",
+        "warehouse": "Омбор",
+        "branches": "Филиаллар"
+      }
+    },
+
+    "errors": {
+      "requiredFields": "Email, исм ва рол мажбурий.",
+      "invalidEmail": "Тўғри email киритинг.",
+      "noLocationForBranch": "Ушбу филиал роли учун локация боғланмаган."
+    },
+
+    "success": {
+      "added": "Фойдаланувчи қўшилди.",
+      "addedLinked": "Фойдаланувчи қўшилди ва боғланди!",
+      "autoAssigned": "Локация автоматик бириктирилди: \"{{label}}\".",
+      "autoAssignedFirst": "Локация автоматик бириктирилди: \"{{label}}\" (биринчиси)."
+    }
+  }
+}

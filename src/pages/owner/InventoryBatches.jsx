@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import { useTranslation } from "react-i18next";
 import {
   Warehouse,
   Store,
@@ -13,8 +14,6 @@ import {
   AlertCircle,
   Plus,
   Clock,
-  Check,
-  Users,
 } from "lucide-react";
 
 const BRAND = "#4f46e5";
@@ -23,11 +22,17 @@ const BRAND = "#4f46e5";
    LOCATION CARD COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 function LocationCard({ location, stats, onClick }) {
+  const { t } = useTranslation();
+
   const isWarehouse = location.kind === "warehouse";
   const Icon = isWarehouse ? Warehouse : Store;
-  const kindLabel = isWarehouse ? "Warehouse" : "Branch";
-  const kindColor = isWarehouse 
-    ? "bg-indigo-100 text-indigo-700" 
+
+  const kindLabel = isWarehouse
+    ? t("ownerInventoryBatches.kinds.warehouse")
+    : t("ownerInventoryBatches.kinds.branch");
+
+  const kindColor = isWarehouse
+    ? "bg-indigo-100 text-indigo-700"
     : "bg-emerald-100 text-emerald-700";
 
   const hasPending = stats.pendingCorrections > 0;
@@ -69,23 +74,25 @@ function LocationCard({ location, stats, onClick }) {
           <div className="flex items-center gap-2 mb-1">
             <Package className="w-3.5 h-3.5 text-blue-600" />
             <span className="text-[10px] font-medium text-blue-600 uppercase tracking-wide">
-              Audits
+              {t("ownerInventoryBatches.card.audits")}
             </span>
           </div>
           <p className="text-xl font-bold text-neutral-900">{stats.auditsSubmitted}</p>
         </div>
+
         <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-3 border border-emerald-100">
           <div className="flex items-center gap-2 mb-1">
             <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
             <span className="text-[10px] font-medium text-emerald-600 uppercase tracking-wide">
-              Corrections
+              {t("ownerInventoryBatches.card.corrections")}
             </span>
           </div>
+
           <p className="text-xl font-bold text-neutral-900">
             {stats.totalCorrections}
             {hasPending && (
               <span className="ml-2 text-xs font-medium text-amber-600">
-                ({stats.pendingCorrections} pending)
+                ({t("ownerInventoryBatches.card.pending", { count: stats.pendingCorrections })})
               </span>
             )}
           </p>
@@ -100,6 +107,7 @@ function LocationCard({ location, stats, onClick }) {
 ───────────────────────────────────────────────────────────────────────────── */
 export default function InventoryBatches() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
 
   const [locations, setLocations] = useState([]);
@@ -120,6 +128,7 @@ export default function InventoryBatches() {
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
 
   async function loadData() {
@@ -140,7 +149,6 @@ export default function InventoryBatches() {
       if (sessRes.error) throw sessRes.error;
       if (sessItemsRes.error) throw sessItemsRes.error;
       if (corrRes.error) throw corrRes.error;
-      // Audit sessions and responses might not exist yet
 
       setLocations(locRes.data || []);
       setSessions(sessRes.data || []);
@@ -150,7 +158,7 @@ export default function InventoryBatches() {
       setAuditResponses(auditRespRes.data || []);
     } catch (err) {
       console.error("Error loading data:", err);
-      setError(err.message || "Failed to load data");
+      setError(err?.message || t("common.failedLoad"));
     } finally {
       setLoading(false);
     }
@@ -198,7 +206,7 @@ export default function InventoryBatches() {
     return stats;
   }, [locations, auditResponses, corrections]);
 
-  // Sort locations: warehouses first, then branches, alphabetically within each group
+  // Sort locations: warehouses first, then branches
   const sortedLocations = useMemo(() => {
     return [...locations].sort((a, b) => {
       if (a.kind === "warehouse" && b.kind !== "warehouse") return -1;
@@ -221,10 +229,10 @@ export default function InventoryBatches() {
       return;
     }
 
-    // Confirmation dialog
-    if (!confirm("Start a new inventory audit?\n\nThis will notify all locations to review their product quantities.")) {
-      return;
-    }
+    const ok = window.confirm(
+      t("ownerInventoryBatches.confirm.startAudit")
+    );
+    if (!ok) return;
 
     setCreatingAudit(true);
     try {
@@ -239,7 +247,7 @@ export default function InventoryBatches() {
       navigate(`/owner/audit/${session.id}`);
     } catch (err) {
       console.error("Error creating audit:", err);
-      setError(err.message || "Failed to create audit session");
+      setError(err?.message || t("ownerInventoryBatches.errors.failedCreateAudit"));
     } finally {
       setCreatingAudit(false);
     }
@@ -253,7 +261,7 @@ export default function InventoryBatches() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-500">Loading...</p>
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -265,7 +273,9 @@ export default function InventoryBatches() {
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
-            <span className="font-medium">Auth error: {authError}</span>
+            <span className="font-medium">
+              {t("common.authError")}: {authError}
+            </span>
           </div>
         </div>
       </div>
@@ -278,7 +288,7 @@ export default function InventoryBatches() {
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
-            <span className="font-medium">Only owner can access this page.</span>
+            <span className="font-medium">{t("common.ownerOnly")}</span>
           </div>
         </div>
       </div>
@@ -294,12 +304,13 @@ export default function InventoryBatches() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            Inventory Batches
+            {t("ownerInventoryBatches.title")}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Track inventory sessions and corrections by location
+            {t("ownerInventoryBatches.subtitle")}
           </p>
         </div>
+
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
@@ -307,15 +318,18 @@ export default function InventoryBatches() {
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            {t("common.refresh")}
           </button>
+
           <button
             onClick={handleStartAudit}
             disabled={creatingAudit}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
           >
             {openAudit ? <Clock className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {openAudit ? "View Open Audit" : "Start Audit"}
+            {openAudit
+              ? t("ownerInventoryBatches.buttons.viewOpenAudit")
+              : t("ownerInventoryBatches.buttons.startAudit")}
           </button>
         </div>
       </div>
@@ -332,9 +346,13 @@ export default function InventoryBatches() {
                 <Clock className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-amber-800">Audit in Progress</h3>
+                <h3 className="font-semibold text-amber-800">
+                  {t("ownerInventoryBatches.openAudit.title")}
+                </h3>
                 <p className="text-sm text-amber-600">
-                  Started {new Date(openAudit.created_at).toLocaleDateString()}
+                  {t("ownerInventoryBatches.openAudit.started", {
+                    date: new Date(openAudit.created_at).toLocaleDateString(),
+                  })}
                 </p>
               </div>
             </div>
@@ -355,7 +373,9 @@ export default function InventoryBatches() {
         <div className="flex items-center justify-center py-16">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-            <p className="text-sm text-neutral-500">Loading locations...</p>
+            <p className="text-sm text-neutral-500">
+              {t("ownerInventoryBatches.loadingLocations")}
+            </p>
           </div>
         </div>
       )}
@@ -364,20 +384,29 @@ export default function InventoryBatches() {
       {!loading && !error && sortedLocations.length === 0 && (
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center">
           <Warehouse className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-          <p className="text-neutral-500">No locations found</p>
+          <p className="text-neutral-500">{t("ownerInventoryBatches.empty.noLocations")}</p>
         </div>
       )}
 
       {/* Location cards grid */}
       {!loading && !error && sortedLocations.length > 0 && (
         <>
-          <h2 className="text-lg font-bold text-neutral-900">Locations</h2>
+          <h2 className="text-lg font-bold text-neutral-900">
+            {t("ownerInventoryBatches.locationsTitle")}
+          </h2>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sortedLocations.map((loc) => (
               <LocationCard
                 key={loc.id}
                 location={loc}
-                stats={locationStats[loc.id] || { auditsSubmitted: 0, totalCorrections: 0, pendingCorrections: 0 }}
+                stats={
+                  locationStats[loc.id] || {
+                    auditsSubmitted: 0,
+                    totalCorrections: 0,
+                    pendingCorrections: 0,
+                  }
+                }
                 onClick={() => navigate(`/owner/inventory-batches/${loc.id}`)}
               />
             ))}
