@@ -1,0 +1,447 @@
+{
+  "nav": {
+    "home": "Bosh sahifa",
+    "branchRequests": "Filial so‘rovlari",
+    "incomingBatches": "Kiruvchi partiyalar",
+    "stockCorrections": "Ombor tuzatishlari",
+    "auditReview": "Audit tekshiruvi",
+    "history": "Tarix",
+    "operations": "Operatsiyalar",
+    "profile": "Profil",
+    "inventoryBatches": "Inventar partiyalari",
+    "userManagement": "Foydalanuvchilar boshqaruvi"
+  },
+  "app": {
+    "title": "Ombor"
+  },
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "refresh": "Yangilash",
+    "filters": "Filtrlar",
+    "edit": "Tahrirlash",
+    "cancel": "Bekor qilish",
+    "saving": "Saqlanmoqda...",
+    "saveChanges": "O‘zgarishlarni saqlash",
+    "clearFilters": "Filtrlarni tozalash",
+    "clearAll": "Hammasini tozalash",
+    "applyFilters": "Filtrlarni qo‘llash",
+    "rows": "Qatorlar",
+    "prev": "Oldingi",
+    "next": "Keyingi",
+    "ownerOnly": "Faqat owner kirishi mumkin.",
+    "showingRange": "{{total}} dan {{from}}–{{to}} ko‘rsatilmoqda",
+    "authError": "Avtorizatsiya xatosi",
+    "failedLoad": "Ma’lumotlarni yuklab bo‘lmadi"
+  },
+  "ownerHome": {
+    "title": "Inventar ko‘rinishi",
+    "subtitle": "{{count}} ta mahsulot • Tahrirlash uchun bosing",
+    "searchPlaceholder": "Nom yoki SKU bo‘yicha qidirish...",
+    "productsCount": "{{count}} ta mahsulot",
+    "productsCountOf": "{{filtered}} / {{total}}",
+    "stats": {
+      "products": "Mahsulotlar",
+      "warehouses": "Omborlar",
+      "branches": "Filiallar",
+      "totalStock": "Jami qoldiq"
+    },
+    "table": {
+      "product": "Mahsulot",
+      "sku": "SKU",
+      "category": "Kategoriya",
+      "price": "Narx",
+      "total": "Jami"
+    },
+    "empty": {
+      "noProducts": "Mahsulot topilmadi"
+    },
+    "editModal": {
+      "title": "Mahsulotni tahrirlash",
+      "productName": "Mahsulot nomi",
+      "sku": "SKU",
+      "category": "Kategoriya",
+      "noCategory": "Kategoriya yo‘q",
+      "price": "Narx",
+      "salePrice": "Sotuv narxi"
+    },
+    "filters": {
+      "category": "Kategoriya",
+      "allCategories": "Barcha kategoriyalar",
+      "price": "Narx",
+      "min": "Min",
+      "max": "Max",
+      "noPrice": "Narx belgilanmagan (tekshiruv kerak)",
+      "stockStatus": "Qoldiq holati",
+      "location": "Joylashuv",
+      "allLocations": "Barcha joylar",
+      "warehousesGroup": "Omborlar",
+      "branchesGroup": "Filiallar",
+      "stock": {
+        "all": "Barcha mahsulotlar",
+        "inStock": "Bor (> 10)",
+        "lowStock": "Kam (1-10)",
+        "outOfStock": "Tugagan"
+      }
+    },
+    "errors": {
+      "productNameRequired": "Mahsulot nomi majburiy",
+      "skuRequired": "SKU majburiy",
+      "failedUpdate": "Mahsulotni yangilab bo‘lmadi"
+    }
+  },
+   "ownerInventoryBatches": {
+    "title": "Inventar partiyalari",
+    "subtitle": "Lokatsiyalar bo‘yicha inventar sessiyalari va tuzatishlarni kuzating",
+    "locationsTitle": "Lokatsiyalar",
+    "loadingLocations": "Lokatsiyalar yuklanmoqda...",
+    "empty": {
+      "noLocations": "Lokatsiyalar topilmadi"
+    },
+    "kinds": {
+      "warehouse": "Ombor",
+      "branch": "Filial"
+    },
+    "card": {
+      "audits": "Auditlar",
+      "corrections": "Tuzatishlar",
+      "pending": "{{count}} ta kutilmoqda"
+    },
+    "buttons": {
+      "startAudit": "Auditni boshlash",
+      "viewOpenAudit": "Ochiq auditni ko‘rish"
+    },
+    "openAudit": {
+      "title": "Audit davom etmoqda",
+      "started": "{{date}} sanada boshlangan"
+    },
+    "confirm": {
+      "startAudit": "Yangi inventar auditini boshlaysizmi?\n\nBu barcha lokatsiyalarga mahsulot miqdorlarini tekshirish uchun bildirishnoma yuboradi."
+    },
+    "errors": {
+      "failedCreateAudit": "Audit sessiyasini yaratib bo‘lmadi"
+    }
+  },
+   "ownerInventoryBatchDetail": {
+    "subtitle": "Inventar sessiyalari va foydalanuvchi tuzatishlari",
+    "kinds": { "warehouse": "Ombor", "branch": "Filial" },
+
+    "tabs": { "ownerAudits": "Owner auditlari", "userDetected": "Foydalanuvchi aniqlagan" },
+
+    "empty": {
+      "noUserCorrections": "Bu lokatsiya uchun foydalanuvchi tuzatishlari yo‘q",
+      "noOwnerAudits": "Bu lokatsiya uchun owner auditlari yo‘q"
+    },
+
+    "status": {
+      "pending": "Kutilmoqda",
+      "approved": "Tasdiqlandi",
+      "rejected": "Rad etildi",
+      "open": "Ochiq",
+      "closed": "Yopiq",
+      "confirmed": "Tasdiqlangan"
+    },
+
+    "itemsCount": "{{count}} ta item",
+    "correctionsCount": "{{count}} ta tuzatish",
+    "pendingCount": "{{count}} ta kutilmoqda",
+    "approvedCount": "{{count}} ta tasdiqlandi",
+    "rejectedCount": "{{count}} ta rad etildi",
+
+    "audit": {
+      "titleWithDate": "Audit — {{date}}",
+      "inProgress": "Jarayonda",
+      "completed": "Yakunlangan",
+      "submitted": "Yuborilgan",
+      "notSubmitted": "Yuborilmagan"
+    },
+
+    "buttons": { "viewDetails": "Tafsilotlar" },
+
+    "table": {
+      "date": "Sana",
+      "product": "Mahsulot",
+      "system": "Sistema",
+      "counted": "SanaldI",
+      "reported": "Kiritildi",
+      "diff": "Farq",
+      "status": "Holat",
+      "actions": "Amallar",
+      "systemQty": "Sistema miqdori",
+      "actualQty": "Haqiqiy miqdor",
+      "difference": "Farq"
+    },
+
+    "modals": {
+      "sessionDetails": {
+        "title": "Sessiya tafsilotlari",
+        "empty": "Bu sessiyada item yo‘q"
+      },
+      "auditCorrections": {
+        "title": "Audit tuzatishlari",
+        "confirmed": "Tasdiqlangan",
+        "corrections": "Tuzatishlar",
+        "empty": "Bu auditda tuzatish yo‘q"
+      }
+    },
+
+    "actions": { "approved": "Tasdiqlash", "rejected": "Rad etish" },
+
+    "confirm": {
+      "decideCorrection": "Rostan ham bu tuzatishni {{decision}} qilmoqchimisiz?"
+    },
+
+    "errors": { "errorPrefix": "Xatolik: " },
+
+    "locationNotFound": "Lokatsiya topilmadi",
+    "unknown": "Noma’lum"
+  },
+  "ownerIncomingBatches": {
+    "title": "Kiruvchi partiyalar",
+    "totalBatches": "Jami partiyalar: {{count}}",
+
+    "stats": { "open": "Ochiq", "closed": "Yopiq" },
+
+    "origins": { "chinese": "Xitoy", "uzbek": "O‘zbekiston" },
+    "unknown": "Noma’lum",
+
+    "status": { "open": "Ochiq", "closed": "Yopiq" },
+
+    "buttons": {
+      "createBatch": "Partiya yaratish",
+      "delete": "Partiyani o‘chirish"
+    },
+
+    "originModal": {
+      "title": "Partiya manbasini tanlang",
+      "openBatchExists": "(Ochiq partiya mavjud)"
+    },
+
+    "empty": {
+      "title": "Hali partiyalar yo‘q",
+      "subtitle": "Boshlash uchun birinchi partiyani yarating"
+    },
+
+    "table": {
+      "date": "Sana",
+      "origin": "Manba",
+      "status": "Holat",
+      "draft": "Qoralama",
+      "sent": "Yuborilgan",
+      "approved": "Tasdiqlangan",
+      "rejected": "Rad etilgan",
+      "actions": "Amallar"
+    },
+
+    "confirm": {
+      "deleteBatch": "Bu partiya o‘chirilsinmi? Bu amalni ortga qaytarib bo‘lmaydi."
+    },
+
+    "errors": {
+      "cannotCreateNew": "Yangi {{origin}} partiyasini yaratib bo‘lmaydi. Allaqachon ochiq {{origin}} partiyasi bor."
+    }
+  },
+  "ownerBatchDetail": {
+    "title": "Partiya tafsilotlari",
+    "totalItems": "Jami pozitsiyalar: {{count}}",
+    "created": "Yaratilgan",
+
+    "status": {
+      "draft": "Qoralama",
+      "sent": "Yuborilgan",
+      "approved": "Tasdiqlangan",
+      "rejected": "Rad etilgan"
+    },
+
+    "stats": {
+      "draft": "Qoralama",
+      "sent": "Yuborilgan",
+      "approved": "Tasdiqlangan",
+      "rejected": "Rad etilgan"
+    },
+
+    "sections": {
+      "draftItems": "Qoralama pozitsiyalar",
+      "otherItems": "Yuborilgan / Tasdiqlangan / Rad etilgan"
+    },
+
+    "table": {
+      "product": "Mahsulot",
+      "sku": "SKU",
+      "category": "Kategoriya",
+      "qty": "Soni",
+      "status": "Holat"
+    },
+
+    "placeholders": {
+      "productName": "Mahsulot nomi",
+      "sku": "SKU",
+      "selectCategory": "Kategoriya tanlang…",
+      "qty": "Soni"
+    },
+
+    "actions": {
+      "delete": "O‘chirish",
+      "sendAll": "Hammasini yuborish ({{count}})",
+      "acceptFix": "Tuzatishni qabul qilish",
+      "approveRemoval": "O‘chirishni tasdiqlash",
+      "resend": "Omborga qayta yuborish"
+    },
+
+    "fields": {
+      "product": "Mahsulot",
+      "sku": "SKU",
+      "requestedQty": "So‘ralgan son",
+      "rejectionReason": "Rad etish sababi",
+      "correctedQty": "Tuzatilgan son"
+    },
+
+    "rejectionCodes": {
+      "qty_mismatch": "Miqdor mos kelmadi",
+      "no_such_product": "Bunday mahsulot yo‘q"
+    },
+
+    "reviewModal": {
+      "title": "Ombor javobi"
+    },
+
+    "empty": {
+      "title": "Bu partiyada hali pozitsiyalar yo‘q",
+      "subtitle": "Yuqoridagi qidiruv orqali mahsulot qo‘shing"
+    },
+
+    "missing": "yo‘q",
+
+    "validation": {
+      "category": "kategoriya",
+      "quantity": "son"
+    },
+
+    "errors": {
+      "fetchDraftFailed": "Qoralama pozitsiyalarni olishda xatolik.",
+      "fixBeforeSending": "Yuborishdan oldin quyidagi qatorlarni to‘g‘rilang:"
+    }
+  },
+  "ownerAuditDetail": {
+    "title": "Inventar auditi",
+    "started": "Boshlangan",
+    "notFound": "Audit sessiyasi topilmadi",
+
+    "kinds": {
+      "warehouse": "Ombor",
+      "branch": "Filial"
+    },
+
+    "badges": {
+      "submitted": "Yuborildi",
+      "pending": "Kutilmoqda"
+    },
+
+    "locationStats": {
+      "confirmed": "{{count}} tasdiqlandi",
+      "corrections": "{{count}} tuzatish",
+      "toReview": "Ko‘rib chiqish uchun {{count}} ta mahsulot"
+    },
+
+    "banner": {
+      "inProgress": "Audit jarayonda",
+      "completed": "Audit yakunlandi",
+      "submittedOf": "{{submitted}} / {{total}} lokatsiya yubordi"
+    },
+
+    "actions": {
+      "closeAudit": "Auditni yopish"
+    },
+
+    "confirm": {
+      "close": "Ushbu audit sessiyasini yopasizmi? Buni ortga qaytarib bo‘lmaydi."
+    },
+
+    "errors": {
+      "loadFailed": "Auditni yuklab bo‘lmadi",
+      "closeFailed": "Auditni yopib bo‘lmadi"
+    },
+
+    "modal": {
+      "title": "Audit natijalari",
+      "confirmed": "Tasdiqlangan",
+      "corrections": "Tuzatishlar",
+      "totalProducts": "Jami mahsulotlar",
+      "correctionsWithCount": "Tuzatishlar ({{count}})",
+      "unknownProduct": "Noma’lum mahsulot",
+      "system": "Tizim",
+      "actual": "Amaldagi",
+      "noCorrections": "Tuzatish kerak emas — hamma miqdor mos!"
+    }
+  },
+  "userManagement": {
+    "title": "Foydalanuvchilar boshqaruvi",
+    "subtitle": "Foydalanuvchi akkauntlari va ruxsatlarni boshqaring",
+
+    "stats": {
+      "all": "Barcha foydalanuvchilar",
+      "approved": "Tasdiqlangan",
+      "pending": "Kutilmoqda"
+    },
+
+    "roles": {
+      "owner": "Ega",
+      "warehouse": "Ombor",
+      "branch": "Filial"
+    },
+
+    "status": {
+      "approved": "Tasdiqlangan",
+      "pending": "Kutilmoqda"
+    },
+
+    "table": {
+      "user": "Foydalanuvchi",
+      "role": "Rol",
+      "location": "Lokatsiya",
+      "status": "Holat",
+      "actions": "Amallar"
+    },
+
+    "actions": {
+      "addUser": "Qo‘shish",
+      "approve": "Tasdiqlash",
+      "revoke": "Bekor qilish",
+      "adding": "Qo‘shilmoqda..."
+    },
+
+    "empty": "Foydalanuvchi topilmadi",
+
+    "modal": {
+      "title": "Yangi foydalanuvchi qo‘shish",
+      "subtitle": "Yangi akkaunt yarating"
+    },
+
+    "form": {
+      "emailLabel": "Email (Google akkaunt)",
+      "emailPlaceholder": "user@example.com",
+      "nameLabel": "To‘liq ism",
+      "namePlaceholder": "Ali Valiyev",
+      "roleLabel": "Rol",
+      "rolePlaceholder": "Rol tanlang...",
+      "locationAuto": "Lokatsiya tanlangan filial roli bo‘yicha avtomatik biriktiriladi.",
+      "groups": {
+        "owner": "Ega",
+        "warehouse": "Ombor",
+        "branches": "Filiallar"
+      }
+    },
+
+    "errors": {
+      "requiredFields": "Email, ism va rol majburiy.",
+      "invalidEmail": "To‘g‘ri email kiriting.",
+      "noLocationForBranch": "Ushbu filial roli uchun lokatsiya bog‘lanmagan."
+    },
+
+    "success": {
+      "added": "Foydalanuvchi qo‘shildi.",
+      "addedLinked": "Foydalanuvchi qo‘shildi va bog‘landi!",
+      "autoAssigned": "Lokatsiya avtomatik biriktirildi: \"{{label}}\".",
+      "autoAssignedFirst": "Lokatsiya avtomatik biriktirildi: \"{{label}}\" (birinchisi)."
+    }
+  }
+}

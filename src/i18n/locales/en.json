@@ -1,0 +1,449 @@
+{
+  "nav": {
+    "home": "Home",
+    "branchRequests": "Branch Requests",
+    "incomingBatches": "Incoming Batches",
+    "stockCorrections": "Stock Corrections",
+    "auditReview": "Audit Review",
+    "history": "History",
+    "operations": "Operations",
+    "profile": "Profile",
+    "inventoryBatches": "Inventory Batches",
+    "userManagement": "User Management"
+  },
+  "app": {
+    "title": "Warehouse"
+  },
+  "common": {
+    "loading": "Loading...",
+    "refresh": "Refresh",
+    "filters": "Filters",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "clearFilters": "Clear filters",
+    "clearAll": "Clear all",
+    "applyFilters": "Apply Filters",
+    "rows": "Rows",
+    "prev": "Prev",
+    "next": "Next",
+    "ownerOnly": "Owner access only.",
+    "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+    "authError": "Auth error",
+    "failedLoad": "Failed to load data"
+
+  },
+  "ownerHome": {
+    "title": "Inventory Overview",
+    "subtitle": "{{count}} products • Click to edit",
+    "searchPlaceholder": "Search by name or SKU...",
+    "productsCount": "{{count}} products",
+    "productsCountOf": "{{filtered}} of {{total}}",
+    "stats": {
+      "products": "Products",
+      "warehouses": "Warehouses",
+      "branches": "Branches",
+      "totalStock": "Total Stock"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "price": "Price",
+      "total": "Total"
+    },
+    "empty": {
+      "noProducts": "No products found"
+    },
+    "editModal": {
+      "title": "Edit Product",
+      "productName": "Product Name",
+      "sku": "SKU",
+      "category": "Category",
+      "noCategory": "No category",
+      "price": "Price",
+      "salePrice": "Sale Price"
+    },
+    "filters": {
+      "category": "Category",
+      "allCategories": "All Categories",
+      "price": "Price",
+      "min": "Min",
+      "max": "Max",
+      "noPrice": "No Price Assigned (needs review)",
+      "stockStatus": "Stock Status",
+      "location": "Location",
+      "allLocations": "All Locations",
+      "warehousesGroup": "Warehouses",
+      "branchesGroup": "Branches",
+      "stock": {
+        "all": "All Products",
+        "inStock": "In Stock (> 10)",
+        "lowStock": "Low Stock (1-10)",
+        "outOfStock": "Out of Stock"
+      }
+    },
+    "errors": {
+      "productNameRequired": "Product name is required",
+      "skuRequired": "SKU is required",
+      "failedUpdate": "Failed to update product"
+    }
+  },
+  "ownerInventoryBatches": {
+    "title": "Inventory Batches",
+    "subtitle": "Track inventory sessions and corrections by location",
+    "locationsTitle": "Locations",
+    "loadingLocations": "Loading locations...",
+    "empty": {
+      "noLocations": "No locations found"
+    },
+    "kinds": {
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    },
+    "card": {
+      "audits": "Audits",
+      "corrections": "Corrections",
+      "pending": "{{count}} pending"
+    },
+    "buttons": {
+      "startAudit": "Start Audit",
+      "viewOpenAudit": "View Open Audit"
+    },
+    "openAudit": {
+      "title": "Audit in Progress",
+      "started": "Started {{date}}"
+    },
+    "confirm": {
+      "startAudit": "Start a new inventory audit?\n\nThis will notify all locations to review their product quantities."
+    },
+    "errors": {
+      "failedCreateAudit": "Failed to create audit session"
+    }
+  },
+  "ownerInventoryBatchDetail": {
+    "subtitle": "Inventory sessions and user corrections",
+    "kinds": { "warehouse": "Warehouse", "branch": "Branch" },
+
+    "tabs": { "ownerAudits": "Owner Audits", "userDetected": "User-detected" },
+
+    "empty": {
+      "noUserCorrections": "No user corrections for this location",
+      "noOwnerAudits": "No owner audits for this location"
+    },
+
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "open": "Open",
+      "closed": "Closed",
+      "confirmed": "Confirmed"
+    },
+
+    "itemsCount": "{{count}} items",
+    "correctionsCount": "{{count}} correction{{count !== 1 ? \"s\" : \"\"}}",
+    "pendingCount": "{{count}} pending",
+    "approvedCount": "{{count}} approved",
+    "rejectedCount": "{{count}} rejected",
+
+    "audit": {
+      "titleWithDate": "Audit - {{date}}",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "submitted": "Submitted",
+      "notSubmitted": "Not Submitted"
+    },
+
+    "buttons": { "viewDetails": "View Details" },
+
+    "table": {
+      "date": "Date",
+      "product": "Product",
+      "system": "System",
+      "counted": "Counted",
+      "reported": "Reported",
+      "diff": "Diff",
+      "status": "Status",
+      "actions": "Actions",
+      "systemQty": "System Qty",
+      "actualQty": "Actual Qty",
+      "difference": "Difference"
+    },
+
+    "modals": {
+      "sessionDetails": {
+        "title": "Session Details",
+        "empty": "No items in this session"
+      },
+      "auditCorrections": {
+        "title": "Audit Corrections",
+        "confirmed": "Confirmed",
+        "corrections": "Corrections",
+        "empty": "No corrections in this audit"
+      }
+    },
+
+    "actions": { "approved": "Approve", "rejected": "Reject" },
+
+    "confirm": {
+      "decideCorrection": "Are you sure you want to {{decision}} this correction?"
+    },
+
+    "errors": { "errorPrefix": "Error: " },
+
+    "locationNotFound": "Location not found",
+    "unknown": "Unknown"
+  },
+
+  "ownerIncomingBatches": {
+    "title": "Incoming Batches",
+    "totalBatches": "{{count}} total batches",
+
+    "stats": { "open": "Open", "closed": "Closed" },
+
+    "origins": { "chinese": "Chinese", "uzbek": "Uzbek" },
+    "unknown": "Unknown",
+
+    "status": { "open": "Open", "closed": "Closed" },
+
+    "buttons": {
+      "createBatch": "Create Batch",
+      "delete": "Delete batch"
+    },
+
+    "originModal": {
+      "title": "Select Batch Origin",
+      "openBatchExists": "(Open batch exists)"
+    },
+
+    "empty": {
+      "title": "No batches yet",
+      "subtitle": "Create your first batch to get started"
+    },
+
+    "table": {
+      "date": "Date",
+      "origin": "Origin",
+      "status": "Status",
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "actions": "Actions"
+    },
+
+    "confirm": {
+      "deleteBatch": "Delete this batch? This action cannot be undone."
+    },
+
+    "errors": {
+      "cannotCreateNew": "Cannot create new {{origin}} batch. There is already an open {{origin}} batch."
+    }
+  },
+  "ownerBatchDetail": {
+    "title": "Batch Details",
+    "totalItems": "{{count}} total items",
+    "created": "Created",
+
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+
+    "stats": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+
+    "sections": {
+      "draftItems": "Draft Items",
+      "otherItems": "Sent / Approved / Rejected"
+    },
+
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "qty": "Qty",
+      "status": "Status"
+    },
+
+    "placeholders": {
+      "productName": "Product name",
+      "sku": "SKU",
+      "selectCategory": "Select category…",
+      "qty": "Qty"
+    },
+
+    "actions": {
+      "delete": "Delete",
+      "sendAll": "Send All ({{count}})",
+      "acceptFix": "Accept Fix",
+      "approveRemoval": "Approve Removal",
+      "resend": "Resend to Warehouse"
+    },
+
+    "fields": {
+      "product": "Product",
+      "sku": "SKU",
+      "requestedQty": "Requested Qty",
+      "rejectionReason": "Rejection Reason",
+      "correctedQty": "Corrected Qty"
+    },
+
+    "rejectionCodes": {
+      "qty_mismatch": "Quantity mismatch",
+      "no_such_product": "No such product"
+    },
+
+    "reviewModal": {
+      "title": "Warehouse Response"
+    },
+
+    "empty": {
+      "title": "No items in this batch yet",
+      "subtitle": "Use the search above to add products"
+    },
+
+    "missing": "missing",
+
+    "validation": {
+      "category": "category",
+      "quantity": "quantity"
+    },
+
+    "errors": {
+      "fetchDraftFailed": "Failed to fetch draft items.",
+      "fixBeforeSending": "Fix these draft row(s) before sending:"
+    }
+  },
+  "ownerAuditDetail": {
+    "title": "Inventory Audit",
+    "started": "Started",
+    "notFound": "Audit session not found",
+
+    "kinds": {
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    },
+
+    "badges": {
+      "submitted": "Submitted",
+      "pending": "Pending"
+    },
+
+    "locationStats": {
+      "confirmed": "{{count}} confirmed",
+      "corrections": "{{count}} corrections",
+      "toReview": "{{count}} products to review"
+    },
+
+    "banner": {
+      "inProgress": "Audit in Progress",
+      "completed": "Audit Completed",
+      "submittedOf": "{{submitted}} of {{total}} locations submitted"
+    },
+
+    "actions": {
+      "closeAudit": "Close Audit"
+    },
+
+    "confirm": {
+      "close": "Close this audit session? This cannot be undone."
+    },
+
+    "errors": {
+      "loadFailed": "Failed to load audit",
+      "closeFailed": "Failed to close audit session"
+    },
+
+    "modal": {
+      "title": "Audit Results",
+      "confirmed": "Confirmed",
+      "corrections": "Corrections",
+      "totalProducts": "Total Products",
+      "correctionsWithCount": "Corrections ({{count}})",
+      "unknownProduct": "Unknown Product",
+      "system": "System",
+      "actual": "Actual",
+      "noCorrections": "No corrections needed - all quantities match!"
+    }
+  },
+  "userManagement": {
+    "title": "User Management",
+    "subtitle": "Manage user accounts and permissions",
+
+    "stats": {
+      "all": "All Users",
+      "approved": "Approved",
+      "pending": "Pending"
+    },
+
+    "roles": {
+      "owner": "Owner",
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    },
+
+    "status": {
+      "approved": "Approved",
+      "pending": "Pending"
+    },
+
+    "table": {
+      "user": "User",
+      "role": "Role",
+      "location": "Location",
+      "status": "Status",
+      "actions": "Actions"
+    },
+
+    "actions": {
+      "addUser": "Add User",
+      "approve": "Approve",
+      "revoke": "Revoke",
+      "adding": "Adding..."
+    },
+
+    "empty": "No users found",
+
+    "modal": {
+      "title": "Add New User",
+      "subtitle": "Create a new user account"
+    },
+
+    "form": {
+      "emailLabel": "Email (Google Account)",
+      "emailPlaceholder": "user@example.com",
+      "nameLabel": "Full Name",
+      "namePlaceholder": "John Doe",
+      "roleLabel": "Role",
+      "rolePlaceholder": "Select a role...",
+      "locationAuto": "Location is assigned automatically from the selected branch role.",
+      "groups": {
+        "owner": "Owner",
+        "warehouse": "Warehouse",
+        "branches": "Branches"
+      }
+    },
+
+    "errors": {
+      "requiredFields": "Email, Name and Role are required.",
+      "invalidEmail": "Enter a valid email address.",
+      "noLocationForBranch": "No location is linked to this branch role."
+    },
+
+    "success": {
+      "added": "User added.",
+      "addedLinked": "User added and linked!",
+      "autoAssigned": "Location auto-assigned to \"{{label}}\".",
+      "autoAssignedFirst": "Location auto-assigned to \"{{label}}\" (first of multiple)."
+    }
+  }
+}

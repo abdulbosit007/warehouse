@@ -1,0 +1,447 @@
+{
+  "nav": {
+    "home": "Главная",
+    "branchRequests": "Запросы филиалов",
+    "incomingBatches": "Входящие партии",
+    "stockCorrections": "Корректировка склада",
+    "auditReview": "Проверка аудита",
+    "history": "История",
+    "operations": "Операции",
+    "profile": "Профиль",
+    "inventoryBatches": "Партии склада",
+    "userManagement": "Управление пользователями"
+  },
+  "app": {
+    "title": "Склад"
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "refresh": "Обновить",
+    "filters": "Фильтры",
+    "edit": "Редактировать",
+    "cancel": "Отмена",
+    "saving": "Сохранение...",
+    "saveChanges": "Сохранить изменения",
+    "clearFilters": "Очистить фильтры",
+    "clearAll": "Очистить всё",
+    "applyFilters": "Применить фильтры",
+    "rows": "Строк",
+    "prev": "Назад",
+    "next": "Вперёд",
+    "ownerOnly": "Доступ только для владельца.",
+    "showingRange": "Показано {{from}}–{{to}} из {{total}}",
+    "authError": "Ошибка авторизации",
+    "failedLoad": "Не удалось загрузить данные"
+  },
+  "ownerHome": {
+    "title": "Обзор инвентаря",
+    "subtitle": "{{count}} товаров • Нажмите, чтобы редактировать",
+    "searchPlaceholder": "Поиск по названию или SKU...",
+    "productsCount": "{{count}} товаров",
+    "productsCountOf": "{{filtered}} из {{total}}",
+    "stats": {
+      "products": "Товары",
+      "warehouses": "Склады",
+      "branches": "Филиалы",
+      "totalStock": "Общий остаток"
+    },
+    "table": {
+      "product": "Товар",
+      "sku": "SKU",
+      "category": "Категория",
+      "price": "Цена",
+      "total": "Итого"
+    },
+    "empty": {
+      "noProducts": "Товары не найдены"
+    },
+    "editModal": {
+      "title": "Редактировать товар",
+      "productName": "Название товара",
+      "sku": "SKU",
+      "category": "Категория",
+      "noCategory": "Без категории",
+      "price": "Цена",
+      "salePrice": "Цена продажи"
+    },
+    "filters": {
+      "category": "Категория",
+      "allCategories": "Все категории",
+      "price": "Цена",
+      "min": "Мин",
+      "max": "Макс",
+      "noPrice": "Цена не указана (нужна проверка)",
+      "stockStatus": "Статус остатка",
+      "location": "Локация",
+      "allLocations": "Все локации",
+      "warehousesGroup": "Склады",
+      "branchesGroup": "Филиалы",
+      "stock": {
+        "all": "Все товары",
+        "inStock": "В наличии (> 10)",
+        "lowStock": "Мало (1-10)",
+        "outOfStock": "Нет в наличии"
+      }
+    },
+    "errors": {
+      "productNameRequired": "Название товара обязательно",
+      "skuRequired": "SKU обязателен",
+      "failedUpdate": "Не удалось обновить товар"
+    }
+  },
+  "ownerInventoryBatches": {
+    "title": "Инвентаризационные партии",
+    "subtitle": "Отслеживайте сессии инвентаризации и корректировки по локациям",
+    "locationsTitle": "Локации",
+    "loadingLocations": "Загрузка локаций...",
+    "empty": {
+      "noLocations": "Локации не найдены"
+    },
+    "kinds": {
+      "warehouse": "Склад",
+      "branch": "Филиал"
+    },
+    "card": {
+      "audits": "Аудиты",
+      "corrections": "Корректировки",
+      "pending": "{{count}} в ожидании"
+    },
+    "buttons": {
+      "startAudit": "Начать аудит",
+      "viewOpenAudit": "Открыть текущий аудит"
+    },
+    "openAudit": {
+      "title": "Аудит в процессе",
+      "started": "Начато: {{date}}"
+    },
+    "confirm": {
+      "startAudit": "Начать новый аудит инвентаризации?\n\nЭто уведомит все локации о необходимости проверить количество товаров."
+    },
+    "errors": {
+      "failedCreateAudit": "Не удалось создать сессию аудита"
+    }
+  },
+  "ownerInventoryBatchDetail": {
+    "subtitle": "Сессии инвентаризации и пользовательские корректировки",
+    "kinds": { "warehouse": "Склад", "branch": "Филиал" },
+
+    "tabs": { "ownerAudits": "Аудиты владельца", "userDetected": "Пользовательские" },
+
+    "empty": {
+      "noUserCorrections": "Нет пользовательских корректировок для этой локации",
+      "noOwnerAudits": "Нет аудитов владельца для этой локации"
+    },
+
+    "status": {
+      "pending": "Ожидает",
+      "approved": "Принято",
+      "rejected": "Отклонено",
+      "open": "Открыто",
+      "closed": "Закрыто",
+      "confirmed": "Подтверждено"
+    },
+
+    "itemsCount": "{{count}} поз.",
+    "correctionsCount": "{{count}} корректировок",
+    "pendingCount": "{{count}} в ожидании",
+    "approvedCount": "{{count}} принято",
+    "rejectedCount": "{{count}} отклонено",
+
+    "audit": {
+      "titleWithDate": "Аудит — {{date}}",
+      "inProgress": "В процессе",
+      "completed": "Завершён",
+      "submitted": "Отправлено",
+      "notSubmitted": "Не отправлено"
+    },
+
+    "buttons": { "viewDetails": "Подробнее" },
+
+    "table": {
+      "date": "Дата",
+      "product": "Товар",
+      "system": "Система",
+      "counted": "Посчитано",
+      "reported": "Сообщено",
+      "diff": "Разн.",
+      "status": "Статус",
+      "actions": "Действия",
+      "systemQty": "Кол-во (сист.)",
+      "actualQty": "Кол-во (факт.)",
+      "difference": "Разница"
+    },
+
+    "modals": {
+      "sessionDetails": {
+        "title": "Детали сессии",
+        "empty": "В этой сессии нет позиций"
+      },
+      "auditCorrections": {
+        "title": "Исправления по аудиту",
+        "confirmed": "Подтверждено",
+        "corrections": "Исправления",
+        "empty": "Нет исправлений в этом аудите"
+      }
+    },
+
+    "actions": { "approved": "Принять", "rejected": "Отклонить" },
+
+    "confirm": {
+      "decideCorrection": "Вы уверены, что хотите: {{decision}} эту корректировку?"
+    },
+
+    "errors": { "errorPrefix": "Ошибка: " },
+
+    "locationNotFound": "Локация не найдена",
+    "unknown": "Неизвестно"
+  },
+  "ownerIncomingBatches": {
+    "title": "Поступающие партии",
+    "totalBatches": "Всего партий: {{count}}",
+
+    "stats": { "open": "Открытые", "closed": "Закрытые" },
+
+    "origins": { "chinese": "Китай", "uzbek": "Узбекистан" },
+    "unknown": "Неизвестно",
+
+    "status": { "open": "Открыта", "closed": "Закрыта" },
+
+    "buttons": {
+      "createBatch": "Создать партию",
+      "delete": "Удалить партию"
+    },
+
+    "originModal": {
+      "title": "Выберите источник партии",
+      "openBatchExists": "(Есть открытая партия)"
+    },
+
+    "empty": {
+      "title": "Пока нет партий",
+      "subtitle": "Создайте первую партию, чтобы начать"
+    },
+
+    "table": {
+      "date": "Дата",
+      "origin": "Источник",
+      "status": "Статус",
+      "draft": "Черновик",
+      "sent": "Отправлено",
+      "approved": "Одобрено",
+      "rejected": "Отклонено",
+      "actions": "Действия"
+    },
+
+    "confirm": {
+      "deleteBatch": "Удалить эту партию? Действие нельзя отменить."
+    },
+
+    "errors": {
+      "cannotCreateNew": "Нельзя создать новую партию ({{origin}}). Уже есть открытая партия ({{origin}})."
+    }
+  },
+   "ownerBatchDetail": {
+    "title": "Детали партии",
+    "totalItems": "Всего позиций: {{count}}",
+    "created": "Создано",
+
+    "status": {
+      "draft": "Черновик",
+      "sent": "Отправлено",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+
+    "stats": {
+      "draft": "Черновик",
+      "sent": "Отправлено",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+
+    "sections": {
+      "draftItems": "Черновики",
+      "otherItems": "Отправлено / Одобрено / Отклонено"
+    },
+
+    "table": {
+      "product": "Товар",
+      "sku": "SKU",
+      "category": "Категория",
+      "qty": "Кол-во",
+      "status": "Статус"
+    },
+
+    "placeholders": {
+      "productName": "Название товара",
+      "sku": "SKU",
+      "selectCategory": "Выберите категорию…",
+      "qty": "Кол-во"
+    },
+
+    "actions": {
+      "delete": "Удалить",
+      "sendAll": "Отправить все ({{count}})",
+      "acceptFix": "Принять исправление",
+      "approveRemoval": "Подтвердить удаление",
+      "resend": "Отправить снова на склад"
+    },
+
+    "fields": {
+      "product": "Товар",
+      "sku": "SKU",
+      "requestedQty": "Запрошено",
+      "rejectionReason": "Причина отклонения",
+      "correctedQty": "Исправленное кол-во"
+    },
+
+    "rejectionCodes": {
+      "qty_mismatch": "Несовпадение количества",
+      "no_such_product": "Такого товара нет"
+    },
+
+    "reviewModal": {
+      "title": "Ответ склада"
+    },
+
+    "empty": {
+      "title": "В этой партии пока нет позиций",
+      "subtitle": "Используйте поиск выше, чтобы добавить товары"
+    },
+
+    "missing": "не указано",
+
+    "validation": {
+      "category": "категория",
+      "quantity": "количество"
+    },
+
+    "errors": {
+      "fetchDraftFailed": "Не удалось получить черновики.",
+      "fixBeforeSending": "Исправьте эти строки перед отправкой:"
+    }
+  },
+  "ownerAuditDetail": {
+    "title": "Инвентаризационный аудит",
+    "started": "Начат",
+    "notFound": "Сессия аудита не найдена",
+
+    "kinds": {
+      "warehouse": "Склад",
+      "branch": "Филиал"
+    },
+
+    "badges": {
+      "submitted": "Отправлено",
+      "pending": "Ожидается"
+    },
+
+    "locationStats": {
+      "confirmed": "{{count}} подтверждено",
+      "corrections": "{{count}} исправлений",
+      "toReview": "К проверке: {{count}} товаров"
+    },
+
+    "banner": {
+      "inProgress": "Аудит в процессе",
+      "completed": "Аудит завершён",
+      "submittedOf": "{{submitted}} из {{total}} локаций отправили"
+    },
+
+    "actions": {
+      "closeAudit": "Закрыть аудит"
+    },
+
+    "confirm": {
+      "close": "Закрыть эту сессию аудита? Это действие нельзя отменить."
+    },
+
+    "errors": {
+      "loadFailed": "Не удалось загрузить аудит",
+      "closeFailed": "Не удалось закрыть аудит"
+    },
+
+    "modal": {
+      "title": "Результаты аудита",
+      "confirmed": "Подтверждено",
+      "corrections": "Исправления",
+      "totalProducts": "Всего товаров",
+      "correctionsWithCount": "Исправления ({{count}})",
+      "unknownProduct": "Неизвестный товар",
+      "system": "Система",
+      "actual": "Факт",
+      "noCorrections": "Исправления не нужны — все количества совпадают!"
+    }
+  },
+  "userManagement": {
+    "title": "Управление пользователями",
+    "subtitle": "Управляйте аккаунтами и правами доступа",
+
+    "stats": {
+      "all": "Все пользователи",
+      "approved": "Одобрены",
+      "pending": "Ожидают"
+    },
+
+    "roles": {
+      "owner": "Владелец",
+      "warehouse": "Склад",
+      "branch": "Филиал"
+    },
+
+    "status": {
+      "approved": "Одобрено",
+      "pending": "Ожидает"
+    },
+
+    "table": {
+      "user": "Пользователь",
+      "role": "Роль",
+      "location": "Локация",
+      "status": "Статус",
+      "actions": "Действия"
+    },
+
+    "actions": {
+      "addUser": "Добавить",
+      "approve": "Одобрить",
+      "revoke": "Отозвать",
+      "adding": "Добавляем..."
+    },
+
+    "empty": "Пользователи не найдены",
+
+    "modal": {
+      "title": "Добавить пользователя",
+      "subtitle": "Создайте новый аккаунт"
+    },
+
+    "form": {
+      "emailLabel": "Email (Google аккаунт)",
+      "emailPlaceholder": "user@example.com",
+      "nameLabel": "Полное имя",
+      "namePlaceholder": "Иван Иванов",
+      "roleLabel": "Роль",
+      "rolePlaceholder": "Выберите роль...",
+      "locationAuto": "Локация назначается автоматически по выбранной роли филиала.",
+      "groups": {
+        "owner": "Владелец",
+        "warehouse": "Склад",
+        "branches": "Филиалы"
+      }
+    },
+
+    "errors": {
+      "requiredFields": "Email, имя и роль обязательны.",
+      "invalidEmail": "Введите корректный email адрес.",
+      "noLocationForBranch": "К этой роли филиала не привязана локация."
+    },
+
+    "success": {
+      "added": "Пользователь добавлен.",
+      "addedLinked": "Пользователь добавлен и привязан!",
+      "autoAssigned": "Локация автоматически назначена: \"{{label}}\".",
+      "autoAssignedFirst": "Локация автоматически назначена: \"{{label}}\" (первая из нескольких)."
+    }
+  }
+}
