@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import { useTranslation } from "react-i18next";
 import {
   Package,
   Search,
@@ -28,47 +29,62 @@ import {
 /*                              STATUS CONFIG                                  */
 /* -------------------------------------------------------------------------- */
 const STATUS_CONFIG = {
-  sent: { 
-    label: "Pending Review", 
-    color: "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border-amber-200/80 shadow-amber-100/50",
+  sent: {
+    color:
+      "bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border-amber-200/80 shadow-amber-100/50",
     icon: Clock,
     iconBg: "bg-amber-100",
+    labelKey: "branchRequests.status.sent",
   },
-  approved: { 
-    label: "In Transit", 
-    color: "bg-gradient-to-r from-blue-50 to-emerald-50 text-blue-700 border-blue-200/80 shadow-blue-100/50",
+  approved: {
+    color:
+      "bg-gradient-to-r from-blue-50 to-emerald-50 text-blue-700 border-blue-200/80 shadow-blue-100/50",
     icon: Truck,
     iconBg: "bg-blue-100",
+    labelKey: "branchRequests.status.approved",
   },
-  rejected: { 
-    label: "Rejected", 
-    color: "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200/80 shadow-red-100/50",
+  rejected: {
+    color:
+      "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200/80 shadow-red-100/50",
     icon: XCircle,
     iconBg: "bg-red-100",
+    labelKey: "branchRequests.status.rejected",
   },
-  completed: { 
-    label: "Completed", 
-    color: "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200/80 shadow-emerald-100/50",
+  completed: {
+    color:
+      "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200/80 shadow-emerald-100/50",
     icon: PackageCheck,
     iconBg: "bg-emerald-100",
+    labelKey: "branchRequests.status.completed",
   },
-  cancelled: { 
-    label: "Cancelled", 
-    color: "bg-gradient-to-r from-neutral-50 to-teal-50 text-neutral-600 border-neutral-200/80 shadow-neutral-100/50",
+  cancelled: {
+    color:
+      "bg-gradient-to-r from-neutral-50 to-teal-50 text-neutral-600 border-neutral-200/80 shadow-neutral-100/50",
     icon: X,
     iconBg: "bg-neutral-100",
+    labelKey: "branchRequests.status.cancelled",
   },
 };
 
 function StatusBadge({ status }) {
-  const config = STATUS_CONFIG[status] || { label: status, color: "bg-neutral-100 text-neutral-700", iconBg: "bg-neutral-100" };
+  const { t } = useTranslation();
+  const config = STATUS_CONFIG[status] || {
+    color: "bg-neutral-100 text-neutral-700 border-neutral-200",
+    iconBg: "bg-neutral-100",
+    labelKey: "",
+  };
   const Icon = config.icon || Clock;
+
+  const label = config.labelKey ? t(config.labelKey) : String(status);
+
   return (
-    <span className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold border shadow-sm ${config.color}`}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold border shadow-sm ${config.color}`}
+    >
       <span className={`p-0.5 rounded-md ${config.iconBg}`}>
         <Icon className="w-3 h-3" />
       </span>
-      {config.label}
+      {label}
     </span>
   );
 }
@@ -89,7 +105,11 @@ function Toast({ message, type, onClose }) {
   };
 
   return (
-    <div className={`fixed bottom-6 right-6 z-50 ${colors[type] || colors.info} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slide-up`}>
+    <div
+      className={`fixed bottom-6 right-6 z-50 ${
+        colors[type] || colors.info
+      } text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slide-up`}
+    >
       {type === "success" && <CheckCircle2 className="w-5 h-5" />}
       {type === "error" && <XCircle className="w-5 h-5" />}
       {type === "info" && <AlertCircle className="w-5 h-5" />}
@@ -105,7 +125,16 @@ function Toast({ message, type, onClose }) {
 /*                            MAIN COMPONENT                                   */
 /* -------------------------------------------------------------------------- */
 export default function BranchRequests() {
-  const { loading: authLoading, error: authError, roleBase, roleId, userRow, locationName } = useCurrentUser();
+  const { t } = useTranslation();
+
+  const {
+    loading: authLoading,
+    error: authError,
+    roleBase,
+    roleId,
+    userRow,
+    locationName,
+  } = useCurrentUser();
 
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -115,7 +144,7 @@ export default function BranchRequests() {
   // Load current location
   useEffect(() => {
     if (authLoading || authError || !roleId) return;
-    
+
     async function loadLocation() {
       const { data, error } = await supabase
         .from("locations")
@@ -165,10 +194,10 @@ export default function BranchRequests() {
   }
 
   const tabs = [
-    { key: "new", label: "New Request", icon: Plus },
-    { key: "outgoing", label: "My Requests", icon: Send },
-    { key: "incoming", label: "Incoming", icon: Inbox },
-    { key: "history", label: "History", icon: History },
+    { key: "new", label: t("branchRequests.tabs.new"), icon: Plus },
+    { key: "outgoing", label: t("branchRequests.tabs.outgoing"), icon: Send },
+    { key: "incoming", label: t("branchRequests.tabs.incoming"), icon: Inbox },
+    { key: "history", label: t("branchRequests.tabs.history"), icon: History },
   ];
 
   return (
@@ -181,8 +210,12 @@ export default function BranchRequests() {
             <ArrowRightLeft className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Product Requests</h1>
-            <p className="text-slate-400 text-sm">Manage incoming and outgoing product transfers</p>
+            <h1 className="text-xl font-bold text-white tracking-tight">
+              {t("branchRequests.title")}
+            </h1>
+            <p className="text-slate-400 text-sm">
+              {t("branchRequests.subtitle")}
+            </p>
           </div>
         </div>
       </div>
@@ -211,14 +244,26 @@ export default function BranchRequests() {
 
       {/* Tab Content */}
       <div className="min-h-[400px]">
-        {activeTab === "new" && <NewRequestTab location={location} showToast={showToast} />}
-        {activeTab === "outgoing" && <OutgoingTab location={location} showToast={showToast} />}
-        {activeTab === "incoming" && <IncomingTab location={location} showToast={showToast} />}
+        {activeTab === "new" && (
+          <NewRequestTab location={location} showToast={showToast} />
+        )}
+        {activeTab === "outgoing" && (
+          <OutgoingTab location={location} showToast={showToast} />
+        )}
+        {activeTab === "incoming" && (
+          <IncomingTab location={location} showToast={showToast} />
+        )}
         {activeTab === "history" && <HistoryTab location={location} />}
       </div>
 
       {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
@@ -227,6 +272,8 @@ export default function BranchRequests() {
 /*                          NEW REQUEST TAB                                    */
 /* -------------------------------------------------------------------------- */
 function NewRequestTab({ location, showToast }) {
+  const { t } = useTranslation();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [allLocations, setAllLocations] = useState([]);
@@ -237,7 +284,7 @@ function NewRequestTab({ location, showToast }) {
 
   // Cart: { productId, productName, sku, sourceLocationId, sourceLocationName, qty }
   const [cart, setCart] = useState([]);
-  
+
   // Track quantities for each location (for batch add)
   const [locationQtys, setLocationQtys] = useState({});
 
@@ -300,17 +347,16 @@ function NewRequestTab({ location, showToast }) {
   function handleBatchAddToCart() {
     if (!selectedProduct) return;
 
-    // Get all locations with qty > 0
     const newItems = Object.entries(locationQtys)
       .filter(([_, qty]) => qty > 0)
       .map(([locId, qty]) => {
-        const loc = allLocations.find(l => l.id === locId);
+        const loc = allLocations.find((l) => l.id === locId);
         return {
           productId: selectedProduct.id,
           productName: selectedProduct.name,
           sku: selectedProduct.sku,
           sourceLocationId: locId,
-          sourceLocationName: loc?.location_name || loc?.name || "Unknown",
+          sourceLocationName: loc?.location_name || loc?.name || t("branchRequests.common.unknown"),
           qty: qty,
         };
       });
@@ -330,10 +376,9 @@ function NewRequestTab({ location, showToast }) {
 
   async function handleSubmitRequests() {
     if (cart.length === 0) return;
-    
+
     setSubmitting(true);
     try {
-      // Group cart items by source location
       const bySource = {};
       cart.forEach((item) => {
         if (!bySource[item.sourceLocationId]) {
@@ -342,7 +387,6 @@ function NewRequestTab({ location, showToast }) {
         bySource[item.sourceLocationId].push(item);
       });
 
-      // Create one request per source location
       for (const [sourceId, items] of Object.entries(bySource)) {
         const { data: request, error: reqError } = await supabase
           .from("branch_requests")
@@ -356,7 +400,6 @@ function NewRequestTab({ location, showToast }) {
 
         if (reqError) throw reqError;
 
-        // Create request items
         const itemInserts = items.map((item) => ({
           request_id: request.id,
           product_id: item.productId,
@@ -373,28 +416,32 @@ function NewRequestTab({ location, showToast }) {
       }
 
       setCart([]);
-      showToast("Request sent successfully!", "success");
+      showToast(t("branchRequests.toast.requestSentSuccess"), "success");
     } catch (err) {
       console.error(err);
-      showToast("Failed to send request", "error");
+      showToast(t("branchRequests.toast.requestSentFail"), "error");
     } finally {
       setSubmitting(false);
     }
   }
+
+  const locationsCount = Object.values(locationQtys).filter((q) => q > 0).length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Product Search */}
       <div className="space-y-4">
         <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3 className="font-semibold text-neutral-900 mb-4">Search Products</h3>
-          
+          <h3 className="font-semibold text-neutral-900 mb-4">
+            {t("branchRequests.newRequest.searchTitle")}
+          </h3>
+
           {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
-              placeholder="Search by name or SKU..."
+              placeholder={t("branchRequests.newRequest.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -415,7 +462,9 @@ function NewRequestTab({ location, showToast }) {
                   className="w-full text-left p-3 rounded-xl border border-neutral-200 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
                 >
                   <p className="font-medium text-neutral-900">{product.name}</p>
-                  <p className="text-xs text-neutral-500">SKU: {product.sku}</p>
+                  <p className="text-xs text-neutral-500">
+                    {t("branchRequests.newRequest.skuLabel")}: {product.sku}
+                  </p>
                 </button>
               ))}
             </div>
@@ -424,7 +473,7 @@ function NewRequestTab({ location, showToast }) {
           {loading && (
             <div className="mt-3 text-sm text-neutral-500 flex items-center gap-2">
               <RefreshCw className="w-4 h-4 animate-spin" />
-              Searching...
+              {t("branchRequests.common.searching")}
             </div>
           )}
         </div>
@@ -433,20 +482,36 @@ function NewRequestTab({ location, showToast }) {
         {selectedProduct && (
           <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h3 className="font-semibold text-neutral-900 mb-1">{selectedProduct.name}</h3>
-            <p className="text-xs text-neutral-500 mb-4">Enter quantities from each location:</p>
+            <p className="text-xs text-neutral-500 mb-4">
+              {t("branchRequests.newRequest.stockHint")}
+            </p>
 
             <div className="space-y-2">
               {allLocations.map((loc) => {
                 const stock = productStock[loc.id] || 0;
                 const currentQty = locationQtys[loc.id] || 0;
+
                 return (
-                  <div key={loc.id} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                  <div
+                    key={loc.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200"
+                  >
                     <div>
-                      <p className="font-medium text-neutral-900 text-sm">{loc.location_name || loc.name}</p>
+                      <p className="font-medium text-neutral-900 text-sm">
+                        {loc.location_name || loc.name}
+                      </p>
                       <p className="text-xs text-neutral-500">
-                        Available: <span className={stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"}>{stock}</span>
+                        {t("branchRequests.newRequest.available")}:{" "}
+                        <span
+                          className={
+                            stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"
+                          }
+                        >
+                          {stock}
+                        </span>
                       </p>
                     </div>
+
                     {stock > 0 && (
                       <input
                         type="number"
@@ -455,8 +520,11 @@ function NewRequestTab({ location, showToast }) {
                         value={currentQty || ""}
                         placeholder="0"
                         onChange={(e) => {
-                          const val = Math.min(stock, Math.max(0, parseInt(e.target.value) || 0));
-                          setLocationQtys(prev => ({ ...prev, [loc.id]: val }));
+                          const val = Math.min(
+                            stock,
+                            Math.max(0, parseInt(e.target.value, 10) || 0)
+                          );
+                          setLocationQtys((prev) => ({ ...prev, [loc.id]: val }));
                         }}
                         className="w-20 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       />
@@ -467,13 +535,15 @@ function NewRequestTab({ location, showToast }) {
             </div>
 
             {/* Add All to Cart button */}
-            {Object.values(locationQtys).some(q => q > 0) && (
+            {locationsCount > 0 && (
               <button
                 onClick={handleBatchAddToCart}
                 className="w-full mt-4 rounded-xl bg-emerald-600 text-white py-2.5 px-4 font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Add {Object.values(locationQtys).filter(q => q > 0).length} Location(s) to Cart
+                {t("branchRequests.newRequest.addLocationsToCart", {
+                  count: locationsCount,
+                })}
               </button>
             )}
           </div>
@@ -482,22 +552,28 @@ function NewRequestTab({ location, showToast }) {
 
       {/* Right: Cart */}
       <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <h3 className="font-semibold text-neutral-900 mb-4">Request Cart ({cart.length} items)</h3>
+        <h3 className="font-semibold text-neutral-900 mb-4">
+          {t("branchRequests.newRequest.cartItems", { count: cart.length })}
+        </h3>
 
         {cart.length === 0 ? (
           <div className="text-center py-8 text-neutral-400">
             <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No items in cart</p>
-            <p className="text-xs mt-1">Search and add products to request</p>
+            <p className="text-sm">{t("branchRequests.newRequest.emptyCartTitle")}</p>
+            <p className="text-xs mt-1">{t("branchRequests.newRequest.emptyCartText")}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {cart.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200"
+              >
                 <div>
                   <p className="font-medium text-neutral-900 text-sm">{item.productName}</p>
                   <p className="text-xs text-neutral-500">
-                    From: {item.sourceLocationName} • Qty: {item.qty}
+                    {t("branchRequests.newRequest.from")}: {item.sourceLocationName} •{" "}
+                    {t("branchRequests.common.qty")}: {item.qty}
                   </p>
                 </div>
                 <button
@@ -517,12 +593,12 @@ function NewRequestTab({ location, showToast }) {
               {submitting ? (
                 <>
                   <RefreshCw className="w-5 h-5 animate-spin" />
-                  Sending...
+                  {t("branchRequests.newRequest.sending")}
                 </>
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  Send Request
+                  {t("branchRequests.newRequest.sendRequest")}
                 </>
               )}
             </button>
@@ -533,43 +609,12 @@ function NewRequestTab({ location, showToast }) {
   );
 }
 
-function LocationStockRow({ location, stock, onAdd }) {
-  const [qty, setQty] = useState(1);
-
-  return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
-      <div>
-        <p className="font-medium text-neutral-900 text-sm">{location.location_name || location.name}</p>
-        <p className="text-xs text-neutral-500">
-          Available: <span className={stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"}>{stock}</span>
-        </p>
-      </div>
-      {stock > 0 && (
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min="1"
-            max={stock}
-            value={qty}
-            onChange={(e) => setQty(Math.min(stock, Math.max(1, parseInt(e.target.value) || 1)))}
-            className="w-16 rounded-lg border border-neutral-200 px-2 py-1 text-sm text-center"
-          />
-          <button
-            onClick={() => onAdd(qty)}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
-          >
-            Add
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*                          OUTGOING TAB (My Requests)                         */
 /* -------------------------------------------------------------------------- */
 function OutgoingTab({ location, showToast }) {
+  const { t } = useTranslation();
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedLocations, setExpandedLocations] = useState({});
@@ -592,9 +637,8 @@ function OutgoingTab({ location, showToast }) {
       .order("created_at", { ascending: false });
 
     setRequests(data || []);
-    // Expand all locations by default
     const locationIds = {};
-    (data || []).forEach(r => {
+    (data || []).forEach((r) => {
       const sourceId = r.items?.[0]?.source_location?.id;
       if (sourceId) locationIds[sourceId] = true;
     });
@@ -613,9 +657,9 @@ function OutgoingTab({ location, showToast }) {
       .eq("id", requestId);
 
     if (error) {
-      showToast("Failed to cancel request", "error");
+      showToast(t("branchRequests.toast.cancelFail"), "error");
     } else {
-      showToast("Request cancelled", "info");
+      showToast(t("branchRequests.toast.cancelSuccess"), "info");
       loadRequests();
     }
   }
@@ -636,7 +680,6 @@ function OutgoingTab({ location, showToast }) {
 
       if (fetchErr || !request) throw fetchErr || new Error("Request not found");
 
-      // Add inventory to requester location (this location)
       for (const item of request.items) {
         const qtyToAdd = item.approved_qty || item.requested_qty || 0;
         if (qtyToAdd <= 0) continue;
@@ -655,62 +698,32 @@ function OutgoingTab({ location, showToast }) {
             .eq("id", existing.id);
           if (upErr) console.error("Update inventory error:", upErr);
         } else {
-          const { error: insErr } = await supabase
-            .from("product_list")
-            .insert({
-              id: crypto.randomUUID(),
-              product_id: item.product.id,
-              location_id: location.id,
-              quantity: qtyToAdd,
-              status: "available",
-            });
+          const { error: insErr } = await supabase.from("product_list").insert({
+            id: crypto.randomUUID(),
+            product_id: item.product.id,
+            location_id: location.id,
+            quantity: qtyToAdd,
+            status: "available",
+          });
           if (insErr) console.error("Insert inventory error:", insErr);
         }
       }
 
       await supabase
         .from("branch_requests")
-        .update({ 
+        .update({
           status: "completed",
           branch_confirmed_at: new Date().toISOString(),
         })
         .eq("id", requestId);
 
-      showToast("Items received! Inventory updated.", "success");
+      showToast(t("branchRequests.toast.confirmReceiptSuccess"), "success");
       loadRequests();
     } catch (err) {
       console.error("Confirm receipt error:", err);
-      showToast("Failed to confirm receipt", "error");
+      showToast(t("branchRequests.toast.confirmReceiptFail"), "error");
     }
   }
-
-  // Group by source location, then by month
-  const groupedByLocation = useMemo(() => {
-    const groups = {};
-    requests.forEach(req => {
-      const sourceLocation = req.items?.[0]?.source_location;
-      const sourceId = sourceLocation?.id || 'unknown';
-      const sourceName = sourceLocation?.location_name || sourceLocation?.name || 'Unknown';
-      
-      if (!groups[sourceId]) {
-        groups[sourceId] = { name: sourceName, id: sourceId, months: {} };
-      }
-      
-      const date = new Date(req.created_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      
-      if (!groups[sourceId].months[monthKey]) {
-        groups[sourceId].months[monthKey] = { name: monthName, requests: [] };
-      }
-      groups[sourceId].months[monthKey].requests.push(req);
-    });
-    return groups;
-  }, [requests]);
-
-  const toggleLocation = (locationId) => {
-    setExpandedLocations(prev => ({ ...prev, [locationId]: !prev[locationId] }));
-  };
 
   if (loading) {
     return (
@@ -724,8 +737,12 @@ function OutgoingTab({ location, showToast }) {
     return (
       <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
         <Send className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-        <h3 className="font-semibold text-neutral-900 mb-2">No Active Requests</h3>
-        <p className="text-sm text-neutral-500">Create a new request to get started</p>
+        <h3 className="font-semibold text-neutral-900 mb-2">
+          {t("branchRequests.outgoing.emptyTitle")}
+        </h3>
+        <p className="text-sm text-neutral-500">
+          {t("branchRequests.outgoing.emptyText")}
+        </p>
       </div>
     );
   }
@@ -735,7 +752,8 @@ function OutgoingTab({ location, showToast }) {
       {/* Summary */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span> active requests
+          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
+          {t("branchRequests.outgoing.summary", { count: requests.length })}
         </p>
       </div>
 
@@ -743,28 +761,45 @@ function OutgoingTab({ location, showToast }) {
       <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
-          <div className="col-span-3">Products</div>
-          <div className="col-span-2">Source</div>
-          <div className="col-span-1 text-center">Qty</div>
-          <div className="col-span-2 text-center">Status</div>
-          <div className="col-span-2 text-center">Date</div>
-          <div className="col-span-2 text-right">Actions</div>
+          <div className="col-span-3">{t("branchRequests.outgoing.columns.products")}</div>
+          <div className="col-span-2">{t("branchRequests.outgoing.columns.source")}</div>
+          <div className="col-span-1 text-center">{t("branchRequests.outgoing.columns.qty")}</div>
+          <div className="col-span-2 text-center">{t("branchRequests.outgoing.columns.status")}</div>
+          <div className="col-span-2 text-center">{t("branchRequests.outgoing.columns.date")}</div>
+          <div className="col-span-2 text-right">{t("branchRequests.outgoing.columns.actions")}</div>
         </div>
 
         {/* Table Body */}
         <div className="divide-y divide-neutral-100">
-          {requests.map(req => {
-            const source = req.items?.[0]?.source_location?.location_name || req.items?.[0]?.source_location?.name || "Unknown";
-            const totalQty = req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
-            const productInfo = req.items?.slice(0, 2).map(i => 
-              `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
-            ).join(", ") || "—";
+          {requests.map((req) => {
+            const source =
+              req.items?.[0]?.source_location?.location_name ||
+              req.items?.[0]?.source_location?.name ||
+              t("branchRequests.common.unknown");
+
+            const totalQty =
+              req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+
+            const productInfo =
+              req.items
+                ?.slice(0, 2)
+                .map(
+                  (i) =>
+                    `${i.product?.name || t("branchRequests.common.unknown")}${
+                      i.product?.sku ? ` (${i.product.sku})` : ""
+                    }`
+                )
+                .join(", ") || "—";
+
             const moreCount = (req.items?.length || 0) - 2;
             const isPending = req.status === "sent";
             const isApproved = req.status === "approved";
-            
+
             return (
-              <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center">
+              <div
+                key={req.id}
+                className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center"
+              >
                 <div className="col-span-3 text-sm text-neutral-700 truncate">
                   {productInfo}
                   {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
@@ -781,22 +816,28 @@ function OutgoingTab({ location, showToast }) {
                   {isPending && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
                       <Clock className="w-3 h-3" />
-                      Pending
+                      {t("branchRequests.outgoing.pending")}
                     </span>
                   )}
                   {isApproved && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
                       <Check className="w-3 h-3" />
-                      Approved
+                      {t("branchRequests.outgoing.approved")}
                     </span>
                   )}
                 </div>
                 <div className="col-span-2 text-center">
                   <p className="text-sm text-neutral-600">
-                    {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(req.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </p>
                   <p className="text-xs text-neutral-400">
-                    {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(req.created_at).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
                 <div className="col-span-2 flex items-center justify-end gap-2">
@@ -805,7 +846,7 @@ function OutgoingTab({ location, showToast }) {
                       onClick={() => handleCancel(req.id)}
                       className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-sm font-medium hover:bg-neutral-50 transition-colors"
                     >
-                      Cancel
+                      {t("branchRequests.outgoing.cancelBtn")}
                     </button>
                   )}
                   {isApproved && (
@@ -814,7 +855,7 @@ function OutgoingTab({ location, showToast }) {
                       className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1"
                     >
                       <PackageCheck className="w-4 h-4" />
-                      Received
+                      {t("branchRequests.outgoing.receivedBtn")}
                     </button>
                   )}
                 </div>
@@ -831,12 +872,14 @@ function OutgoingTab({ location, showToast }) {
 /*                          INCOMING TAB                                       */
 /* -------------------------------------------------------------------------- */
 function IncomingTab({ location, showToast }) {
+  const { t } = useTranslation();
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
-    // Fetch all sent requests, then filter by items where source_location = this location
+
     const { data, error } = await supabase
       .from("branch_requests")
       .select(`
@@ -851,11 +894,10 @@ function IncomingTab({ location, showToast }) {
       .eq("status", "sent")
       .order("created_at", { ascending: false });
 
-    // Filter: only keep requests with at least one item sourced from this location
-    const filtered = (data || []).filter(req => 
-      req.items?.some(item => item.source_location?.id === location.id)
+    const filtered = (data || []).filter((req) =>
+      req.items?.some((item) => item.source_location?.id === location.id)
     );
-    
+
     setRequests(filtered);
     setLoading(false);
   }, [location.id]);
@@ -866,11 +908,9 @@ function IncomingTab({ location, showToast }) {
 
   async function handleApprove(request) {
     try {
-      // Deduct inventory from source location
       for (const item of request.items) {
         const qtyToDeduct = item.requested_qty;
-        
-        // Get current product
+
         const { data: product } = await supabase
           .from("product_list")
           .select("id, quantity")
@@ -885,37 +925,32 @@ function IncomingTab({ location, showToast }) {
             .eq("id", product.id);
         }
 
-        // Update item status
         await supabase
           .from("branch_request_items")
           .update({ status: "approved", approved_qty: qtyToDeduct })
           .eq("id", item.id);
       }
 
-      // Update request status
       await supabase
         .from("branch_requests")
-        .update({ 
+        .update({
           status: "approved",
           warehouse_decided_at: new Date().toISOString(),
         })
         .eq("id", request.id);
 
-      showToast("Request approved! Inventory deducted.", "success");
+      showToast(t("branchRequests.toast.approveSuccess"), "success");
       loadRequests();
     } catch (err) {
       console.error(err);
-      showToast("Failed to approve request", "error");
+      showToast(t("branchRequests.toast.approveFail"), "error");
     }
   }
 
   async function handleReject(requestId) {
-    await supabase
-      .from("branch_requests")
-      .update({ status: "rejected" })
-      .eq("id", requestId);
+    await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
 
-    showToast("Request rejected", "info");
+    showToast(t("branchRequests.toast.rejectInfo"), "info");
     loadRequests();
   }
 
@@ -931,8 +966,12 @@ function IncomingTab({ location, showToast }) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center">
         <Inbox className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-        <h3 className="font-semibold text-neutral-900 mb-2">No Incoming Requests</h3>
-        <p className="text-sm text-neutral-500">You'll see requests from other locations here</p>
+        <h3 className="font-semibold text-neutral-900 mb-2">
+          {t("branchRequests.incoming.emptyTitle")}
+        </h3>
+        <p className="text-sm text-neutral-500">
+          {t("branchRequests.incoming.emptyText")}
+        </p>
       </div>
     );
   }
@@ -942,7 +981,8 @@ function IncomingTab({ location, showToast }) {
       {/* Summary */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span> pending requests need your attention
+          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
+          {t("branchRequests.incoming.summary", { count: requests.length })}
         </p>
       </div>
 
@@ -950,25 +990,40 @@ function IncomingTab({ location, showToast }) {
       <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
-          <div className="col-span-4">Products</div>
-          <div className="col-span-2">Requester</div>
-          <div className="col-span-1 text-center">Qty</div>
-          <div className="col-span-2 text-center">Date</div>
-          <div className="col-span-3 text-right">Actions</div>
+          <div className="col-span-4">{t("branchRequests.incoming.columns.products")}</div>
+          <div className="col-span-2">{t("branchRequests.incoming.columns.requester")}</div>
+          <div className="col-span-1 text-center">{t("branchRequests.incoming.columns.qty")}</div>
+          <div className="col-span-2 text-center">{t("branchRequests.incoming.columns.date")}</div>
+          <div className="col-span-3 text-right">{t("branchRequests.incoming.columns.actions")}</div>
         </div>
 
         {/* Table Body */}
         <div className="divide-y divide-neutral-100">
-          {requests.map(req => {
-            const requester = req.to_location?.location_name || req.to_location?.name || "Unknown";
-            const totalQty = req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
-            const productInfo = req.items?.slice(0, 2).map(i => 
-              `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
-            ).join(", ") || "—";
+          {requests.map((req) => {
+            const requester =
+              req.to_location?.location_name || req.to_location?.name || t("branchRequests.common.unknown");
+
+            const totalQty =
+              req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+
+            const productInfo =
+              req.items
+                ?.slice(0, 2)
+                .map(
+                  (i) =>
+                    `${i.product?.name || t("branchRequests.common.unknown")}${
+                      i.product?.sku ? ` (${i.product.sku})` : ""
+                    }`
+                )
+                .join(", ") || "—";
+
             const moreCount = (req.items?.length || 0) - 2;
-            
+
             return (
-              <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center">
+              <div
+                key={req.id}
+                className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-emerald-50/30 transition-colors items-center"
+              >
                 <div className="col-span-4 text-sm text-neutral-700 truncate">
                   {productInfo}
                   {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
@@ -983,10 +1038,16 @@ function IncomingTab({ location, showToast }) {
                 </div>
                 <div className="col-span-2 text-center">
                   <p className="text-sm text-neutral-600">
-                    {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(req.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </p>
                   <p className="text-xs text-neutral-400">
-                    {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(req.created_at).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
                 <div className="col-span-3 flex items-center justify-end gap-2">
@@ -994,14 +1055,14 @@ function IncomingTab({ location, showToast }) {
                     onClick={() => handleReject(req.id)}
                     className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
                   >
-                    Reject
+                    {t("branchRequests.incoming.rejectBtn")}
                   </button>
                   <button
                     onClick={() => handleApprove(req)}
                     className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
                   >
                     <Check className="w-4 h-4" />
-                    Approve
+                    {t("branchRequests.incoming.approveBtn")}
                   </button>
                 </div>
               </div>
@@ -1017,33 +1078,34 @@ function IncomingTab({ location, showToast }) {
 /*                          HISTORY TAB (Comprehensive)                        */
 /* -------------------------------------------------------------------------- */
 function HistoryTab({ location }) {
-  const [allRequests, setAllRequests] = useState([]); // All data (both directions)
+  const { t } = useTranslation();
+
+  const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 50; // Load more since we filter client-side
+  const PAGE_SIZE = 50;
 
-  // Filters - direction is CLIENT-SIDE only (no reload)
   const [direction, setDirection] = useState("outgoing");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return d.toISOString().split("T")[0];
   });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Load ALL requests (both outgoing and incoming) - direction filtered client-side
-  const loadHistory = useCallback(async (pageNum = 0, append = false) => {
-    if (pageNum === 0) setLoading(true);
-    else setLoadingMore(true);
+  const loadHistory = useCallback(
+    async (pageNum = 0, append = false) => {
+      if (pageNum === 0) setLoading(true);
+      else setLoadingMore(true);
 
-    // Load requests where we are either to_location OR source_location
-    const { data, error } = await supabase
-      .from("branch_requests")
-      .select(`
+      const { data, error } = await supabase
+        .from("branch_requests")
+        .select(`
         id, status, created_at, to_location_id,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
@@ -1052,31 +1114,34 @@ function HistoryTab({ location }) {
           source_location:source_location_id (id, name, location_name)
         )
       `)
-      .in("status", ["completed", "cancelled", "rejected"])
-      .gte("created_at", `${dateFrom}T00:00:00`)
-      .lte("created_at", `${dateTo}T23:59:59`)
-      .order("created_at", { ascending: false })
-      .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+        .in("status", ["completed", "cancelled", "rejected"])
+        .gte("created_at", `${dateFrom}T00:00:00`)
+        .lte("created_at", `${dateTo}T23:59:59`)
+        .order("created_at", { ascending: false })
+        .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-    if (!error) {
-      // Tag each request with its direction for this location
-      const taggedData = (data || []).map(req => {
-        const isOutgoing = req.to_location_id === location.id;
-        const isIncoming = req.items?.some(item => item.source_location?.id === location.id);
-        return { ...req, _isOutgoing: isOutgoing, _isIncoming: isIncoming };
-      }).filter(req => req._isOutgoing || req._isIncoming); // Only keep relevant requests
+      if (!error) {
+        const taggedData = (data || [])
+          .map((req) => {
+            const isOutgoing = req.to_location_id === location.id;
+            const isIncoming = req.items?.some((item) => item.source_location?.id === location.id);
+            return { ...req, _isOutgoing: isOutgoing, _isIncoming: isIncoming };
+          })
+          .filter((req) => req._isOutgoing || req._isIncoming);
 
-      if (append) {
-        setAllRequests(prev => [...prev, ...taggedData]);
-      } else {
-        setAllRequests(taggedData);
+        if (append) {
+          setAllRequests((prev) => [...prev, ...taggedData]);
+        } else {
+          setAllRequests(taggedData);
+        }
+        setHasMore((data || []).length === PAGE_SIZE);
       }
-      setHasMore((data || []).length === PAGE_SIZE);
-    }
-    
-    setLoading(false);
-    setLoadingMore(false);
-  }, [location.id, dateFrom, dateTo]); // NO direction dependency!
+
+      setLoading(false);
+      setLoadingMore(false);
+    },
+    [location.id, dateFrom, dateTo]
+  );
 
   useEffect(() => {
     setPage(0);
@@ -1089,41 +1154,40 @@ function HistoryTab({ location }) {
     loadHistory(nextPage, true);
   };
 
-  // Apply client-side filters (direction + status + search) - NO reload needed!
   const filteredRequests = useMemo(() => {
-    // First filter by direction (client-side, instant)
-    let result = direction === "outgoing" 
-      ? allRequests.filter(r => r._isOutgoing)
-      : allRequests.filter(r => r._isIncoming);
-    
-    // Status filter
+    let result =
+      direction === "outgoing"
+        ? allRequests.filter((r) => r._isOutgoing)
+        : allRequests.filter((r) => r._isIncoming);
+
     if (status !== "all") {
-      result = result.filter(r => r.status === status);
+      result = result.filter((r) => r.status === status);
     }
-    
-    // Search filter (product name or SKU)
+
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(r => 
-        r.items?.some(item => 
-          item.product?.name?.toLowerCase().includes(q) ||
-          item.product?.sku?.toLowerCase().includes(q)
+      result = result.filter((r) =>
+        r.items?.some(
+          (item) =>
+            item.product?.name?.toLowerCase().includes(q) ||
+            item.product?.sku?.toLowerCase().includes(q)
         )
       );
     }
-    
+
     return result;
   }, [allRequests, direction, status, search]);
 
-  const directionFiltered = direction === "outgoing" 
-    ? allRequests.filter(r => r._isOutgoing)
-    : allRequests.filter(r => r._isIncoming);
-  
+  const directionFiltered =
+    direction === "outgoing"
+      ? allRequests.filter((r) => r._isOutgoing)
+      : allRequests.filter((r) => r._isIncoming);
+
   const counts = {
     all: directionFiltered.length,
-    completed: directionFiltered.filter(r => r.status === "completed").length,
-    cancelled: directionFiltered.filter(r => r.status === "cancelled").length,
-    rejected: directionFiltered.filter(r => r.status === "rejected").length,
+    completed: directionFiltered.filter((r) => r.status === "completed").length,
+    cancelled: directionFiltered.filter((r) => r.status === "cancelled").length,
+    rejected: directionFiltered.filter((r) => r.status === "rejected").length,
   };
 
   if (loading) {
@@ -1138,9 +1202,9 @@ function HistoryTab({ location }) {
     <div className="space-y-4">
       {/* Filter Card */}
       <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4">
-        {/* Row 1: Direction Toggle + Date Range */}
+        {/* Row 1 */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {/* Direction Toggle - Professional labels */}
+          {/* Direction Toggle */}
           <div className="inline-flex rounded-lg bg-neutral-100 p-1">
             <button
               onClick={() => setDirection("outgoing")}
@@ -1151,7 +1215,7 @@ function HistoryTab({ location }) {
               }`}
             >
               <Send className={`w-4 h-4 ${direction === "outgoing" ? "text-emerald-600" : ""}`} />
-              Outgoing
+              {t("branchRequests.history.direction.outgoing")}
             </button>
             <button
               onClick={() => setDirection("incoming")}
@@ -1162,11 +1226,11 @@ function HistoryTab({ location }) {
               }`}
             >
               <Inbox className={`w-4 h-4 ${direction === "incoming" ? "text-emerald-600" : ""}`} />
-              Incoming
+              {t("branchRequests.history.direction.incoming")}
             </button>
           </div>
 
-          {/* Date Range - Cleaner */}
+          {/* Date Range */}
           <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2">
             <input
               type="date"
@@ -1184,14 +1248,14 @@ function HistoryTab({ location }) {
           </div>
         </div>
 
-        {/* Row 2: Search + Status Pills */}
+        {/* Row 2 */}
         <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
-              placeholder="Search product or SKU..."
+              placeholder={t("branchRequests.history.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-neutral-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
@@ -1206,13 +1270,13 @@ function HistoryTab({ location }) {
             )}
           </div>
 
-          {/* Status Pills - inline */}
+          {/* Status Pills */}
           <div className="flex items-center gap-1.5">
             {[
-              { key: "all", label: "All" },
-              { key: "completed", label: "Completed" },
-              { key: "cancelled", label: "Cancelled" },
-              { key: "rejected", label: "Rejected" },
+              { key: "all", label: t("branchRequests.history.statusPills.all") },
+              { key: "completed", label: t("branchRequests.history.statusPills.completed") },
+              { key: "cancelled", label: t("branchRequests.history.statusPills.cancelled") },
+              { key: "rejected", label: t("branchRequests.history.statusPills.rejected") },
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -1234,36 +1298,67 @@ function HistoryTab({ location }) {
       {filteredRequests.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
           <History className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-          <h3 className="font-semibold text-neutral-900 mb-2">No Results</h3>
-          <p className="text-sm text-neutral-500">No requests match your filters</p>
+          <h3 className="font-semibold text-neutral-900 mb-2">
+            {t("branchRequests.history.noResultsTitle")}
+          </h3>
+          <p className="text-sm text-neutral-500">
+            {t("branchRequests.history.noResultsText")}
+          </p>
         </div>
       ) : (
         <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
           {/* Table Header */}
           <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-medium text-white uppercase tracking-wide">
-            <div className="col-span-5">Products</div>
-            <div className="col-span-2">{direction === "outgoing" ? "From" : "To"}</div>
-            <div className="col-span-1 text-right">Qty</div>
-            <div className="col-span-2 text-center">Status</div>
-            <div className="col-span-2 text-right">Date</div>
+            <div className="col-span-5">{t("branchRequests.history.columns.products")}</div>
+            <div className="col-span-2">
+              {direction === "outgoing"
+                ? t("branchRequests.history.columns.from")
+                : t("branchRequests.history.columns.to")}
+            </div>
+            <div className="col-span-1 text-right">{t("branchRequests.history.columns.qty")}</div>
+            <div className="col-span-2 text-center">{t("branchRequests.history.columns.status")}</div>
+            <div className="col-span-2 text-right">{t("branchRequests.history.columns.date")}</div>
           </div>
 
           {/* Table Body */}
           <div className="divide-y divide-neutral-100">
-            {filteredRequests.map(req => {
-              const partner = direction === "outgoing" 
-                ? (req.items?.[0]?.source_location?.location_name || req.items?.[0]?.source_location?.name || "Unknown")
-                : (req.to_location?.location_name || req.to_location?.name || "Unknown");
-              const totalQty = req.items?.reduce((sum, i) => sum + (i.approved_qty || i.requested_qty || 0), 0) || 0;
-              // Product name with SKU
-              const productInfo = req.items?.slice(0, 2).map(i => 
-                `${i.product?.name || 'Unknown'}${i.product?.sku ? ` (${i.product.sku})` : ''}`
-              ).join(", ") || "—";
+            {filteredRequests.map((req) => {
+              const partner =
+                direction === "outgoing"
+                  ? req.items?.[0]?.source_location?.location_name ||
+                    req.items?.[0]?.source_location?.name ||
+                    t("branchRequests.common.unknown")
+                  : req.to_location?.location_name ||
+                    req.to_location?.name ||
+                    t("branchRequests.common.unknown");
+
+              const totalQty =
+                req.items?.reduce(
+                  (sum, i) => sum + (i.approved_qty || i.requested_qty || 0),
+                  0
+                ) || 0;
+
+              const productInfo =
+                req.items
+                  ?.slice(0, 2)
+                  .map(
+                    (i) =>
+                      `${i.product?.name || t("branchRequests.common.unknown")}${
+                        i.product?.sku ? ` (${i.product.sku})` : ""
+                      }`
+                  )
+                  .join(", ") || "—";
+
               const moreCount = (req.items?.length || 0) - 2;
-              const config = STATUS_CONFIG[req.status] || { label: req.status, color: "bg-neutral-100 text-neutral-600" };
-              
+
+              const config = STATUS_CONFIG[req.status] || { color: "bg-neutral-100 text-neutral-600", labelKey: "" };
+              const label = config.labelKey ? t(config.labelKey) : String(req.status);
+
               return (
-                <div key={req.id} className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-neutral-50/50 transition-colors items-center">
+                <div
+                  key={req.id}
+                  className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-neutral-50/50 transition-colors items-center"
+                >
                   <div className="col-span-5 text-sm text-neutral-700 truncate">
                     {productInfo}
                     {moreCount > 0 && <span className="text-neutral-400"> +{moreCount}</span>}
@@ -1276,15 +1371,21 @@ function HistoryTab({ location }) {
                   </div>
                   <div className="col-span-2 text-center">
                     <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${config.color}`}>
-                      {config.label}
+                      {label}
                     </span>
                   </div>
                   <div className="col-span-2 text-right">
                     <p className="text-sm text-neutral-600">
-                      {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(req.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
                     </p>
                     <p className="text-xs text-neutral-400">
-                      {new Date(req.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(req.created_at).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                 </div>
@@ -1303,7 +1404,7 @@ function HistoryTab({ location }) {
                 {loadingMore ? (
                   <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                 ) : (
-                  `Load More (showing ${filteredRequests.length})`
+                  t("branchRequests.history.loadMore", { count: filteredRequests.length })
                 )}
               </button>
             </div>
@@ -1313,213 +1414,12 @@ function HistoryTab({ location }) {
 
       {/* Results Summary */}
       <div className="text-xs text-neutral-500 text-center">
-        Showing {filteredRequests.length} of {counts.all} {direction} requests
-        {search && ` matching "${search}"`}
+        {t("branchRequests.history.showing", {
+          filtered: filteredRequests.length,
+          all: counts.all,
+        })}
+        {search ? ` • "${search}"` : ""}
       </div>
-    </div>
-  );
-}
-
-/*                       COMPACT REQUEST ROW (for grouped view)                */
-/* -------------------------------------------------------------------------- */
-function CompactRequestRow({ request, onCancel, onConfirmReceipt, onApprove, onReject, isIncoming = false }) {
-  const config = STATUS_CONFIG[request.status] || { label: request.status, color: "bg-neutral-100 text-neutral-600" };
-  const StatusIcon = config.icon || Clock;
-
-  return (
-    <div className="hover:bg-neutral-50/50 transition-colors">
-      {/* Request Header - minimal */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-100/50">
-        <div className="flex items-center gap-2">
-          <StatusIcon className={`w-3.5 h-3.5 ${request.status === 'approved' ? 'text-blue-600' : request.status === 'sent' ? 'text-amber-600' : 'text-neutral-500'}`} />
-          <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${config.color}`}>
-            {config.label}
-          </span>
-          <span className="text-xs text-neutral-400">
-            {new Date(request.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </span>
-        </div>
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {!isIncoming && request.status === "sent" && (
-            <button
-              onClick={onCancel}
-              className="px-2.5 py-1 rounded-lg border border-neutral-200 bg-white text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
-            >
-              Cancel
-            </button>
-          )}
-          {!isIncoming && request.status === "approved" && (
-            <button
-              onClick={onConfirmReceipt}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
-            >
-              Confirm Receipt
-            </button>
-          )}
-          {isIncoming && request.status === "sent" && (
-            <>
-              <button
-                onClick={onReject}
-                className="px-2.5 py-1 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Reject
-              </button>
-              <button
-                onClick={onApprove}
-                className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
-              >
-                Approve
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      
-      {/* Product Items - product name/SKU left, quantity right */}
-      <div className="divide-y divide-neutral-50">
-        {request.items?.map((item, i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-neutral-900 truncate">{item.product?.name || 'Unknown Product'}</p>
-              <p className="text-xs text-neutral-500">{item.product?.sku || 'No SKU'}</p>
-            </div>
-            <div className="text-right shrink-0 ml-4">
-              <p className="text-sm font-bold text-neutral-900">{item.approved_qty || item.requested_qty || 0}</p>
-              <p className="text-[10px] text-neutral-400 uppercase">qty</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                          REQUEST CARD                                       */
-/* -------------------------------------------------------------------------- */
-function RequestCard({ request, type, onCancel, onConfirmReceipt, onApprove, onReject }) {
-  const itemCount = request.items?.length || 0;
-  const totalQty = request.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
-
-  // Get source location from first item (since from_location_id isn't in header)
-  const firstItem = request.items?.[0];
-  const fromLocation = firstItem?.source_location?.location_name || firstItem?.source_location?.name || "Unknown";
-  const toLocation = request.to_location?.location_name || request.to_location?.name || "Unknown";
-
-  // Request ID formatted nicely
-  const requestId = typeof request.id === 'string' ? request.id.slice(0, 8).toUpperCase() : String(request.id).padStart(4, "0");
-
-  return (
-    <div className="group rounded-2xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden hover:shadow-lg hover:border-neutral-300/80 transition-all duration-300">
-      {/* Header with gradient accent */}
-      <div className="relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
-        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-b from-neutral-50/80 to-white">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 shadow-sm group-hover:shadow transition-shadow">
-              <ArrowRightLeft className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-bold text-neutral-900 tracking-tight">REQ-{requestId}</p>
-              <p className="text-xs text-neutral-500 flex items-center gap-2 mt-0.5">
-                <Clock className="w-3.5 h-3.5" />
-                {new Date(request.created_at).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-                <span className="w-1 h-1 rounded-full bg-neutral-300" />
-                {itemCount} item{itemCount !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-          <StatusBadge status={request.status} />
-        </div>
-      </div>
-
-      {/* Location Flow - Visual Arrow */}
-      <div className="px-5 py-4 bg-gradient-to-r from-neutral-50/50 via-white to-neutral-50/50 border-y border-neutral-100">
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Source</p>
-            <p className="font-semibold text-neutral-900 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-emerald-600" />
-              {fromLocation}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 text-emerald-500">
-            <div className="w-8 h-0.5 bg-gradient-to-r from-emerald-300 to-emerald-500 rounded-full" />
-            <ChevronRight className="w-5 h-5" />
-          </div>
-          <div className="flex-1 text-right">
-            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-1">Destination</p>
-            <p className="font-semibold text-neutral-900 flex items-center gap-2 justify-end">
-              {toLocation}
-              <MapPin className="w-4 h-4 text-teal-600" />
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Items Preview - Chips */}
-      <div className="px-5 py-4">
-        <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-medium mb-2">Products</p>
-        <div className="flex flex-wrap gap-2">
-          {request.items?.slice(0, 3).map((item, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-neutral-100 to-neutral-50 border border-neutral-200/80 text-xs font-medium text-neutral-700 shadow-sm">
-              <Package className="w-3.5 h-3.5 text-neutral-500" />
-              {item.product?.name}
-              <span className="text-emerald-600 font-semibold">×{item.requested_qty}</span>
-            </span>
-          ))}
-          {itemCount > 3 && (
-            <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-neutral-100 border border-neutral-200/80 text-xs font-medium text-neutral-500">
-              +{itemCount - 3} more
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions - Premium Buttons */}
-      {(type === "outgoing" || type === "incoming") && (
-        <div className="px-5 py-4 border-t border-neutral-100 bg-gradient-to-b from-neutral-50/50 to-neutral-100/30 flex justify-end gap-3">
-          {type === "outgoing" && request.status === "sent" && (
-            <button
-              onClick={onCancel}
-              className="px-5 py-2.5 rounded-xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 shadow-sm hover:shadow transition-all"
-            >
-              Cancel Request
-            </button>
-          )}
-          {type === "outgoing" && request.status === "approved" && (
-            <button
-              onClick={onConfirmReceipt}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 flex items-center gap-2 transition-all"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Confirm Receipt
-            </button>
-          )}
-          {type === "incoming" && request.status === "sent" && (
-            <>
-              <button
-                onClick={onReject}
-                className="px-5 py-2.5 rounded-xl border border-red-200 bg-white text-sm font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 shadow-sm hover:shadow transition-all"
-              >
-                Reject
-              </button>
-              <button
-                onClick={onApprove}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 flex items-center gap-2 transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Approve
-              </button>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }

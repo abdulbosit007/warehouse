@@ -31,7 +31,8 @@
     "ownerOnly": "Доступ только для владельца.",
     "showingRange": "Показано {{from}}–{{to}} из {{total}}",
     "authError": "Ошибка авторизации",
-    "failedLoad": "Не удалось загрузить данные"
+    "failedLoad": "Не удалось загрузить данные",
+    "close": "Закрыть"
   },
   "ownerHome": {
     "title": "Обзор инвентаря",
@@ -442,6 +443,392 @@
       "addedLinked": "Пользователь добавлен и привязан!",
       "autoAssigned": "Локация автоматически назначена: \"{{label}}\".",
       "autoAssignedFirst": "Локация автоматически назначена: \"{{label}}\" (первая из нескольких)."
+    }
+  },
+  "branch1": {
+    "home": {
+      "title": "Склад филиала",
+      "yourBranch": "Ваш филиал",
+      "productsCount": "{{count}} товаров",
+      "errors": {
+        "noLocation": "Филиал не назначен",
+        "loadFailed": "Не удалось загрузить данные",
+        "branchOnly": "Доступ только для филиала."
+      },
+      "stats": {
+        "products": "Товары",
+        "totalItems": "Всего единиц",
+        "lowStock": "Мало остатка",
+        "stockValue": "Стоимость склада"
+      },
+      "search": {
+        "placeholder": "Поиск по названию или SKU..."
+      },
+      "meta": {
+        "products": "{{count}} товаров",
+        "productsOfTotal": "{{shown}} из {{total}}"
+      },
+      "filters": {
+        "button": "Фильтры",
+        "title": "Фильтры",
+        "activeCount": "Активно: {{count}}",
+        "category": {
+          "label": "Категория",
+          "all": "Все категории"
+        },
+        "price": {
+          "label": "Диапазон цен",
+          "min": "Мин",
+          "max": "Макс",
+          "pill": "Цена: {{min}} – {{max}}"
+        },
+        "stock": {
+          "label": "Остаток",
+          "all": "Все товары",
+          "inStock": "В наличии (> 5)",
+          "lowStock": "Мало (1-5)",
+          "outOfStock": "Нет в наличии",
+          "inStockShort": "В наличии",
+          "lowStockShort": "Мало",
+          "outOfStockShort": "Нет"
+        }
+      },
+      "table": {
+        "emptyTitle": "Товары не найдены",
+        "clearFilters": "Очистить фильтры",
+        "product": "Товар",
+        "sku": "SKU",
+        "category": "Категория",
+        "price": "Цена",
+        "quantity": "Кол-во",
+        "value": "Сумма"
+      },
+      "pagination": {
+        "showing": "Показано {{from}}–{{to}} из {{total}}",
+        "rows": "Строк:"
+      }
+    }
+  },
+  "branch": {
+    "stockCorrections": {
+      "title": "Корректировки остатка",
+      "subtitle": "Филиал: {{branch}} — Сообщайте и отслеживайте расхождения по складу",
+      "status": {
+        "pending": "Ожидает",
+        "approved": "Одобрено",
+        "rejected": "Отклонено"
+      },
+      "stats": {
+        "all": "Все заявки",
+        "pending": "Ожидают",
+        "approved": "Одобрены",
+        "rejected": "Отклонены"
+      },
+      "errors": {
+        "authError": "Ошибка авторизации: {{error}}",
+        "branchOnly": "Доступ только для пользователей филиала.",
+        "noBranchLocation": "Не удалось найти филиал для этого пользователя.",
+        "loadFailed": "Не удалось загрузить заявки на корректировку.",
+        "branchNotLoaded": "Филиал не загружен.",
+        "userNotLoaded": "Пользователь не загружен. Перезайдите.",
+        "pickProductFirst": "Сначала выберите товар.",
+        "systemQtyLoading": "Системное количество ещё загружается. Подождите.",
+        "nonNegativeQty": "Введите неотрицательное количество.",
+        "alreadyPending": "По этому товару уже есть ожидающая заявка в этом филиале. Дождитесь решения владельца.",
+        "sendFailed": "Не удалось отправить заявку."
+      },
+      "messages": {
+        "sentToOwner": "Заявка на корректировку отправлена владельцу!"
+      },
+      "form": {
+        "title": "Сообщить о расхождении",
+        "subtitle": "Есть разница между фактическим и системным остатком? Сообщите здесь.",
+        "searchProduct": "Поиск товара",
+        "searchPlaceholder": "Введите название или SKU...",
+        "searching": "Поиск...",
+        "systemQty": "Системное количество",
+        "loadingMini": "загрузка...",
+        "physicalQty": "Фактическое количество",
+        "physicalPlaceholder": "Введите пересчитанное количество",
+        "difference": "Разница",
+        "comment": "Комментарий",
+        "optional": "(необязательно)",
+        "commentPlaceholder": "Опишите причину расхождения...",
+        "sending": "Отправка...",
+        "submit": "Отправить"
+      },
+      "search": {
+        "placeholder": "Поиск по заявкам..."
+      },
+      "empty": {
+        "title": "Заявок не найдено",
+        "subtitle": "Используйте форму выше, чтобы сообщить о расхождении"
+      },
+      "table": {
+        "date": "Дата",
+        "product": "Товар",
+        "system": "Система",
+        "reported": "Факт",
+        "diff": "Разн.",
+        "status": "Статус",
+        "action": "Действие",
+        "view": "Открыть"
+      },
+      "modal": {
+        "title": "Детали корректировки",
+        "request": "Заявка #{{id}}",
+        "system": "Система",
+        "reported": "Факт",
+        "diff": "Разница",
+        "status": "Статус",
+        "requestedBy": "Запросил(а) {{name}} — {{date}}",
+        "decidedBy": "Решение: {{name}}{{date}}",
+        "comment": "Комментарий"
+      }
+    }
+  },
+  "branchAudit": {
+    "title": "Инвентаризация",
+    "subtitle": "{{branch}}",
+    "status": {
+      "completed": "Завершено",
+      "inProgress": "В процессе"
+    },
+    "stats": {
+      "confirmed": "Подтверждено",
+      "discrepancies": "Расхождения",
+      "pending": "Ожидает"
+    },
+    "actions": {
+      "refresh": "Обновить",
+      "back": "Назад к списку",
+      "submit": "Отправить владельцу",
+      "submitting": "Отправка...",
+      "next": "Далее",
+      "previous": "Назад",
+      "undo": "Отменить",
+      "edit": "Редактировать",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "close": "Закрыть"
+    },
+    "product": {
+      "systemQty": "Кол-во в системе",
+      "verifiedCorrect": "Проверено: верно",
+      "discrepancyFound": "Найдено расхождение",
+      "actual": "Факт",
+      "enterActualQty": "Введите фактическое количество",
+      "correct": "Верно",
+      "wrong": "Неверно",
+      "invalidQty": "Введите корректное количество"
+    },
+    "progress": {
+      "title": "Прогресс проверки",
+      "remaining": "Осталось"
+    },
+    "search": {
+      "placeholder": "Поиск по названию или SKU..."
+    },
+    "filters": {
+      "all": "Все",
+      "pending": "Ожидает",
+      "confirmed": "Подтверждено",
+      "discrepancies": "Расхождения",
+      "allCategories": "Все категории",
+      "defaultOrder": "По умолчанию",
+      "qtyAsc": "Количество: мало → много",
+      "qtyDesc": "Количество: много → мало"
+    },
+    "list": {
+      "activeAudit": "Активная инвентаризация",
+      "yourAudits": "Ваши инвентаризации",
+      "auditLabel": "Инвентаризация",
+      "tapToContinue": "Нажмите, чтобы продолжить",
+      "productsCount": "{{count}} товаров",
+      "reviewedCount": "Проверено: {{count}}"
+    },
+    "empty": {
+      "noActiveAudit": "Нет активной инвентаризации",
+      "waitForOwner": "Ожидайте, когда владелец запустит инвентаризацию",
+      "noAudits": "Пока нет отправленных инвентаризаций",
+      "noProducts": "Нет товаров по вашим фильтрам"
+    },
+    "messages": {
+      "submittedTitle": "Инвентаризация успешно отправлена!",
+      "submittedText": "Ваши ответы сохранены. Владелец проверит результаты."
+    },
+    "modal": {
+      "audit": "Инвентаризация",
+      "unknownProduct": "Неизвестный товар",
+      "correctionsReported": "Отмеченные расхождения ({{count}})",
+      "confirmedItems": "Подтвержденные позиции ({{count}})",
+      "confirmedText": "Подтверждено: {{count}} товаров совпадают с системой.",
+      "noResponses": "Ответов нет",
+      "system": "Система",
+      "actual": "Факт"
+    },
+    "errors": {
+      "loadFailed": "Не удалось загрузить данные",
+      "submitFailed": "Не удалось отправить инвентаризацию",
+      "branchOnly": "Доступ только для филиала"
+    },
+    "common": {
+      "loading": "Загрузка...",
+      "yourBranch": "Ваш филиал"
+    }
+  },
+  "branchRequests": {
+    "title": "Запросы на товары",
+    "subtitle": "Управляйте входящими и исходящими перемещениями товаров",
+
+    "tabs": {
+      "new": "Новый запрос",
+      "outgoing": "Мои запросы",
+      "incoming": "Входящие",
+      "history": "История"
+    },
+
+    "status": {
+      "sent": "Ожидает проверки",
+      "approved": "В пути",
+      "rejected": "Отклонено",
+      "completed": "Завершено",
+      "cancelled": "Отменено"
+    },
+
+    "toast": {
+      "requestSentSuccess": "Запрос успешно отправлен!",
+      "requestSentFail": "Не удалось отправить запрос",
+      "cancelSuccess": "Запрос отменён",
+      "cancelFail": "Не удалось отменить запрос",
+      "approveSuccess": "Запрос одобрен! Остатки списаны.",
+      "approveFail": "Не удалось одобрить запрос",
+      "rejectInfo": "Запрос отклонён",
+      "confirmReceiptSuccess": "Товар получен! Остатки обновлены.",
+      "confirmReceiptFail": "Не удалось подтвердить получение"
+    },
+
+    "common": {
+      "loading": "Загрузка...",
+      "searching": "Поиск...",
+      "unknown": "Неизвестно",
+      "qty": "кол-во"
+    },
+
+    "newRequest": {
+      "searchTitle": "Поиск товаров",
+      "searchPlaceholder": "Поиск по названию или SKU...",
+      "skuLabel": "SKU",
+      "stockHint": "Введите количество по каждой локации:",
+      "available": "Доступно",
+      "addLocationsToCart": "Добавить в корзину: {{count}} локац.",
+      "cartItems": "Корзина ({{count}} поз.)",
+      "emptyCartTitle": "Корзина пуста",
+      "emptyCartText": "Найдите товар, добавьте и отправьте запрос",
+      "from": "Откуда",
+      "sendRequest": "Отправить запрос",
+      "sending": "Отправка..."
+    },
+
+    "outgoing": {
+      "emptyTitle": "Нет активных запросов",
+      "emptyText": "Создайте новый запрос, чтобы начать",
+      "summary": "активных запросов",
+
+      "columns": {
+        "products": "Товары",
+        "source": "Источник",
+        "qty": "Кол-во",
+        "status": "Статус",
+        "date": "Дата",
+        "actions": "Действия"
+      },
+
+      "pending": "Ожидает",
+      "approved": "Одобрено",
+      "cancelBtn": "Отменить",
+      "receivedBtn": "Получено"
+    },
+
+    "incoming": {
+      "emptyTitle": "Нет входящих запросов",
+      "emptyText": "Здесь будут отображаться запросы от других локаций",
+      "summary": "запросов ожидают решения",
+
+      "columns": {
+        "products": "Товары",
+        "requester": "Запросивший",
+        "qty": "Кол-во",
+        "date": "Дата",
+        "actions": "Действия"
+      },
+
+      "rejectBtn": "Отклонить",
+      "approveBtn": "Одобрить"
+    },
+
+    "history": {
+      "direction": {
+        "outgoing": "Исходящие",
+        "incoming": "Входящие"
+      },
+
+      "searchPlaceholder": "Поиск товара или SKU...",
+
+      "statusPills": {
+        "all": "Все",
+        "completed": "Завершено",
+        "cancelled": "Отменено",
+        "rejected": "Отклонено"
+      },
+
+      "noResultsTitle": "Нет результатов",
+      "noResultsText": "Нет запросов, подходящих под фильтры",
+
+      "columns": {
+        "products": "Товары",
+        "from": "Откуда",
+        "to": "Куда",
+        "qty": "Кол-во",
+        "status": "Статус",
+        "date": "Дата"
+      },
+
+      "showing": "Показано {{filtered}} из {{all}} запросов",
+      "loadMore": "Загрузить ещё (сейчас: {{count}})"
+    }
+  },
+  "branchOperations": {
+    "header": {
+      "title": "Операции филиала",
+      "subtitle": "Управляйте продажами, займами, возвратами и историей"
+    },
+    "tabs": {
+      "sale": "Продажа",
+      "loan": "Займ",
+      "return": "Возврат",
+      "history": "История"
+    },
+    "common": {
+      "loading": "Загрузка..."
+    },
+    "guard": {
+      "errorTitle": "Ошибка",
+      "forbiddenTitle": "Доступ запрещён",
+      "forbiddenMsg": "Только для филиала."
+    },
+    "errors": {
+      "locationNotFound": "Локация не найдена: {{locationName}}",
+      "checkQuantities": "Пожалуйста, проверьте количества.",
+      "borrowerAndQtyRequired": "Нужны данные заемщика и количества.",
+      "selectItemsAndQty": "Выберите позиции и количество.",
+      "pickSkuRow": "Сначала выберите строку SKU."
+    },
+    "success": {
+      "saleCommitted": "Продажа проведена. TX: {{tx}}",
+      "loanCommitted": "Займ проведён. TX: {{tx}}",
+      "returnCommittedOne": "Возврат проведён. TX: {{tx}}",
+      "returnCommittedMany": "Проведено возвратов: {{count}}."
     }
   }
 }

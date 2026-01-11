@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { Package } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
@@ -29,6 +30,8 @@ import "react-day-picker/dist/style.css";
 const nf = new Intl.NumberFormat();
 
 export default function BranchOperations() {
+  const { t } = useTranslation();
+
   /* ----------------------------- DEBUG infra ----------------------------- */
   const [debugOpen, setDebugOpen] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -45,7 +48,12 @@ export default function BranchOperations() {
     )}ms`;
 
   /* ------------------------------ WHO AM I ------------------------------- */
-  const { loading: uLoading, error: uErr, roleBase, locationName } = useCurrentUser();
+  const {
+    loading: uLoading,
+    error: uErr,
+    roleBase,
+    locationName,
+  } = useCurrentUser();
   const isBranch = roleBase === "branch";
 
   useEffect(() => {
@@ -160,7 +168,7 @@ export default function BranchOperations() {
       .maybeSingle();
     log(`locations.by_label ${toc("loc")}`, { error: locErr, loc });
     if (locErr) throw locErr;
-    if (!loc) throw new Error(`Location not found for ${locationName}`);
+    if (!loc) throw new Error(t("branchOperations.errors.locationNotFound", { locationName }));
     return loc;
   }
 
@@ -191,24 +199,16 @@ export default function BranchOperations() {
         const { data: products, error: pErr } = await supabase
           .from("products")
           .select("id, name, sku, category_id, sale_price, price")
-          .in(
-            "id",
-            pids.length ? pids : ["00000000-0000-0000-0000-000000000000"]
-          );
+          .in("id", pids.length ? pids : ["00000000-0000-0000-0000-000000000000"]);
         if (pErr) throw pErr;
 
         const catIds = [
-          ...new Set(
-            (products || []).map((p) => p.category_id).filter(Boolean)
-          ),
+          ...new Set((products || []).map((p) => p.category_id).filter(Boolean)),
         ];
         const { data: cats, error: cErr } = await supabase
           .from("categories")
           .select("id, name")
-          .in(
-            "id",
-            catIds.length ? catIds : ["00000000-0000-0000-0000-000000000000"]
-          );
+          .in("id", catIds.length ? catIds : ["00000000-0000-0000-0000-000000000000"]);
         if (cErr) throw cErr;
 
         const pMap = new Map((products || []).map((p) => [p.id, p]));
@@ -223,8 +223,7 @@ export default function BranchOperations() {
             sku: p.sku || "",
             category: p.category_id ? cMap.get(p.category_id) || "" : "",
             available: r.quantity ?? 0,
-            display_price:
-              p.sale_price != null ? p.sale_price : p.price ?? null,
+            display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
           };
         });
 
@@ -246,7 +245,6 @@ export default function BranchOperations() {
   }, [isBranch, locationName, roleBase]);
 
   /* -------- fetch returned sums for parent transactions (for caps/badges) --- */
-  // Map parent_tx_id -> Map product_id -> returned_qty_sum
   async function fetchReturnedSums(parentIds) {
     if (!parentIds || parentIds.length === 0) return new Map();
     const unique = [...new Set(parentIds)];
@@ -349,7 +347,6 @@ export default function BranchOperations() {
   };
 
   /* -------------------------- HISTORY: BY SKU (1y) ------------------------ */
-  // Search for product suggestions (dropdown) - searches by SKU or Name
   async function searchHistoryProductSuggestions() {
     const term = skuQuery.trim();
     if (term.length < 2) {
@@ -364,16 +361,15 @@ export default function BranchOperations() {
         .limit(10);
       if (error) throw error;
       setHistSkuSuggestions(prods || []);
-    } catch (e) {
+    } catch {
       setHistSkuSuggestions([]);
     }
   }
 
-  // Load history for a selected product
   async function loadHistoryForProduct(productId, sku) {
     setHistSkuLoading(true);
-    setHistSkuSuggestions([]); // Hide dropdown
-    setSkuQuery(sku); // Show selected SKU
+    setHistSkuSuggestions([]);
+    setSkuQuery(sku);
     try {
       setErr("");
       const loc = await getBranchLocation();
@@ -538,16 +534,14 @@ export default function BranchOperations() {
 
   async function commitSale() {
     try {
-      if (!cartValid) throw new Error("Please check quantities.");
+      if (!cartValid) throw new Error(t("branchOperations.errors.checkQuantities"));
       const payload = {
         note,
         items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
       };
-      const { data, error } = await supabase.rpc("fn_branch_commit_sale", {
-        p: payload,
-      });
+      const { data, error } = await supabase.rpc("fn_branch_commit_sale", { p: payload });
       if (error) throw error;
-      setOk(`Sale committed. TX: ${data}`);
+      setOk(t("branchOperations.success.saleCommitted", { tx: data }));
       setCart([]);
       setNote("");
       setLoading(true);
@@ -559,7 +553,7 @@ export default function BranchOperations() {
 
   async function commitLoan() {
     try {
-      if (!loanValid) throw new Error("Borrower & quantities are required.");
+      if (!loanValid) throw new Error(t("branchOperations.errors.borrowerAndQtyRequired"));
       const payload = {
         note,
         borrower_name: borrower.borrower_name,
@@ -568,14 +562,11 @@ export default function BranchOperations() {
         due_date: borrower.due_date,
         items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
       };
-      const { data, error } = await supabase.rpc("fn_branch_commit_loan", {
-        p: payload,
-      });
+      const { data, error } = await supabase.rpc("fn_branch_commit_loan", { p: payload });
       if (error) throw error;
-      setOk(`Loan committed. TX: ${data}`);
+      setOk(t("branchOperations.success.loanCommitted", { tx: data }));
       setCart([]);
       setNote("");
-      // Reset borrower details
       setBorrower({
         borrower_name: "",
         borrower_phone: "",
@@ -700,7 +691,6 @@ export default function BranchOperations() {
   }
 
   /* --------------------------- RETURN: BY SKU ----------------------------- */
-  // Search for product suggestions (dropdown) - searches by SKU or Name
   async function searchProductSuggestions() {
     const term = retSkuQuery.trim();
     if (term.length < 2) {
@@ -715,16 +705,15 @@ export default function BranchOperations() {
         .limit(10);
       if (error) throw error;
       setRetSkuSuggestions(prods || []);
-    } catch (e) {
+    } catch {
       setRetSkuSuggestions([]);
     }
   }
 
-  // Load returnable items for a selected product
   async function loadReturnableItems(productId, sku) {
     setRetSkuLoading(true);
-    setRetSkuSuggestions([]); // Hide dropdown
-    setRetSkuQuery(sku); // Show selected SKU
+    setRetSkuSuggestions([]);
+    setRetSkuQuery(sku);
     try {
       setErr("");
       const loc = await getBranchLocation();
@@ -746,9 +735,7 @@ export default function BranchOperations() {
         .limit(100);
       if (error) throw error;
 
-      const parentIds = [
-        ...new Set((rows || []).map((r) => r.tx?.id).filter(Boolean)),
-      ];
+      const parentIds = [...new Set((rows || []).map((r) => r.tx?.id).filter(Boolean))];
       const returnedMap = await fetchReturnedSums(parentIds);
 
       const opts = (rows || [])
@@ -785,7 +772,6 @@ export default function BranchOperations() {
     }
   }
 
-  // Auto-search product suggestions as user types (debounced)
   useEffect(() => {
     if (returnMode !== "sku") return;
     const term = retSkuQuery.trim();
@@ -801,7 +787,6 @@ export default function BranchOperations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retSkuQuery, returnMode]);
 
-  // Auto-search history product suggestions as user types (debounced)
   useEffect(() => {
     if (histMode !== "sku") return;
     const term = skuQuery.trim();
@@ -822,7 +807,7 @@ export default function BranchOperations() {
     setErr("");
     setOk("");
     try {
-      if (!returnValid) throw new Error("Please select items and quantities.");
+      if (!returnValid) throw new Error(t("branchOperations.errors.selectItemsAndQty"));
 
       const groups = new Map(); // parent_tx_id -> { return_kind, items:[{product_id, qty}] }
 
@@ -837,7 +822,7 @@ export default function BranchOperations() {
           groups.set(val.parent_tx_id, g);
         }
       } else if (returnMode === "sku") {
-        if (!retSkuPicked) throw new Error("Pick a SKU row first.");
+        if (!retSkuPicked) throw new Error(t("branchOperations.errors.pickSkuRow"));
         const row = retSkuPicked;
         const g = groups.get(row.parent_tx_id) || {
           return_kind: row.return_kind,
@@ -863,22 +848,22 @@ export default function BranchOperations() {
 
       setOk(
         results.length === 1
-          ? `Return committed. TX: ${results[0]}`
-          : `Committed ${results.length} return transactions.`
+          ? t("branchOperations.success.returnCommittedOne", { tx: results[0] })
+          : t("branchOperations.success.returnCommittedMany", { count: results.length })
       );
 
       resetForms();
       if (returnMode === "date") {
         await loadReturnByDate(retSelectedDay);
       } else {
-        await searchReturnBySku();
+        // сенинг кодингда searchReturnBySku йўқ, шу сабаб safe reset қиламиз
+        setRetSkuOptions([]);
       }
     } catch (e) {
       setErr(e.message || String(e));
     }
   }
 
-  /* --------- auto-load Return→By Date when switching or changing day ------ */
   useEffect(() => {
     if (tab === "return" && returnMode === "date" && retSelectedDay) {
       loadReturnByDate(retSelectedDay);
@@ -916,9 +901,7 @@ export default function BranchOperations() {
         t.type === "sale_return" || t.type === "loan_return"
           ? {
               ...t,
-              parent_day: meta.get(t.parent_tx_id)
-                ? ymd(meta.get(t.parent_tx_id))
-                : null,
+              parent_day: meta.get(t.parent_tx_id) ? ymd(meta.get(t.parent_tx_id)) : null,
             }
           : t
       )
@@ -937,215 +920,225 @@ export default function BranchOperations() {
   }
 
   /* --------------------------------- GUARD ------------------------------- */
-  if (uLoading) return <div className="p-6">Loading...</div>;
-  if (uErr) return <Blocked title="Error" message={uErr} />;
+  if (uLoading) return <div className="p-6">{t("branchOperations.common.loading")}</div>;
+  if (uErr) return <Blocked title={t("branchOperations.guard.errorTitle")} message={uErr} />;
 
   if (!isBranch) {
-    return <Blocked title="Forbidden" message="Branch access only." />;
+    return (
+      <Blocked
+        title={t("branchOperations.guard.forbiddenTitle")}
+        message={t("branchOperations.guard.forbiddenMsg")}
+      />
+    );
   }
 
-/* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
-return (
-  <div className="space-y-6">
-    {/* Clean Header - Matching BranchRequests */}
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
-      <div className="relative flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
-          <Package className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Branch Operations</h1>
-          <p className="text-slate-400 text-sm">Manage sales, loans, returns and history</p>
-        </div>
-      </div>
-    </div>
-
-    {/* Modern Pill Tabs - Same as BranchRequests */}
-    <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
-      {[
-        { key: "sale", label: "Sale" },
-        { key: "loan", label: "Loan" },
-        { key: "return", label: "Return" },
-        { key: "history", label: "History" },
-      ].map((tabItem) => {
-        const isActive = tab === tabItem.key;
-        return (
-          <button
-            key={tabItem.key}
-            onClick={() => {
-              setTab(tabItem.key);
-              setErr("");
-
-              if (tabItem.key === "history") {
-                setHistMode("date");
-                setSkuQuery("");
-                setHistoryBySku([]);
-                setTimeout(
-                  () => loadHistoryByDateWithParents(new Date()),
-                  0
-                );
-              }
-
-              if (tabItem.key === "return") {
-                setReturnMode("date");
-                setTimeout(() => loadReturnByDate(new Date()), 0);
-              }
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              isActive
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
-            }`}
-          >
-            {tabItem.label}
-          </button>
-        );
-      })}
-    </div>
-
-    {/* Alerts */}
-    {(err || ok) && (
-      <div className="space-y-3">
-        {err && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
-            {err}
-          </div>
-        )}
-        {ok && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
-            {ok}
-          </div>
-        )}
-      </div>
-    )}
-
-    {/* Content cards */}
+  /* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
+  return (
     <div className="space-y-6">
-      {tab === "sale" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <SaleSection
-            locationName={locationName}
-            q={q}
-            setQ={setQ}
-            loading={loading}
-            rows={filteredCatalog}
-            onAdd={addToCart}
-            cart={cart}
-            note={note}
-            onNoteChange={setNote}
-            setCartQty={setCartQty}
-            removeFromCart={removeFromCart}
-            cartValid={cartValid}
-            onCommitSale={commitSale}
-            nf={nf}
-          />
+      {/* Clean Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
+        <div className="relative flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
+            <Package className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">
+              {t("branchOperations.header.title")}
+            </h1>
+            <p className="text-slate-400 text-sm">
+              {t("branchOperations.header.subtitle")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Modern Pill Tabs */}
+      <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+        {[
+          { key: "sale", label: t("branchOperations.tabs.sale") },
+          { key: "loan", label: t("branchOperations.tabs.loan") },
+          { key: "return", label: t("branchOperations.tabs.return") },
+          { key: "history", label: t("branchOperations.tabs.history") },
+        ].map((tabItem) => {
+          const isActive = tab === tabItem.key;
+          return (
+            <button
+              key={tabItem.key}
+              onClick={() => {
+                setTab(tabItem.key);
+                setErr("");
+
+                if (tabItem.key === "history") {
+                  setHistMode("date");
+                  setSkuQuery("");
+                  setHistoryBySku([]);
+                  setTimeout(() => loadHistoryByDateWithParents(new Date()), 0);
+                }
+
+                if (tabItem.key === "return") {
+                  setReturnMode("date");
+                  setTimeout(() => loadReturnByDate(new Date()), 0);
+                }
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              }`}
+            >
+              {tabItem.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Alerts */}
+      {(err || ok) && (
+        <div className="space-y-3">
+          {err && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {err}
+            </div>
+          )}
+          {ok && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {ok}
+            </div>
+          )}
         </div>
       )}
 
-      {tab === "loan" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <LoanSection
-            locationName={locationName}
-            q={q}
-            setQ={setQ}
-            loading={loading}
-            rows={filteredCatalog}
-            onAdd={addToCart}
-            cart={cart}
-            note={note}
-            onNoteChange={setNote}
-            setCartQty={setCartQty}
-            removeFromCart={removeFromCart}
-            borrower={borrower}
-            setBorrower={setBorrower}
-            cartValid={cartValid}
-            loanValid={loanValid}
-            onCommitLoan={commitLoan}
-            nf={nf}
-          />
-        </div>
-      )}
+      {/* Content cards */}
+      <div className="space-y-6">
+        {tab === "sale" && (
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
+            <SaleSection
+              locationName={locationName}
+              q={q}
+              setQ={setQ}
+              loading={loading}
+              rows={filteredCatalog}
+              onAdd={addToCart}
+              cart={cart}
+              note={note}
+              onNoteChange={setNote}
+              setCartQty={setCartQty}
+              removeFromCart={removeFromCart}
+              cartValid={cartValid}
+              onCommitSale={commitSale}
+              nf={nf}
+            />
+          </div>
+        )}
 
-      {tab === "return" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <ReturnSection
-            // common
-            note={note}
-            setNote={setNote}
-            returnMode={returnMode}
-            setReturnMode={setReturnMode}
-            // date
-            nf={nf}
-            retSelectedDay={retSelectedDay}
-            setRetSelectedDay={setRetSelectedDay}
-            retByDateRows={retByDateRows}
-            retByDateLoading={retByDateLoading}
-            retSelect={retSelect}
-            toggleRetSelect={toggleRetSelect}
-            setRetQty={setRetQty}
-            loadReturnByDate={loadReturnByDate}
-            // sku
-            retSkuQuery={retSkuQuery}
-            setRetSkuQuery={setRetSkuQuery}
-            retSkuSuggestions={retSkuSuggestions}
-            retSkuOptions={retSkuOptions}
-            retSkuPicked={retSkuPicked}
-            retSkuQty={retSkuQty}
-            retSkuLoading={retSkuLoading}
-            loadReturnableItems={loadReturnableItems}
-            setRetSkuPicked={setRetSkuPicked}
-            setRetSkuQty={setRetSkuQty}
-            // submit
-            submitReturn={submitReturn}
-            returnValid={returnValid}
-            // resets
-            resetDatePick={() => {
-              setRetSelect(new Map());
-              loadReturnByDate(retSelectedDay);
-            }}
-            resetSkuPick={() => {
-              setRetSkuQuery("");
-              setRetSkuSuggestions([]);
-              setRetSkuOptions([]);
-              setRetSkuPicked(null);
-              setRetSkuQty(0);
-            }}
-          />
-        </div>
-      )}
+        {tab === "loan" && (
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
+            <LoanSection
+              locationName={locationName}
+              q={q}
+              setQ={setQ}
+              loading={loading}
+              rows={filteredCatalog}
+              onAdd={addToCart}
+              cart={cart}
+              note={note}
+              onNoteChange={setNote}
+              setCartQty={setCartQty}
+              removeFromCart={removeFromCart}
+              borrower={borrower}
+              setBorrower={setBorrower}
+              cartValid={cartValid}
+              loanValid={loanValid}
+              onCommitLoan={commitLoan}
+              nf={nf}
+            />
+          </div>
+        )}
 
-      {tab === "history" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <HistorySection
-            histMode={histMode}
-            setHistMode={setHistMode}
-            // date
-            nf={nf}
-            selectedDay={selectedDay}
-            setSelectedDay={setSelectedDay}
-            historyDateRows={historyDateRows}
-            histLoading={histLoading}
-            loadHistoryByDateWithParents={loadHistoryByDateWithParents}
-            onJump={(ds) => jumpToHistoryDay(ds)}
-            // sku
-            skuQuery={skuQuery}
-            setSkuQuery={setSkuQuery}
-            histSkuSuggestions={histSkuSuggestions}
-            historyBySku={historyBySku}
-            histSkuLoading={histSkuLoading}
-            loadHistoryForProduct={loadHistoryForProduct}
-            // reset
-            resetHistSkuSearch={() => {
-              setSkuQuery("");
-              setHistSkuSuggestions([]);
-              setHistoryBySku([]);
-            }}
-          />
-        </div>
+        {tab === "return" && (
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
+            <ReturnSection
+              // common
+              note={note}
+              setNote={setNote}
+              returnMode={returnMode}
+              setReturnMode={setReturnMode}
+              // date
+              nf={nf}
+              retSelectedDay={retSelectedDay}
+              setRetSelectedDay={setRetSelectedDay}
+              retByDateRows={retByDateRows}
+              retByDateLoading={retByDateLoading}
+              retSelect={retSelect}
+              toggleRetSelect={toggleRetSelect}
+              setRetQty={setRetQty}
+              loadReturnByDate={loadReturnByDate}
+              // sku
+              retSkuQuery={retSkuQuery}
+              setRetSkuQuery={setRetSkuQuery}
+              retSkuSuggestions={retSkuSuggestions}
+              retSkuOptions={retSkuOptions}
+              retSkuPicked={retSkuPicked}
+              retSkuQty={retSkuQty}
+              retSkuLoading={retSkuLoading}
+              loadReturnableItems={loadReturnableItems}
+              setRetSkuPicked={setRetSkuPicked}
+              setRetSkuQty={setRetSkuQty}
+              // submit
+              submitReturn={submitReturn}
+              returnValid={returnValid}
+              // resets
+              resetDatePick={() => {
+                setRetSelect(new Map());
+                loadReturnByDate(retSelectedDay);
+              }}
+              resetSkuPick={() => {
+                setRetSkuQuery("");
+                setRetSkuSuggestions([]);
+                setRetSkuOptions([]);
+                setRetSkuPicked(null);
+                setRetSkuQty(0);
+              }}
+            />
+          </div>
+        )}
+
+        {tab === "history" && (
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
+            <HistorySection
+              histMode={histMode}
+              setHistMode={setHistMode}
+              // date
+              nf={nf}
+              selectedDay={selectedDay}
+              setSelectedDay={setSelectedDay}
+              historyDateRows={historyDateRows}
+              histLoading={histLoading}
+              loadHistoryByDateWithParents={loadHistoryByDateWithParents}
+              onJump={(ds) => jumpToHistoryDay(ds)}
+              // sku
+              skuQuery={skuQuery}
+              setSkuQuery={setSkuQuery}
+              histSkuSuggestions={histSkuSuggestions}
+              historyBySku={historyBySku}
+              histSkuLoading={histSkuLoading}
+              loadHistoryForProduct={loadHistoryForProduct}
+              // reset
+              resetHistSkuSearch={() => {
+                setSkuQuery("");
+                setHistSkuSuggestions([]);
+                setHistoryBySku([]);
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* optional debug */}
+      {debugOpen && (
+        <DebugPanel logs={logs} onClose={() => setDebugOpen(false)} />
       )}
     </div>
-  </div>
-);
-
+  );
 }

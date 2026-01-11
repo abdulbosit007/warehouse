@@ -31,7 +31,8 @@
     "ownerOnly": "Faqat owner kirishi mumkin.",
     "showingRange": "{{total}} dan {{from}}–{{to}} ko‘rsatilmoqda",
     "authError": "Avtorizatsiya xatosi",
-    "failedLoad": "Ma’lumotlarni yuklab bo‘lmadi"
+    "failedLoad": "Ma’lumotlarni yuklab bo‘lmadi",
+    "close": "Yopish"
   },
   "ownerHome": {
     "title": "Inventar ko‘rinishi",
@@ -442,6 +443,392 @@
       "addedLinked": "Foydalanuvchi qo‘shildi va bog‘landi!",
       "autoAssigned": "Lokatsiya avtomatik biriktirildi: \"{{label}}\".",
       "autoAssignedFirst": "Lokatsiya avtomatik biriktirildi: \"{{label}}\" (birinchisi)."
+    }
+  },
+  "branch1": {
+    "home": {
+      "title": "Filial ombori",
+      "yourBranch": "Sizning filial",
+      "productsCount": "{{count}} ta mahsulot",
+      "errors": {
+        "noLocation": "Filial lokatsiyasi biriktirilmagan",
+        "loadFailed": "Ma’lumotlarni yuklashda xatolik",
+        "branchOnly": "Faqat filial uchun."
+      },
+      "stats": {
+        "products": "Mahsulotlar",
+        "totalItems": "Jami birlik",
+        "lowStock": "Kam qoldiq",
+        "stockValue": "Ombor qiymati"
+      },
+      "search": {
+        "placeholder": "Nom yoki SKU bo‘yicha qidiring..."
+      },
+      "meta": {
+        "products": "{{count}} ta mahsulot",
+        "productsOfTotal": "{{shown}} / {{total}}"
+      },
+      "filters": {
+        "button": "Filtrlar",
+        "title": "Filtrlar",
+        "activeCount": "{{count}} ta faol",
+        "category": {
+          "label": "Kategoriya",
+          "all": "Barcha kategoriyalar"
+        },
+        "price": {
+          "label": "Narx oralig‘i",
+          "min": "Min",
+          "max": "Max",
+          "pill": "Narx: {{min}} – {{max}}"
+        },
+        "stock": {
+          "label": "Qoldiq holati",
+          "all": "Barcha mahsulotlar",
+          "inStock": "Bor (> 5)",
+          "lowStock": "Kam (1-5)",
+          "outOfStock": "Tugagan",
+          "inStockShort": "Bor",
+          "lowStockShort": "Kam",
+          "outOfStockShort": "Tugagan"
+        }
+      },
+      "table": {
+        "emptyTitle": "Mahsulot topilmadi",
+        "clearFilters": "Filtrlarni tozalash",
+        "product": "Mahsulot",
+        "sku": "SKU",
+        "category": "Kategoriya",
+        "price": "Narx",
+        "quantity": "Soni",
+        "value": "Qiymat"
+      },
+      "pagination": {
+        "showing": "{{from}}–{{to}} / {{total}} ko‘rsatilmoqda",
+        "rows": "Qator:"
+      }
+    }
+  },
+  "branch": {
+    "stockCorrections": {
+      "title": "Qoldiq tuzatishlar",
+      "subtitle": "Filial: {{branch}} — Ombor tafovutlarini yuboring va kuzating",
+      "status": {
+        "pending": "Kutilmoqda",
+        "approved": "Tasdiqlangan",
+        "rejected": "Rad etilgan"
+      },
+      "stats": {
+        "all": "Barcha so‘rovlar",
+        "pending": "Kutilmoqda",
+        "approved": "Tasdiqlangan",
+        "rejected": "Rad etilgan"
+      },
+      "errors": {
+        "authError": "Auth xatolik: {{error}}",
+        "branchOnly": "Faqat filial foydalanuvchilari ko‘ra oladi.",
+        "noBranchLocation": "Ushbu foydalanuvchi uchun filial topilmadi.",
+        "loadFailed": "Tuzatish so‘rovlari yuklanmadi.",
+        "branchNotLoaded": "Filial lokatsiyasi yuklanmadi.",
+        "userNotLoaded": "User yuklanmadi. Qayta login qiling.",
+        "pickProductFirst": "Avval mahsulot tanlang.",
+        "systemQtyLoading": "Sistemadagi son hali yuklanmoqda. Kuting.",
+        "nonNegativeQty": "Manfiy bo‘lmagan son kiriting.",
+        "alreadyPending": "Bu mahsulot uchun ushbu filialda allaqachon kutilayotgan so‘rov bor. Owner qarorini kuting.",
+        "sendFailed": "So‘rov yuborilmadi."
+      },
+      "messages": {
+        "sentToOwner": "Tuzatish so‘rovi ownerga yuborildi!"
+      },
+      "form": {
+        "title": "Qoldiq tafovutini bildirish",
+        "subtitle": "Fizik va sistema qoldig‘ida farq bormi? Shu yerda yuboring.",
+        "searchProduct": "Mahsulot qidirish",
+        "searchPlaceholder": "Nomi yoki SKU yozing...",
+        "searching": "Qidirilmoqda...",
+        "systemQty": "Sistema soni",
+        "loadingMini": "yuklanmoqda...",
+        "physicalQty": "Siz sanagan son",
+        "physicalPlaceholder": "Sangan miqdorni kiriting",
+        "difference": "Farq",
+        "comment": "Izoh",
+        "optional": "(ixtiyoriy)",
+        "commentPlaceholder": "Tafovut sababini yozing...",
+        "sending": "Yuborilmoqda...",
+        "submit": "Tuzatishni yuborish"
+      },
+      "search": {
+        "placeholder": "Tuzatishlarni qidirish..."
+      },
+      "empty": {
+        "title": "So‘rovlar topilmadi",
+        "subtitle": "Yuqoridagi forma orqali tafovutni yuboring"
+      },
+      "table": {
+        "date": "Sana",
+        "product": "Mahsulot",
+        "system": "Sistema",
+        "reported": "Fizik",
+        "diff": "Farq",
+        "status": "Holat",
+        "action": "Amal",
+        "view": "Ko‘rish"
+      },
+      "modal": {
+        "title": "Tuzatish tafsilotlari",
+        "request": "So‘rov #{{id}}",
+        "system": "Sistema",
+        "reported": "Fizik",
+        "diff": "Farq",
+        "status": "Holat",
+        "requestedBy": "{{name}} yubordi — {{date}}",
+        "decidedBy": "Qaror: {{name}}{{date}}",
+        "comment": "Izoh"
+      }
+    }
+  },
+  "branchAudit": {
+    "title": "Inventarizatsiya",
+    "subtitle": "{{branch}}",
+    "status": {
+      "completed": "Yakunlangan",
+      "inProgress": "Jarayonda"
+    },
+    "stats": {
+      "confirmed": "Tasdiqlangan",
+      "discrepancies": "Farqlar",
+      "pending": "Kutilmoqda"
+    },
+    "actions": {
+      "refresh": "Yangilash",
+      "back": "Auditlar ro‘yxatiga qaytish",
+      "submit": "Auditni egasiga yuborish",
+      "submitting": "Yuborilmoqda...",
+      "next": "Keyingi",
+      "previous": "Oldingi",
+      "undo": "Bekor qilish",
+      "edit": "Tahrirlash",
+      "save": "Saqlash",
+      "cancel": "Bekor qilish",
+      "close": "Yopish"
+    },
+    "product": {
+      "systemQty": "Sistemadagi son",
+      "verifiedCorrect": "Tekshirildi: to‘g‘ri",
+      "discrepancyFound": "Farq aniqlandi",
+      "actual": "Haqiqiy",
+      "enterActualQty": "Haqiqiy miqdorni kiriting",
+      "correct": "To‘g‘ri",
+      "wrong": "Noto‘g‘ri",
+      "invalidQty": "Iltimos, to‘g‘ri miqdor kiriting"
+    },
+    "progress": {
+      "title": "Tekshiruv jarayoni",
+      "remaining": "Qolgan"
+    },
+    "search": {
+      "placeholder": "Nomi yoki SKU bo‘yicha qidirish..."
+    },
+    "filters": {
+      "all": "Barchasi",
+      "pending": "Kutilmoqda",
+      "confirmed": "Tasdiqlangan",
+      "discrepancies": "Farqlar",
+      "allCategories": "Barcha kategoriyalar",
+      "defaultOrder": "Standart tartib",
+      "qtyAsc": "Miqdor: kam → ko‘p",
+      "qtyDesc": "Miqdor: ko‘p → kam"
+    },
+    "list": {
+      "activeAudit": "Faol audit",
+      "yourAudits": "Sizning auditlaringiz",
+      "auditLabel": "Audit",
+      "tapToContinue": "Davom etish uchun bosing",
+      "productsCount": "{{count}} ta mahsulot",
+      "reviewedCount": "{{count}} ta tekshirildi"
+    },
+    "empty": {
+      "noActiveAudit": "Faol audit yo‘q",
+      "waitForOwner": "Ega audit sessiyasini boshlashini kuting",
+      "noAudits": "Hali audit yuborilmagan",
+      "noProducts": "Filtrlarga mos mahsulot topilmadi"
+    },
+    "messages": {
+      "submittedTitle": "Audit muvaffaqiyatli yuborildi!",
+      "submittedText": "Javoblaringiz saqlandi. Ega natijalarni ko‘rib chiqadi."
+    },
+    "modal": {
+      "audit": "Audit",
+      "unknownProduct": "Noma’lum mahsulot",
+      "correctionsReported": "Farqlar ({{count}})",
+      "confirmedItems": "Tasdiqlanganlar ({{count}})",
+      "confirmedText": "{{count}} ta mahsulot sistemadagi miqdor bilan mos.",
+      "noResponses": "Javoblar yo‘q",
+      "system": "Sistema",
+      "actual": "Haqiqiy"
+    },
+    "errors": {
+      "loadFailed": "Ma’lumotlarni yuklab bo‘lmadi",
+      "submitFailed": "Auditni yuborib bo‘lmadi",
+      "branchOnly": "Faqat filial uchun"
+    },
+    "common": {
+      "loading": "Yuklanmoqda...",
+      "yourBranch": "Sizning filial"
+    }
+  },
+  "branchRequests": {
+    "title": "Mahsulot so‘rovlari",
+    "subtitle": "Kiruvchi va chiquvchi mahsulot ko‘chirmalarini boshqaring",
+
+    "tabs": {
+      "new": "Yangi so‘rov",
+      "outgoing": "Mening so‘rovlarim",
+      "incoming": "Kiruvchi",
+      "history": "Tarix"
+    },
+
+    "status": {
+      "sent": "Ko‘rib chiqish kutilmoqda",
+      "approved": "Yo‘lda",
+      "rejected": "Rad etildi",
+      "completed": "Yakunlandi",
+      "cancelled": "Bekor qilindi"
+    },
+
+    "toast": {
+      "requestSentSuccess": "So‘rov muvaffaqiyatli yuborildi!",
+      "requestSentFail": "So‘rovni yuborib bo‘lmadi",
+      "cancelSuccess": "So‘rov bekor qilindi",
+      "cancelFail": "So‘rovni bekor qilib bo‘lmadi",
+      "approveSuccess": "So‘rov tasdiqlandi! Zaxira kamaytirildi.",
+      "approveFail": "So‘rovni tasdiqlab bo‘lmadi",
+      "rejectInfo": "So‘rov rad etildi",
+      "confirmReceiptSuccess": "Mahsulot qabul qilindi! Zaxira yangilandi.",
+      "confirmReceiptFail": "Qabul qilishni tasdiqlab bo‘lmadi"
+    },
+
+    "common": {
+      "loading": "Yuklanmoqda...",
+      "searching": "Qidirilmoqda...",
+      "unknown": "Noma’lum",
+      "qty": "soni"
+    },
+
+    "newRequest": {
+      "searchTitle": "Mahsulot qidirish",
+      "searchPlaceholder": "Nomi yoki SKU bo‘yicha qidiring...",
+      "skuLabel": "SKU",
+      "stockHint": "Har bir manzildan qancha olishingizni kiriting:",
+      "available": "Mavjud",
+      "addLocationsToCart": "{{count}} ta manzilni savatga qo‘shish",
+      "cartItems": "Savat ({{count}} ta pozitsiya)",
+      "emptyCartTitle": "Savat bo‘sh",
+      "emptyCartText": "Qidirib mahsulot qo‘shing va so‘rov yuboring",
+      "from": "Qayerdan",
+      "sendRequest": "So‘rov yuborish",
+      "sending": "Yuborilmoqda..."
+    },
+
+    "outgoing": {
+      "emptyTitle": "Faol so‘rovlar yo‘q",
+      "emptyText": "Boshlash uchun yangi so‘rov yarating",
+      "summary": "ta faol so‘rov",
+
+      "columns": {
+        "products": "Mahsulotlar",
+        "source": "Manba",
+        "qty": "Son",
+        "status": "Holat",
+        "date": "Sana",
+        "actions": "Amallar"
+      },
+
+      "pending": "Kutilmoqda",
+      "approved": "Tasdiqlangan",
+      "cancelBtn": "Bekor qilish",
+      "receivedBtn": "Qabul qilindi"
+    },
+
+    "incoming": {
+      "emptyTitle": "Kiruvchi so‘rovlar yo‘q",
+      "emptyText": "Bu yerda boshqa joylardan kelgan so‘rovlar ko‘rinadi",
+      "summary": "ta so‘rov sizdan qaror kutmoqda",
+
+      "columns": {
+        "products": "Mahsulotlar",
+        "requester": "So‘rovchi",
+        "qty": "Son",
+        "date": "Sana",
+        "actions": "Amallar"
+      },
+
+      "rejectBtn": "Rad etish",
+      "approveBtn": "Tasdiqlash"
+    },
+
+    "history": {
+      "direction": {
+        "outgoing": "Chiquvchi",
+        "incoming": "Kiruvchi"
+      },
+
+      "searchPlaceholder": "Mahsulot yoki SKU qidirish...",
+
+      "statusPills": {
+        "all": "Barchasi",
+        "completed": "Yakunlangan",
+        "cancelled": "Bekor qilingan",
+        "rejected": "Rad etilgan"
+      },
+
+      "noResultsTitle": "Natija topilmadi",
+      "noResultsText": "Filtrlarga mos so‘rovlar yo‘q",
+
+      "columns": {
+        "products": "Mahsulotlar",
+        "from": "Qayerdan",
+        "to": "Qayerga",
+        "qty": "Son",
+        "status": "Holat",
+        "date": "Sana"
+      },
+
+      "showing": "{{filtered}} / {{all}} ta so‘rov ko‘rsatilmoqda",
+      "loadMore": "Yana yuklash (hozir: {{count}})"
+    }
+  },
+  "branchOperations": {
+    "header": {
+      "title": "Filial operatsiyalari",
+      "subtitle": "Sotuv, qarz, qaytarish va tarixni boshqaring"
+    },
+    "tabs": {
+      "sale": "Sotuv",
+      "loan": "Qarz",
+      "return": "Qaytarish",
+      "history": "Tarix"
+    },
+    "common": {
+      "loading": "Yuklanmoqda..."
+    },
+    "guard": {
+      "errorTitle": "Xatolik",
+      "forbiddenTitle": "Taqiqlangan",
+      "forbiddenMsg": "Faqat filial uchun."
+    },
+    "errors": {
+      "locationNotFound": "Manzil topilmadi: {{locationName}}",
+      "checkQuantities": "Iltimos, sonlarni tekshiring.",
+      "borrowerAndQtyRequired": "Qarz oluvchi va sonlar majburiy.",
+      "selectItemsAndQty": "Iltimos, mahsulot va sonini tanlang.",
+      "pickSkuRow": "Avval SKU qatorini tanlang."
+    },
+    "success": {
+      "saleCommitted": "Sotuv tasdiqlandi. TX: {{tx}}",
+      "loanCommitted": "Qarz tasdiqlandi. TX: {{tx}}",
+      "returnCommittedOne": "Qaytarish tasdiqlandi. TX: {{tx}}",
+      "returnCommittedMany": "{{count}} ta qaytarish tranzaksiyasi tasdiqlandi."
     }
   }
 }
