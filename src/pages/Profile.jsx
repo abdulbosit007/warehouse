@@ -1,6 +1,7 @@
 // src/pages/Profile.jsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
 import useCurrentUser from "../hooks/useCurrentUser";
 import {
@@ -16,7 +17,6 @@ import {
   Warehouse,
   Store,
 } from "lucide-react";
-import { useState } from "react";
 
 const BRAND = "#4f46e5";
 
@@ -25,21 +25,21 @@ const BRAND = "#4f46e5";
 ───────────────────────────────────────────────────────────────────────────── */
 const ROLE_CONFIG = {
   owner: {
-    label: "Owner",
+    labelKey: "profile.roles.owner",
     icon: Building2,
     gradient: "from-indigo-600 to-purple-700",
     bg: "bg-indigo-100",
     text: "text-indigo-700",
   },
   warehouse: {
-    label: "Warehouse",
+    labelKey: "profile.roles.warehouse",
     icon: Warehouse,
     gradient: "from-blue-600 to-indigo-700",
     bg: "bg-blue-100",
     text: "text-blue-700",
   },
   branch: {
-    label: "Branch",
+    labelKey: "profile.roles.branch",
     icon: Store,
     gradient: "from-emerald-600 to-teal-700",
     bg: "bg-emerald-100",
@@ -50,7 +50,14 @@ const ROLE_CONFIG = {
 /* ─────────────────────────────────────────────────────────────────────────────
    INFO CARD COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-function InfoCard({ icon: Icon, label, value, action, iconColor = "text-indigo-600", bgColor = "bg-indigo-50" }) {
+function InfoCard({
+  icon: Icon,
+  label,
+  value,
+  action,
+  iconColor = "text-indigo-600",
+  bgColor = "bg-indigo-50",
+}) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
       <div className="flex items-start justify-between">
@@ -77,6 +84,7 @@ function InfoCard({ icon: Icon, label, value, action, iconColor = "text-indigo-6
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function Profile() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { loading, error, authUser, userRow, roleBase, locationName } =
     useCurrentUser();
@@ -108,7 +116,8 @@ export default function Profile() {
   const RoleIcon = roleConfig.icon;
 
   // Get display name
-  const displayName = userRow?.name || authUser?.user_metadata?.full_name || "User";
+  const displayName =
+    userRow?.name || authUser?.user_metadata?.full_name || t("profile.defaults.user");
   const initials = displayName
     .split(" ")
     .map((s) => s[0]?.toUpperCase())
@@ -123,7 +132,9 @@ export default function Profile() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-sm text-neutral-500">Loading profile...</p>
+          <p className="text-sm text-neutral-500">
+            {t("profile.loading")}
+          </p>
         </div>
       </div>
     );
@@ -155,10 +166,10 @@ export default function Profile() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            Profile
+            {t("profile.header.title")}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Your account information
+            {t("profile.header.subtitle")}
           </p>
         </div>
       </div>
@@ -181,14 +192,13 @@ export default function Profile() {
 
             {/* Name and role */}
             <div className="text-center sm:text-left">
-              <h2 className="text-xl font-bold text-white">
-                {displayName}
-              </h2>
+              <h2 className="text-xl font-bold text-white">{displayName}</h2>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-sm font-medium text-white">
                   <Shield className="w-3.5 h-3.5" />
-                  {roleConfig.label}
+                  {t(roleConfig.labelKey)}
                 </span>
+
                 {locationName && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-sm font-medium text-white">
                     <MapPin className="w-3.5 h-3.5" />
@@ -205,15 +215,15 @@ export default function Profile() {
           <div className="grid gap-4 sm:grid-cols-2">
             <InfoCard
               icon={User}
-              label="Full Name"
+              label={t("profile.cards.fullName")}
               value={displayName}
               iconColor="text-indigo-600"
               bgColor="bg-indigo-50"
             />
-            
+
             <InfoCard
               icon={Mail}
-              label="Email Address"
+              label={t("profile.cards.email")}
               value={authUser?.email}
               iconColor="text-blue-600"
               bgColor="bg-blue-50"
@@ -226,12 +236,12 @@ export default function Profile() {
                     {copied ? (
                       <>
                         <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        Copied
+                        {t("profile.actions.copied")}
                       </>
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        Copy
+                        {t("profile.actions.copy")}
                       </>
                     )}
                   </button>
@@ -241,16 +251,16 @@ export default function Profile() {
 
             <InfoCard
               icon={Shield}
-              label="Role"
-              value={roleConfig.label}
+              label={t("profile.cards.role")}
+              value={t(roleConfig.labelKey)}
               iconColor={roleConfig.text}
               bgColor={roleConfig.bg}
             />
 
             <InfoCard
               icon={MapPin}
-              label="Location"
-              value={locationName || "Not assigned"}
+              label={t("profile.cards.location")}
+              value={locationName || t("profile.defaults.notAssigned")}
               iconColor="text-emerald-600"
               bgColor="bg-emerald-50"
             />
@@ -261,14 +271,17 @@ export default function Profile() {
         <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-neutral-500">
-              Signed in as <span className="font-medium text-neutral-700">{authUser?.email}</span>
+              {t("profile.footer.signedInAs")}{" "}
+              <span className="font-medium text-neutral-700">
+                {authUser?.email}
+              </span>
             </p>
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition-all hover:shadow-xl hover:shadow-rose-300 hover:scale-[1.02] active:scale-95"
             >
               <LogOut className="w-4 h-4" />
-              Sign Out
+              {t("profile.actions.signOut")}
             </button>
           </div>
         </div>
