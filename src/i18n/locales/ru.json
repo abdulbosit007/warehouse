@@ -837,5 +837,485 @@
       "soldAll": "Проданы все товары ({{qty}} шт.) для {{name}}",
       "returnedItems": "Возвращено: {{qty}} шт."
     }
+  },
+  "warehouseHome": {
+    "header": {
+      "title": "Складской инвентарь",
+      "allWarehouses": "Все склады",
+      "products": "товаров"
+    },
+    "common": {
+      "loading": "Загрузка..."
+    },
+    "guard": {
+      "warehouseOnly": "Доступ только для склада."
+    },
+    "actions": {
+      "refresh": "Обновить"
+    },
+    "stats": {
+      "locations": "Склады",
+      "products": "Товары",
+      "totalStock": "Всего на складе",
+      "lowStock": "Мало на складе"
+    },
+    "search": {
+      "placeholder": "Поиск по названию или SKU..."
+    },
+    "filters": {
+      "title": "Фильтры",
+      "activeCount": "Активно: {{count}}",
+      "clearAll": "Очистить всё",
+      "cancel": "Отмена",
+      "apply": "Применить",
+      "category": {
+        "label": "Категория",
+        "all": "Все категории"
+      },
+      "stock": {
+        "label": "Статус наличия",
+        "allProducts": "Все товары",
+        "inStock": "В наличии (> 10)",
+        "lowStock": "Мало (1–10)",
+        "outOfStock": "Нет в наличии (0)",
+        "short": {
+          "inStock": "В наличии",
+          "lowStock": "Мало",
+          "outOfStock": "Нет"
+        }
+      },
+      "warehouse": {
+        "label": "Склад",
+        "all": "Все склады",
+        "short": "Склад"
+      }
+    },
+    "list": {
+      "countAll": "{{count}} товаров",
+      "countFiltered": "{{count}} из {{total}}"
+    },
+    "errors": {
+      "failedToLoad": "Не удалось загрузить данные"
+    },
+    "empty": {
+      "noProducts": "Товары не найдены",
+      "clearFilters": "Сбросить фильтры"
+    },
+    "table": {
+      "product": "Товар",
+      "sku": "SKU",
+      "category": "Категория",
+      "total": "Итого"
+    },
+    "pagination": {
+      "showing": "Показано: {{from}}–{{to}} из {{total}}",
+      "rows": "Строк:",
+      "prev": "Назад",
+      "next": "Вперёд"
+    }
+  },
+  "warehouseRequests": {
+    "header": {
+      "title": "Заявки на товары",
+      "subtitle": "Управляйте входящими и исходящими перемещениями"
+    },
+    "tabs": {
+      "new": "Новая заявка",
+      "outgoing": "Мои заявки",
+      "incoming": "Входящие",
+      "history": "История"
+    },
+    "guard": {
+      "warehouseOnly": "Доступ только для пользователей склада."
+    },
+    "status": {
+      "pending": "Ожидает",
+      "approved": "Одобрено",
+      "rejected": "Отклонено",
+      "completed": "Завершено",
+      "cancelled": "Отменено"
+    },
+    "actions": {
+      "cancel": "Отменить",
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "received": "Получено",
+      "confirmReceipt": "Подтвердить получение"
+    },
+    "common": {
+      "sku": "SKU",
+      "available": "Доступно",
+      "unknown": "Неизвестно",
+      "searching": "Поиск...",
+      "sending": "Отправка...",
+      "req": "ЗАЯВКА",
+      "from": "Откуда",
+      "to": "Куда",
+      "more": "+{{count}}",
+      "itemsCount": "{{count}} поз."
+    },
+    "toast": {
+      "sentOk": "Заявка успешно отправлена!",
+      "sentFail": "Не удалось отправить заявку",
+      "cancelled": "Заявка отменена",
+      "approvedOk": "Заявка одобрена! Остатки списаны.",
+      "approvedFail": "Ошибка при одобрении",
+      "rejected": "Заявка отклонена",
+      "receivedOk": "Товары получены! Остатки обновлены.",
+      "receivedFail": "Не удалось подтвердить получение"
+    },
+    "new": {
+      "searchTitle": "Поиск товаров",
+      "searchPlaceholder": "Поиск по названию или SKU...",
+      "enterQtyHint": "Введите количество по каждому складу:",
+      "addLocationsToCart": "Добавить {{count}} склад(а/ов) в корзину",
+      "cartTitle": "Корзина заявки ({{count}})",
+      "cartEmptyTitle": "Корзина пуста",
+      "cartEmptyHint": "Найдите и добавьте товары в заявку",
+      "fromQtyLine": "Откуда: {{from}} • Кол-во: {{qty}}",
+      "sendRequest": "Отправить заявку"
+    },
+    "outgoing": {
+      "emptyTitle": "Нет активных заявок",
+      "emptyHint": "Создайте новую заявку, чтобы начать",
+      "activeCountLabel": "активных заявок"
+    },
+    "incoming": {
+      "emptyTitle": "Нет входящих заявок",
+      "emptyHint": "Заявки от других точек появятся здесь",
+      "summary": "ожидающих заявок требуют внимания",
+      "requester": "Заявитель"
+    },
+    "table": {
+      "products": "Товары",
+      "source": "Источник",
+      "qty": "Кол-во",
+      "status": "Статус",
+      "date": "Дата",
+      "actions": "Действия"
+    },
+    "history": {
+      "outgoing": "Исходящие",
+      "incoming": "Входящие",
+      "outgoingLower": "исходящих",
+      "incomingLower": "входящих",
+      "from": "Откуда",
+      "to": "Куда",
+      "statusAll": "Все",
+      "searchPlaceholder": "Поиск товара или SKU...",
+      "noResultsTitle": "Нет результатов",
+      "noResultsHint": "Нет заявок по выбранным фильтрам",
+      "loadMore": "Загрузить ещё (показано: {{count}})",
+      "summaryLine": "Показано {{shown}} из {{total}} {{direction}} заявок{{q, select, '' {} other { по запросу \"{{q}}\"}}}"
+    }
+  },
+  "warehouseAudit": {
+    "page": {
+      "title": "Инвентаризационный аудит",
+      "productsToReview": "{{count}} товаров для проверки"
+    },
+    "labels": {
+      "systemQty": "Кол-во в системе",
+      "actual": "Фактическое",
+      "enterActualQty": "Введите фактическое количество",
+      "unknownProduct": "Неизвестный товар",
+      "completed": "Завершено",
+      "inProgress": "В процессе",
+      "confirmed": "Подтверждено",
+      "corrections": "Корректировки",
+      "system": "Система",
+      "pending": "Ожидает",
+      "discrepancies": "Расхождения",
+      "warehouse": "Склад",
+      "selectWarehouse": "Выберите склад"
+    },
+    "status": {
+      "verifiedCorrect": "Подтверждено верно",
+      "discrepancyFound": "Найдено расхождение"
+    },
+    "actions": {
+      "undo": "Отменить",
+      "edit": "Редактировать",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "correct": "Верно",
+      "wrong": "Неверно",
+      "backToAudits": "Назад к аудитам"
+    },
+    "search": {
+      "placeholder": "Поиск по названию или SKU..."
+    },
+    "tabs": {
+      "all": "Все",
+      "pending": "Ожидает",
+      "confirmed": "Подтверждено",
+      "discrepancies": "Расхождения"
+    },
+    "select": {
+      "allCategories": "Все категории",
+      "defaultOrder": "По умолчанию",
+      "qtyAsc": "Кол-во: Мало → Много",
+      "qtyDesc": "Кол-во: Много → Мало"
+    },
+    "progress": {
+      "title": "Прогресс проверки"
+    },
+    "nav": {
+      "previous": "Назад",
+      "next": "Далее",
+      "remaining": "Осталось"
+    },
+    "list": {
+      "activeAudit": "Активный аудит",
+      "audit": "Аудит",
+      "inProgressTap": "В процессе — нажмите, чтобы продолжить",
+      "productsCount": "{{count}} товаров",
+      "toReview": "к проверке",
+      "yourAudits": "Ваши аудиты"
+    },
+    "submit": {
+      "submitToOwner": "Отправить аудит владельцу",
+      "submitting": "Отправка...",
+      "successTitle": "Аудит успешно отправлен!",
+      "successDesc": "Ваши ответы сохранены. Владелец проверит результаты."
+    },
+    "empty": {
+      "title": "Аудитов пока нет",
+      "desc": "Дождитесь, пока владелец запустит сессию аудита",
+      "noMatch": "Нет товаров, подходящих под фильтры"
+    },
+    "modal": {
+      "title": "Аудит",
+      "correctionsReported": "Сообщенные корректировки ({{count}})",
+      "confirmedItems": "Подтвержденные позиции ({{count}})",
+      "confirmedInfo": "{{count}} товаров подтверждены как совпадающие с системным количеством.",
+      "noResponses": "Ответы отсутствуют"
+    },
+    "errors": {
+      "failedLoad": "Не удалось загрузить данные аудита",
+      "failedSubmit": "Не удалось отправить аудит",
+      "warehouseOnly": "Только для сотрудников склада"
+    },
+    "alert": {
+      "enterValidQty": "Пожалуйста, введите корректное количество"
+    }
+  },
+  "warehouseBatchDetail": {
+    "page": {
+      "title": "Проверка позиций",
+      "itemsNeedReview": "{{count}} позиций требуют проверки"
+    },
+    "origin": {
+      "chinese": "Chinese",
+      "local": "Local"
+    },
+    "tabs": {
+      "needsAction": "Требуют действия",
+      "completed": "Завершено"
+    },
+    "table": {
+      "sku": "SKU",
+      "product": "Товар",
+      "qty": "Кол-во",
+      "category": "Категория",
+      "actions": "Действия",
+      "status": "Статус",
+      "requestedQty": "Запрошенное кол-во"
+    },
+    "status": {
+      "sent": "Отправлено",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+    "actions": {
+      "back": "Назад",
+      "refresh": "Обновить",
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "cancel": "Отмена",
+      "details": "Детали",
+      "close": "Закрыть"
+    },
+    "labels": {
+      "dash": "—"
+    },
+    "approveModal": {
+      "title": "Одобрить позицию",
+      "selectLocationLabel": "Выберите склад",
+      "chooseLocation": "Выберите локацию..."
+    },
+    "reject": {
+      "title": "Отклонить позицию",
+      "reasons": {
+        "qtyMismatch": "Несовпадение количества",
+        "noSuchItem": "Такого товара нет"
+      },
+      "placeholders": {
+        "correctQty": "Введите корректное количество"
+      },
+      "errors": {
+        "validPositiveQty": "Введите корректное положительное количество.",
+        "mustBeDifferent": "Исправленное количество должно отличаться."
+      }
+    },
+    "rejectedInfo": {
+      "title": "Детали отклонения",
+      "reason": "Причина",
+      "correctedQty": "Исправленное кол-во"
+    },
+    "empty": {
+      "noItems": "В этом разделе нет позиций"
+    }
+  },
+  "warehouseOwnerRequests": {
+    "page": {
+      "title": "Входящие партии",
+      "subtitle": "{{count}} партий от владельца"
+    },
+    "loading": "Загрузка...",
+    "actions": {
+      "refresh": "Обновить"
+    },
+    "stats": {
+      "needsAction": "Нужно действие",
+      "open": "Открыто",
+      "closed": "Закрыто"
+    },
+    "origin": {
+      "chinese": "Китай",
+      "uzbek": "Узбекистан",
+      "unknown": "Неизвестно"
+    },
+    "status": {
+      "open": "Открыто",
+      "closed": "Закрыто"
+    },
+    "empty": {
+      "title": "Нет партий для проверки",
+      "subtitle": "Партии от владельца появятся здесь"
+    },
+    "table": {
+      "date": "Дата",
+      "origin": "Источник",
+      "status": "Статус",
+      "draft": "Черновик",
+      "sent": "Отправлено",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    }
+  },
+   "warehouseStockCorrections": {
+    "page": {
+      "title": "Коррекции склада",
+      "subtitle": "Сообщайте и отслеживайте расхождения между фактом и системой"
+    },
+    "loading": "Загрузка...",
+    "warehouseFallback": "Склад",
+    "actions": {
+      "refresh": "Обновить",
+      "sending": "Отправка...",
+      "submitCorrection": "Отправить коррекцию",
+      "view": "Просмотр",
+      "close": "Закрыть"
+    },
+    "stats": {
+      "all": "Все запросы",
+      "pending": "Ожидает",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+    "status": {
+      "pending": "Ожидает",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+    "create": {
+      "title": "Сообщить о расхождении",
+      "subtitle": "Нашли разницу между фактическим и системным остатком? Сообщите здесь.",
+      "searchLabel": "Поиск товара",
+      "searchPlaceholder": "Введите название товара или SKU...",
+      "searching": "Поиск...",
+      "systemQty": "Количество в системе",
+      "loadingMini": "загрузка...",
+      "physicalCount": "Фактический подсчет",
+      "physicalPlaceholder": "Введите подсчитанное количество",
+      "diff": "Разница",
+      "comment": "Комментарий",
+      "optional": "необязательно",
+      "commentPlaceholder": "Опишите причину расхождения..."
+    },
+    "list": {
+      "searchPlaceholder": "Поиск коррекций...",
+      "emptyTitle": "Запросы на коррекцию не найдены",
+      "emptySubtitle": "Используйте форму выше, чтобы сообщить о расхождении"
+    },
+    "table": {
+      "date": "Дата",
+      "product": "Товар",
+      "system": "Система",
+      "reported": "Сообщено",
+      "diff": "Разн.",
+      "status": "Статус",
+      "action": "Действие"
+    },
+    "modal": {
+      "title": "Детали коррекции",
+      "request": "Запрос #{{id}}",
+      "system": "Система",
+      "reported": "Сообщено",
+      "diff": "Разница",
+      "status": "Статус",
+      "requestedBy": "Запросил",
+      "decisionBy": "Решение принял",
+      "on": "дата",
+      "comment": "Комментарий"
+    },
+    "errors": {
+      "loadWarehouses": "Не удалось загрузить список складов.",
+      "noWarehouses": "Склады не найдены в базе данных.",
+      "loadCorrections": "Не удалось загрузить запросы на коррекцию.",
+      "warehouseNotLoaded": "Локация склада не загружена.",
+      "userNotLoaded": "Пользователь не загружен. Перезайдите в систему.",
+      "chooseProduct": "Сначала выберите товар.",
+      "systemQtyLoading": "Количество в системе ещё загружается. Подождите.",
+      "nonNegativeQty": "Введите неотрицательное количество.",
+      "alreadyPending": "По этому товару уже есть ожидающая коррекция. Дождитесь решения владельца.",
+      "sendFailed": "Не удалось отправить запрос на коррекцию."
+    },
+    "success": {
+      "sentToOwner": "Запрос на коррекцию отправлен владельцу!"
+    },
+    "authError": "Ошибка авторизации: {{error}}",
+    "onlyWarehouse": "Эта страница доступна только пользователям склада."
+  },
+  "profile": {
+    "header": {
+      "title": "Профиль",
+      "subtitle": "Информация о вашем аккаунте"
+    },
+    "loading": "Загрузка профиля...",
+    "cards": {
+      "fullName": "Полное имя",
+      "email": "Email",
+      "role": "Роль",
+      "location": "Локация"
+    },
+    "actions": {
+      "copy": "Копировать",
+      "copied": "Скопировано",
+      "signOut": "Выйти"
+    },
+    "footer": {
+      "signedInAs": "Вход выполнен как:"
+    },
+    "defaults": {
+      "user": "Пользователь",
+      "notAssigned": "Не назначено"
+    },
+    "roles": {
+      "owner": "Owner",
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    }
   }
 }

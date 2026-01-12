@@ -838,5 +838,485 @@
       "soldAll": "Sold all {{qty}} items for {{name}}",
       "returnedItems": "Returned {{qty}} items"
     }
+  },
+  "warehouseHome": {
+    "header": {
+      "title": "Warehouse Inventory",
+      "allWarehouses": "All warehouses",
+      "products": "products"
+    },
+    "common": {
+      "loading": "Loading..."
+    },
+    "guard": {
+      "warehouseOnly": "Warehouse access only."
+    },
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "stats": {
+      "locations": "Locations",
+      "products": "Products",
+      "totalStock": "Total Stock",
+      "lowStock": "Low Stock"
+    },
+    "search": {
+      "placeholder": "Search by name or SKU..."
+    },
+    "filters": {
+      "title": "Filters",
+      "activeCount": "{{count}} active",
+      "clearAll": "Clear all",
+      "cancel": "Cancel",
+      "apply": "Apply",
+      "category": {
+        "label": "Category",
+        "all": "All Categories"
+      },
+      "stock": {
+        "label": "Stock Status",
+        "allProducts": "All Products",
+        "inStock": "In Stock (> 10)",
+        "lowStock": "Low Stock (1–10)",
+        "outOfStock": "Out of Stock (0)",
+        "short": {
+          "inStock": "In Stock",
+          "lowStock": "Low Stock",
+          "outOfStock": "Out"
+        }
+      },
+      "warehouse": {
+        "label": "Warehouse",
+        "all": "All Warehouses",
+        "short": "Warehouse"
+      }
+    },
+    "list": {
+      "countAll": "{{count}} products",
+      "countFiltered": "{{count}} of {{total}}"
+    },
+    "errors": {
+      "failedToLoad": "Failed to load data"
+    },
+    "empty": {
+      "noProducts": "No products found",
+      "clearFilters": "Clear filters"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "total": "Total"
+    },
+    "pagination": {
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "rows": "Rows:",
+      "prev": "Prev",
+      "next": "Next"
+    }
+  },
+  "warehouseRequests": {
+    "header": {
+      "title": "Product Requests",
+      "subtitle": "Manage incoming and outgoing product transfers"
+    },
+    "tabs": {
+      "new": "New Request",
+      "outgoing": "My Requests",
+      "incoming": "Incoming",
+      "history": "History"
+    },
+    "guard": {
+      "warehouseOnly": "Only warehouse users can access this page."
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "approve": "Approve",
+      "reject": "Reject",
+      "received": "Received",
+      "confirmReceipt": "Confirm Receipt"
+    },
+    "common": {
+      "sku": "SKU",
+      "available": "Available",
+      "unknown": "Unknown",
+      "searching": "Searching...",
+      "sending": "Sending...",
+      "req": "REQ",
+      "from": "From",
+      "to": "To",
+      "more": "+{{count}} more",
+      "itemsCount": "{{count}} items"
+    },
+    "toast": {
+      "sentOk": "Request sent successfully!",
+      "sentFail": "Failed to send request",
+      "cancelled": "Request cancelled",
+      "approvedOk": "Request approved! Inventory deducted.",
+      "approvedFail": "Failed to approve",
+      "rejected": "Request rejected",
+      "receivedOk": "Items received! Inventory updated.",
+      "receivedFail": "Failed to confirm receipt"
+    },
+    "new": {
+      "searchTitle": "Search Products",
+      "searchPlaceholder": "Search by name or SKU...",
+      "enterQtyHint": "Enter quantities from each location:",
+      "addLocationsToCart": "Add {{count}} location(s) to cart",
+      "cartTitle": "Request Cart ({{count}} items)",
+      "cartEmptyTitle": "No items in cart",
+      "cartEmptyHint": "Search and add products to request",
+      "fromQtyLine": "From: {{from}} • Qty: {{qty}}",
+      "sendRequest": "Send Request"
+    },
+    "outgoing": {
+      "emptyTitle": "No Active Requests",
+      "emptyHint": "Create a new request to get started",
+      "activeCountLabel": "active requests"
+    },
+    "incoming": {
+      "emptyTitle": "No Incoming Requests",
+      "emptyHint": "Requests from other locations will appear here",
+      "summary": "pending requests need your attention",
+      "requester": "Requester"
+    },
+    "table": {
+      "products": "Products",
+      "source": "Source",
+      "qty": "Qty",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "history": {
+      "outgoing": "Outgoing",
+      "incoming": "Incoming",
+      "outgoingLower": "outgoing",
+      "incomingLower": "incoming",
+      "from": "From",
+      "to": "To",
+      "statusAll": "All",
+      "searchPlaceholder": "Search product or SKU...",
+      "noResultsTitle": "No Results",
+      "noResultsHint": "No requests match your filters",
+      "loadMore": "Load More (showing {{count}})",
+      "summaryLine": "Showing {{shown}} of {{total}} {{direction}} requests{{q, select, '' {} other { matching \"{{q}}\"}}}"
+    }
+  },
+  "warehouseAudit": {
+    "page": {
+      "title": "Inventory Audit",
+      "productsToReview": "{{count}} products to review"
+    },
+    "labels": {
+      "systemQty": "System Qty",
+      "actual": "Actual",
+      "enterActualQty": "Enter Actual Quantity",
+      "unknownProduct": "Unknown Product",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "confirmed": "Confirmed",
+      "corrections": "Corrections",
+      "system": "System",
+      "pending": "Pending",
+      "discrepancies": "Discrepancies",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse"
+    },
+    "status": {
+      "verifiedCorrect": "Verified Correct",
+      "discrepancyFound": "Discrepancy Found"
+    },
+    "actions": {
+      "undo": "Undo",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "correct": "Correct",
+      "wrong": "Wrong",
+      "backToAudits": "Back to Audits"
+    },
+    "search": {
+      "placeholder": "Search by name or SKU..."
+    },
+    "tabs": {
+      "all": "All",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "discrepancies": "Discrepancies"
+    },
+    "select": {
+      "allCategories": "All Categories",
+      "defaultOrder": "Default Order",
+      "qtyAsc": "Quantity: Low → High",
+      "qtyDesc": "Quantity: High → Low"
+    },
+    "progress": {
+      "title": "Review Progress"
+    },
+    "nav": {
+      "previous": "Previous",
+      "next": "Next",
+      "remaining": "Remaining"
+    },
+    "list": {
+      "activeAudit": "Active Audit",
+      "audit": "Audit",
+      "inProgressTap": "In Progress - Tap to continue",
+      "productsCount": "{{count}} products",
+      "toReview": "to review",
+      "yourAudits": "Your Audits"
+    },
+    "submit": {
+      "submitToOwner": "Submit Audit to Owner",
+      "submitting": "Submitting...",
+      "successTitle": "Audit Submitted Successfully!",
+      "successDesc": "Your audit responses have been recorded. The owner will review the results."
+    },
+    "empty": {
+      "title": "No Audits Yet",
+      "desc": "Wait for the owner to start an inventory audit session",
+      "noMatch": "No products match your filters"
+    },
+    "modal": {
+      "title": "Audit",
+      "correctionsReported": "Corrections Reported ({{count}})",
+      "confirmedItems": "Confirmed Items ({{count}})",
+      "confirmedInfo": "{{count}} products confirmed as matching system quantities.",
+      "noResponses": "No responses recorded"
+    },
+    "errors": {
+      "failedLoad": "Failed to load audit data",
+      "failedSubmit": "Failed to submit audit",
+      "warehouseOnly": "Warehouse access only"
+    },
+    "alert": {
+      "enterValidQty": "Please enter a valid quantity"
+    }
+  },
+  "warehouseBatchDetail": {
+    "page": {
+      "title": "Review Items",
+      "itemsNeedReview": "{{count}} items need review"
+    },
+    "origin": {
+      "chinese": "Chinese",
+      "local": "Local"
+    },
+    "tabs": {
+      "needsAction": "Needs Action",
+      "completed": "Completed"
+    },
+    "table": {
+      "sku": "SKU",
+      "product": "Product",
+      "qty": "Qty",
+      "category": "Category",
+      "actions": "Actions",
+      "status": "Status",
+      "requestedQty": "Requested Qty"
+    },
+    "status": {
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "actions": {
+      "back": "Back",
+      "refresh": "Refresh",
+      "approve": "Approve",
+      "reject": "Reject",
+      "cancel": "Cancel",
+      "details": "Details",
+      "close": "Close"
+    },
+    "labels": {
+      "dash": "—"
+    },
+    "approveModal": {
+      "title": "Approve Item",
+      "selectLocationLabel": "Select Warehouse Location",
+      "chooseLocation": "Choose location..."
+    },
+    "reject": {
+      "title": "Reject Item",
+      "reasons": {
+        "qtyMismatch": "Quantity mismatch",
+        "noSuchItem": "No such item"
+      },
+      "placeholders": {
+        "correctQty": "Enter correct quantity"
+      },
+      "errors": {
+        "validPositiveQty": "Enter a valid positive quantity.",
+        "mustBeDifferent": "Corrected quantity must be different."
+      }
+    },
+    "rejectedInfo": {
+      "title": "Rejection Details",
+      "reason": "Reason",
+      "correctedQty": "Corrected Qty"
+    },
+    "empty": {
+      "noItems": "No items in this section"
+    }
+  },
+  "warehouseOwnerRequests": {
+    "page": {
+      "title": "Incoming Batches",
+      "subtitle": "{{count}} batches from owner"
+    },
+    "loading": "Loading...",
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "stats": {
+      "needsAction": "Needs Action",
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "origin": {
+      "chinese": "Chinese",
+      "uzbek": "Uzbek",
+      "unknown": "Unknown"
+    },
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "empty": {
+      "title": "No batches to review",
+      "subtitle": "Batches from owner will appear here"
+    },
+    "table": {
+      "date": "Date",
+      "origin": "Origin",
+      "status": "Status",
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "warehouseStockCorrections": {
+    "page": {
+      "title": "Stock Corrections",
+      "subtitle": "Report and track discrepancies between physical and system inventory"
+    },
+    "loading": "Loading...",
+    "warehouseFallback": "Warehouse",
+    "actions": {
+      "refresh": "Refresh",
+      "sending": "Sending...",
+      "submitCorrection": "Submit Correction",
+      "view": "View",
+      "close": "Close"
+    },
+    "stats": {
+      "all": "All Requests",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "create": {
+      "title": "Report Stock Discrepancy",
+      "subtitle": "Found a difference between physical and system inventory? Report it here.",
+      "searchLabel": "Search Product",
+      "searchPlaceholder": "Type product name or SKU...",
+      "searching": "Searching...",
+      "systemQty": "System Quantity",
+      "loadingMini": "loading...",
+      "physicalCount": "Your Physical Count",
+      "physicalPlaceholder": "Enter counted quantity",
+      "diff": "Difference",
+      "comment": "Comment",
+      "optional": "optional",
+      "commentPlaceholder": "Explain the reason for the discrepancy..."
+    },
+    "list": {
+      "searchPlaceholder": "Search corrections...",
+      "emptyTitle": "No correction requests found",
+      "emptySubtitle": "Use the form above to report a discrepancy"
+    },
+    "table": {
+      "date": "Date",
+      "product": "Product",
+      "system": "System",
+      "reported": "Reported",
+      "diff": "Diff",
+      "status": "Status",
+      "action": "Action"
+    },
+    "modal": {
+      "title": "Correction Details",
+      "request": "Request #{{id}}",
+      "system": "System",
+      "reported": "Reported",
+      "diff": "Diff",
+      "status": "Status",
+      "requestedBy": "Requested by",
+      "decisionBy": "Decision by",
+      "on": "on",
+      "comment": "Comment"
+    },
+    "errors": {
+      "loadWarehouses": "Could not load warehouse locations.",
+      "noWarehouses": "No warehouse locations found in the database.",
+      "loadCorrections": "Failed to load stock correction requests.",
+      "warehouseNotLoaded": "Warehouse location not loaded.",
+      "userNotLoaded": "User not loaded. Please re-login.",
+      "chooseProduct": "Choose a product first.",
+      "systemQtyLoading": "System quantity is still loading. Please wait.",
+      "nonNegativeQty": "Enter a non-negative physical quantity.",
+      "alreadyPending": "There is already a pending correction for this product. Wait for owner decision.",
+      "sendFailed": "Failed to send correction request."
+    },
+    "success": {
+      "sentToOwner": "Correction request sent to owner!"
+    },
+    "authError": "Auth error: {{error}}",
+    "onlyWarehouse": "Only warehouse users can access this page."
+  },
+  "profile": {
+    "header": {
+      "title": "Profile",
+      "subtitle": "Your account information"
+    },
+    "loading": "Loading profile...",
+    "cards": {
+      "fullName": "Full Name",
+      "email": "Email Address",
+      "role": "Role",
+      "location": "Location"
+    },
+    "actions": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "signOut": "Sign Out"
+    },
+    "footer": {
+      "signedInAs": "Signed in as"
+    },
+    "defaults": {
+      "user": "User",
+      "notAssigned": "Not assigned"
+    },
+    "roles": {
+      "owner": "Owner",
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    }
   }
 }
