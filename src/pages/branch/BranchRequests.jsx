@@ -307,6 +307,11 @@ function NewRequestTab({ location, showToast }) {
       return;
     }
 
+    // NEW: Don't search if the query matches the selected product (prevent reopening dropdown)
+    if (selectedProduct && searchQuery.trim() === selectedProduct.name) {
+      return;
+    }
+
     const debounce = setTimeout(async () => {
       setLoading(true);
       const { data } = await supabase
@@ -319,7 +324,7 @@ function NewRequestTab({ location, showToast }) {
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, selectedProduct]);
 
   // Load stock for selected product across all locations
   useEffect(() => {

@@ -1,39 +1,28 @@
 -- =============================================================================
 -- Fix RLS Policies for product_list table
--- Run this in your Supabase SQL Editor
+-- Run this in your Supabase SQL Editor to fix stock visibility issues
 -- =============================================================================
 
--- First, check current policies on product_list
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
-FROM pg_policies 
-WHERE tablename = 'product_list';
+-- 1. Ensure RLS is enabled
+ALTER TABLE product_list ENABLE ROW LEVEL SECURITY;
 
--- Option 1: Add policy to allow authenticated users to update product_list
-CREATE POLICY "Allow authenticated users to update product_list" 
-ON product_list 
-FOR UPDATE 
-TO authenticated 
-USING (true)
-WITH CHECK (true);
-
--- Option 2: Add policy to allow authenticated users to insert into product_list
-CREATE POLICY "Allow authenticated users to insert product_list" 
-ON product_list 
-FOR INSERT 
-TO authenticated 
-WITH CHECK (true);
-
--- If you need to drop existing restrictive policies first:
--- DROP POLICY IF EXISTS "your_policy_name" ON product_list;
-
--- Alternative: Disable RLS temporarily to test (NOT for production!)
--- ALTER TABLE product_list DISABLE ROW LEVEL SECURITY;
-
--- Or allow all operations for authenticated users:
+-- 2. Drop potential conflicting policies (cleaning up old ones)
 DROP POLICY IF EXISTS "Allow all for authenticated" ON product_list;
+DROP POLICY IF EXISTS "Enable read access for all users" ON product_list;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON product_list;
+DROP POLICY IF EXISTS "Enable update for authenticated users" ON product_list;
+DROP POLICY IF EXISTS "Allow authenticated users to update product_list" ON product_list;
+DROP POLICY IF EXISTS "Allow authenticated users to insert product_list" ON product_list;
+DROP POLICY IF EXISTS "Policy for product_list" ON product_list; -- generic catch-all
+
+-- 3. Create a permissive policy for ALL authenticated users
+-- This ensures Warehouse users can see stock at ALL locations (Owner, Branches, etc.)
 CREATE POLICY "Allow all for authenticated" 
 ON product_list 
 FOR ALL 
 TO authenticated 
 USING (true)
 WITH CHECK (true);
+
+-- Confirmation
+SELECT 'RLS policies for product_list updated successfully' as status;

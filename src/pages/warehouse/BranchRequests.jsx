@@ -306,6 +306,11 @@ function NewRequestTab({ t, location, showToast }) {
       return;
     }
 
+    // NEW: Don't search if the query matches the selected product (prevent reopening dropdown)
+    if (selectedProduct && searchQuery.trim() === selectedProduct.name) {
+      return;
+    }
+
     const debounce = setTimeout(async () => {
       setLoading(true);
       const { data } = await supabase
@@ -318,7 +323,7 @@ function NewRequestTab({ t, location, showToast }) {
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, selectedProduct]);
 
   useEffect(() => {
     if (!selectedProduct) {
@@ -335,7 +340,7 @@ function NewRequestTab({ t, location, showToast }) {
 
       const stockMap = {};
       (data || []).forEach((row) => {
-        stockMap[row.location_id] = row.quantity;
+        stockMap[row.location_id] = (stockMap[row.location_id] || 0) + row.quantity;
       });
       setProductStock(stockMap);
     }
@@ -673,13 +678,14 @@ function OutgoingTab({ t, location, showToast }) {
           .select("id, quantity")
           .eq("product_id", item.product.id)
           .eq("location_id", location.id)
-          .maybeSingle();
+          .limit(1); // Use limit(1) to avoid error if duplicates exist
 
-        if (existing) {
+        if (existing && existing.length > 0) {
+          const row = existing[0];
           const { error: upErr } = await supabase
             .from("product_list")
-            .update({ quantity: (existing.quantity || 0) + qtyToAdd })
-            .eq("id", existing.id);
+            .update({ quantity: (row.quantity || 0) + qtyToAdd })
+            .eq("id", row.id);
           if (upErr) console.error("Update inventory error:", upErr);
         } else {
           const { error: insErr } = await supabase
