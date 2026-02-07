@@ -19,6 +19,7 @@ import {
   Filter,
   SlidersHorizontal,
   Check,
+  Truck,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -451,6 +452,7 @@ export default function OwnerHome() {
 
   const [products, setProducts] = useState([]);
   const [productList, setProductList] = useState([]);
+  const [inDeliveryList, setInDeliveryList] = useState([]); // Items currently in delivery
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -485,7 +487,7 @@ export default function OwnerHome() {
     setError(null);
 
     try {
-      const [productsRes, listRes, locationsRes, categoriesRes] = await Promise.all([
+      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes] = await Promise.all([
         supabase
           .from("products")
           .select("id, name, sku, price, sale_price, category_id, categories:category_id(id, name)")
@@ -506,15 +508,23 @@ export default function OwnerHome() {
           .from("categories")
           .select("id, name")
           .order("name", { ascending: true }),
+
+        // Fetch items currently in delivery (approved but not yet received)
+        supabase
+          .from("branch_request_items")
+          .select("product_id, approved_qty")
+          .eq("status", "approved"),
       ]);
 
       if (productsRes.error) throw productsRes.error;
       if (listRes.error) throw listRes.error;
       if (locationsRes.error) throw locationsRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
+      if (inDeliveryRes.error) throw inDeliveryRes.error;
 
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
+      setInDeliveryList(inDeliveryRes.data || []);
       setLocations(locationsRes.data || []);
       setCategories(categoriesRes.data || []);
     } catch (err) {
@@ -551,6 +561,20 @@ export default function OwnerHome() {
     const locMap = quantityMap.get(productId);
     if (!locMap) return 0;
     return locMap.get(locationId) || 0;
+  };
+
+  // Compute in-delivery quantities per product
+  const inDeliveryMap = useMemo(() => {
+    const map = new Map();
+    for (const item of inDeliveryList) {
+      const current = map.get(item.product_id) || 0;
+      map.set(item.product_id, current + (item.approved_qty || 0));
+    }
+    return map;
+  }, [inDeliveryList]);
+
+  const getInDeliveryQty = (productId) => {
+    return inDeliveryMap.get(productId) || 0;
   };
 
   // Apply all filters
@@ -993,6 +1017,12 @@ export default function OwnerHome() {
                     </th>
                   ))}
 
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white bg-neutral-500" title={t("ownerHome.table.inDeliveryTooltip")}>
+                    <div className="flex items-center justify-center gap-1">
+                      <Truck className="w-3 h-3" />
+                      {t("ownerHome.table.inDelivery")}
+                    </div>
+                  </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                     {t("common.edit")}
                   </th>
@@ -1063,6 +1093,20 @@ export default function OwnerHome() {
                           </td>
                         );
                       })}
+
+                      {/* In Delivery Column */}
+                      <td className="px-3 py-3 text-center">
+                        {(() => {
+                          const inDelivery = getInDeliveryQty(product.id);
+                          return inDelivery > 0 ? (
+                            <span className="inline-flex items-center justify-center min-w-[32px] px-1.5 py-0.5 rounded text-xs font-medium bg-neutral-100 text-neutral-700">
+                              {inDelivery}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-300">—</span>
+                          );
+                        })()}
+                      </td>
 
                       <td className="px-3 py-3 text-center">
                         <button

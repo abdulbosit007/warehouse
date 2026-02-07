@@ -14,13 +14,14 @@ import WarehouseBatchReview from "../pages/warehouse/BatchDetail";
 import WarehouseHome from "../pages/warehouse/Home";
 import WarehouseStockCorrections from "../pages/warehouse/StockCorrections";
 import WarehouseAuditReview from "../pages/warehouse/AuditReview";
+import WarehouseInventoryManagement from "../pages/warehouse/InventoryManagement";
 
 import OwnerIncomingProducts from "../pages/owner/IncomingProducts";
 import OwnerHistory from "../pages/owner/History";
 import OwnerInventoryBatches from "../pages/owner/InventoryBatches";
 import OwnerInventoryBatchDetail from "../pages/owner/InventoryBatchDetail";
 import OwnerAuditDetail from "../pages/owner/AuditDetail";
-import OwnerUserManagement from "../pages/owner/UserManagement";
+import OwnerSettings from "../pages/owner/Settings";
 import BatchDetail from "../pages/owner/BatchDetail";
 import OwnerHome from "../pages/owner/Home";
 
@@ -30,6 +31,7 @@ import BranchHistory from "../pages/branch/History";
 import BranchBranchRequests from "../pages/branch/BranchRequests";
 import BranchHome from "../pages/branch/Home";
 import BranchAuditReview from "../pages/branch/AuditReview";
+import BranchInventoryManagement from "../pages/branch/InventoryManagement";
 
 // Shared
 import Profile from "../pages/Profile";
@@ -68,7 +70,7 @@ export default function AllRouters({ user }) {
           <Route path="inventory-batches" element={<OwnerInventoryBatches />} />
           <Route path="inventory-batches/:locationId" element={<OwnerInventoryBatchDetail />} />
           <Route path="audit/:id" element={<OwnerAuditDetail />} />
-          <Route path="user-management" element={<OwnerUserManagement />} />
+          <Route path="settings" element={<OwnerSettings />} />
           <Route path="profile" element={<Profile />} />
           <Route path="batch/:id" element={<BatchDetail />} />
         </Route>
@@ -89,6 +91,7 @@ export default function AllRouters({ user }) {
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
           <Route path="stock-corrections" element={<WarehouseStockCorrections />} />
           <Route path="audit-review" element={<WarehouseAuditReview />} />
+          <Route path="inventory-management" element={<WarehouseInventoryManagement />} />
           <Route path="batch/:id" element={<WarehouseBatchReview />} />
           <Route path="profile" element={<Profile />} />
         </Route>
@@ -109,6 +112,7 @@ export default function AllRouters({ user }) {
           <Route path="branch-requests" element={<BranchBranchRequests />} />
           <Route path="stock-corrections" element={<BranchStockCorrections />} />
           <Route path="audit-review" element={<BranchAuditReview />} />
+          <Route path="inventory-management" element={<BranchInventoryManagement />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 
@@ -127,6 +131,7 @@ export default function AllRouters({ user }) {
           <Route path="branch-requests" element={<BranchBranchRequests />} />
           <Route path="stock-corrections" element={<BranchStockCorrections />} />
           <Route path="audit-review" element={<BranchAuditReview />} />
+          <Route path="inventory-management" element={<BranchInventoryManagement />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 

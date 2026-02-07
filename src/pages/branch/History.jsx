@@ -14,8 +14,6 @@ import DebugPanel from "../../components/DebugPanel";
 // tab sections
 import SaleSection from "../../components/ops/SaleSection";
 import LoanSection from "../../components/ops/LoanSection";
-import ReturnSection from "../../components/ops/ReturnSection";
-import HistorySection from "../../components/ops/HistorySection";
 
 // date helpers
 import {
@@ -66,7 +64,7 @@ export default function BranchOperations() {
   }, []);
 
   /* ------------------------------ LOCAL STATE ---------------------------- */
-  const [tab, setTab] = useState("sale"); // "sale" | "loan" | "return" | "history"
+  const [tab, setTab] = useState("sale"); // "sale" | "loan"
 
   // catalog
   const [catalog, setCatalog] = useState([]); // [{row_id,product_id,name,sku,category,available,display_price}]
@@ -1363,8 +1361,6 @@ return (
       {[
         { key: "sale", label: t("branchOperations.tabs.sale") },
         { key: "loan", label: t("branchOperations.tabs.loan") },
-        { key: "return", label: t("branchOperations.tabs.return") },
-        { key: "history", label: t("branchOperations.tabs.history") },
       ].map((tabItem) => {
         const isActive = tab === tabItem.key;
         return (
@@ -1373,18 +1369,6 @@ return (
             onClick={() => {
               setTab(tabItem.key);
               setErr("");
-
-              if (tabItem.key === "history") {
-                setHistMode("date");
-                setSkuQuery("");
-                setHistoryBySku([]);
-                setTimeout(() => loadHistoryByDateWithParents(new Date()), 0);
-              }
-
-              if (tabItem.key === "return") {
-                setReturnMode("date");
-                setTimeout(() => loadReturnByDate(new Date()), 0);
-              }
 
               if (tabItem.key === "loan") {
                 // active loans refresh
@@ -1488,76 +1472,6 @@ return (
             loanHistory={loanHistory}
             loanHistoryLoading={loanHistoryLoading}
             loadLoanHistory={loadLoanHistory}
-          />
-        </div>
-      )}
-
-      {tab === "return" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <ReturnSection
-            note={note}
-            setNote={setNote}
-            returnMode={returnMode}
-            setReturnMode={setReturnMode}
-            nf={nf}
-            retSelectedDay={retSelectedDay}
-            setRetSelectedDay={setRetSelectedDay}
-            retByDateRows={retByDateRows}
-            retByDateLoading={retByDateLoading}
-            retSelect={retSelect}
-            toggleRetSelect={toggleRetSelect}
-            setRetQty={setRetQty}
-            loadReturnByDate={loadReturnByDate}
-            retSkuQuery={retSkuQuery}
-            setRetSkuQuery={setRetSkuQuery}
-            retSkuSuggestions={retSkuSuggestions}
-            retSkuOptions={retSkuOptions}
-            retSkuPicked={retSkuPicked}
-            retSkuQty={retSkuQty}
-            retSkuLoading={retSkuLoading}
-            loadReturnableItems={loadReturnableItems}
-            setRetSkuPicked={setRetSkuPicked}
-            setRetSkuQty={setRetSkuQty}
-            submitReturn={submitReturn}
-            returnValid={returnValid}
-            resetDatePick={() => {
-              setRetSelect(new Map());
-              loadReturnByDate(retSelectedDay);
-            }}
-            resetSkuPick={() => {
-              setRetSkuQuery("");
-              setRetSkuSuggestions([]);
-              setRetSkuOptions([]);
-              setRetSkuPicked(null);
-              setRetSkuQty(0);
-            }}
-          />
-        </div>
-      )}
-
-      {tab === "history" && (
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
-          <HistorySection
-            histMode={histMode}
-            setHistMode={setHistMode}
-            nf={nf}
-            selectedDay={selectedDay}
-            setSelectedDay={setSelectedDay}
-            historyDateRows={historyDateRows}
-            histLoading={histLoading}
-            loadHistoryByDateWithParents={loadHistoryByDateWithParents}
-            onJump={(ds) => jumpToHistoryDay(ds)}
-            skuQuery={skuQuery}
-            setSkuQuery={setSkuQuery}
-            histSkuSuggestions={histSkuSuggestions}
-            historyBySku={historyBySku}
-            histSkuLoading={histSkuLoading}
-            loadHistoryForProduct={loadHistoryForProduct}
-            resetHistSkuSearch={() => {
-              setSkuQuery("");
-              setHistSkuSuggestions([]);
-              setHistoryBySku([]);
-            }}
           />
         </div>
       )}

@@ -9,7 +9,9 @@
     "operations": "Operations",
     "profile": "Profile",
     "inventoryBatches": "Inventory Batches",
-    "userManagement": "User Management"
+    "userManagement": "User Management",
+    "settings": "Settings",
+    "inventoryManagement": "Inventory"
   },
   "app": {
     "title": "Warehouse"
@@ -32,7 +34,19 @@
     "showingRange": "Showing {{from}}–{{to}} of {{total}}",
     "authError": "Auth error",
     "failedLoad": "Failed to load data",
-    "close": "Close"
+    "close": "Close",
+    "actions": "Actions",
+    "save": "Save",
+    "delete": "Delete",
+    "dash": "—"
+  },
+  "warehouseInventory": {
+    "title": "Inventory Management",
+    "subtitle": "Manage stock audits and corrections",
+    "tabs": {
+      "auditReview": "Audit Review",
+      "stockCorrections": "Stock Corrections"
+    }
   },
   "ownerHome": {
     "title": "Inventory Overview",
@@ -51,7 +65,9 @@
       "sku": "SKU",
       "category": "Category",
       "price": "Price",
-      "total": "Total"
+      "total": "Total",
+      "inDelivery": "In Transit",
+      "inDeliveryTooltip": "Items approved but not yet received by the requesting location"
     },
     "empty": {
       "noProducts": "No products found"
@@ -388,7 +404,8 @@
     "roles": {
       "owner": "Owner",
       "warehouse": "Warehouse",
-      "branch": "Branch"
+      "branch": "Branch",
+      "allLocations": "All Locations"
     },
 
     "status": {
@@ -398,6 +415,7 @@
 
     "table": {
       "user": "User",
+      "email": "Email",
       "role": "Role",
       "location": "Location",
       "status": "Status",
@@ -408,7 +426,8 @@
       "addUser": "Add User",
       "approve": "Approve",
       "revoke": "Revoke",
-      "adding": "Adding..."
+      "adding": "Adding...",
+      "editRole": "Edit Role"
     },
 
     "empty": "No users found",
@@ -418,13 +437,20 @@
       "subtitle": "Create a new user account"
     },
 
+    "editRole": {
+      "title": "Edit Role",
+      "currentRole": "Current Role",
+      "selectRole": "Select New Role",
+      "save": "Save Role"
+    },
+
     "form": {
       "emailLabel": "Email (Google Account)",
       "emailPlaceholder": "user@example.com",
       "nameLabel": "Full Name",
       "namePlaceholder": "John Doe",
       "roleLabel": "Role",
-      "rolePlaceholder": "Select a role...",
+      "rolePlaceholder": "Select a role",
       "locationAuto": "Location is assigned automatically from the selected branch role.",
       "groups": {
         "owner": "Owner",
@@ -436,14 +462,116 @@
     "errors": {
       "requiredFields": "Email, Name and Role are required.",
       "invalidEmail": "Enter a valid email address.",
-      "noLocationForBranch": "No location is linked to this branch role."
+      "noLocationForBranch": "No location is linked to this branch role.",
+      "updateFailed": "Failed to update role."
     },
 
     "success": {
       "added": "User added.",
       "addedLinked": "User added and linked!",
       "autoAssigned": "Location auto-assigned to \"{{label}}\".",
-      "autoAssignedFirst": "Location auto-assigned to \"{{label}}\" (first of multiple)."
+      "autoAssignedFirst": "Location auto-assigned to \"{{label}}\" (first of multiple).",
+      "roleUpdated": "Role updated successfully."
+    }
+  },
+  "ownerSettings": {
+    "title": "Settings",
+    "subtitle": "Manage application settings and configuration",
+    "tabs": {
+      "categories": "Categories",
+      "users": "Users",
+      "locations": "Locations"
+    },
+    "categories": {
+      "title": "Category Management",
+      "subtitle": "{{count}} categories total",
+      "addCategory": "Add Category",
+      "adding": "Adding...",
+      "empty": "No categories found",
+      "name": "Category",
+      "products": "Products",
+      "cannotDeleteHint": "Cannot delete - has products",
+      "stats": {
+        "all": "All Categories",
+        "withProducts": "With Products",
+        "empty": "Empty"
+      },
+      "modal": {
+        "title": "Add New Category",
+        "subtitle": "Create a new product category"
+      },
+      "form": {
+        "nameLabel": "Category Name",
+        "namePlaceholder": "Enter category name..."
+      }
+    },
+    "locations": {
+      "title": "Location Management",
+      "subtitle": "{{count}} locations total",
+      "addLocation": "Add Location",
+      "empty": "No locations found",
+      "name": "Location",
+      "code": "Code",
+      "kind": "Type",
+      "products": "Items",
+      "cannotDeleteHint": "Cannot delete - has items",
+      "kinds": {
+        "warehouse": "Warehouse",
+        "branch": "Branch"
+      },
+      "stats": {
+        "all": "All Locations",
+        "warehouse": "Warehouses",
+        "branch": "Branches"
+      },
+      "modal": {
+        "title": "Add New Location",
+        "editTitle": "Edit Location",
+        "subtitle": "Create or modify a location"
+      },
+      "form": {
+        "nameLabel": "Location Name",
+        "namePlaceholder": "Enter location name...",
+        "codeLabel": "Location Code",
+        "codePlaceholder": "e.g. WH-01, BR-MAIN",
+        "kindLabel": "Location Type",
+        "roleLabel": "Assign to Role",
+        "rolePlaceholder": "Select a role...",
+        "roleHint": "Links this location to a branch role for user assignment"
+      },
+      "errors": {
+        "nameRequired": "Location name is required",
+        "saveFailed": "Failed to save location",
+        "updateFailed": "Failed to update location",
+        "deleteFailed": "Failed to delete location",
+        "cannotDelete": "Cannot delete \"{{name}}\" - {{count}} items at this location",
+        "roleCreateFailed": "Failed to create branch role"
+      },
+      "success": {
+        "added": "Location added successfully",
+        "updated": "Location updated successfully",
+        "deleted": "Location deleted successfully"
+      },
+      "confirm": {
+        "delete": "Are you sure you want to delete \"{{name}}\"?"
+      }
+    },
+    "errors": {
+      "loadFailed": "Failed to load settings",
+      "duplicateCategory": "A category with this name already exists",
+      "addFailed": "Failed to add category",
+      "updateFailed": "Failed to update category",
+      "deleteFailed": "Failed to delete category",
+      "cannotDelete": "Cannot delete \"{{name}}\" - {{count}} products use this category",
+      "nameRequired": "Category name is required"
+    },
+    "success": {
+      "categoryAdded": "Category added successfully",
+      "categoryUpdated": "Category updated successfully",
+      "categoryDeleted": "Category deleted successfully"
+    },
+    "confirm": {
+      "deleteCategory": "Are you sure you want to delete \"{{name}}\"?"
     }
   },
   "branch1": {
@@ -460,6 +588,7 @@
         "products": "Products",
         "totalItems": "Total Items",
         "lowStock": "Low Stock",
+        "outOfStock": "Out of Stock",
         "stockValue": "Stock Value"
       },
       "search": {

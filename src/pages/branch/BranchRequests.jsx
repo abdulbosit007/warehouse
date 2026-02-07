@@ -623,6 +623,7 @@ function OutgoingTab({ location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedLocations, setExpandedLocations] = useState({});
+  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -656,20 +657,28 @@ function OutgoingTab({ location, showToast }) {
   }, [loadRequests]);
 
   async function handleCancel(requestId) {
-    const { error } = await supabase
-      .from("branch_requests")
-      .update({ status: "cancelled" })
-      .eq("id", requestId);
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
+    try {
+      const { error } = await supabase
+        .from("branch_requests")
+        .update({ status: "cancelled" })
+        .eq("id", requestId);
 
-    if (error) {
-      showToast(t("branchRequests.toast.cancelFail"), "error");
-    } else {
-      showToast(t("branchRequests.toast.cancelSuccess"), "info");
-      loadRequests();
+      if (error) {
+        showToast(t("branchRequests.toast.cancelFail"), "error");
+      } else {
+        showToast(t("branchRequests.toast.cancelSuccess"), "info");
+        loadRequests();
+      }
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleConfirmReceipt(requestId) {
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
     try {
       const { data: request, error: fetchErr } = await supabase
         .from("branch_requests")
@@ -714,6 +723,17 @@ function OutgoingTab({ location, showToast }) {
         }
       }
 
+      // Update branch_request_items status to completed
+      const { error: itemsError } = await supabase
+        .from("branch_request_items")
+        .update({ status: "completed" })
+        .eq("request_id", requestId);
+      
+      if (itemsError) {
+        console.error("Failed to update branch_request_items:", itemsError);
+      }
+
+      // Update branch_requests status to completed
       await supabase
         .from("branch_requests")
         .update({
@@ -727,6 +747,8 @@ function OutgoingTab({ location, showToast }) {
     } catch (err) {
       console.error("Confirm receipt error:", err);
       showToast(t("branchRequests.toast.confirmReceiptFail"), "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
@@ -881,6 +903,7 @@ function IncomingTab({ location, showToast }) {
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -912,6 +935,8 @@ function IncomingTab({ location, showToast }) {
   }, [loadRequests]);
 
   async function handleApprove(request) {
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(request.id);
     try {
       for (const item of request.items) {
         const qtyToDeduct = item.requested_qty;
@@ -949,14 +974,21 @@ function IncomingTab({ location, showToast }) {
     } catch (err) {
       console.error(err);
       showToast(t("branchRequests.toast.approveFail"), "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleReject(requestId) {
-    await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
-
-    showToast(t("branchRequests.toast.rejectInfo"), "info");
-    loadRequests();
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
+    try {
+      await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
+      showToast(t("branchRequests.toast.rejectInfo"), "info");
+      loadRequests();
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   if (loading) {
@@ -1058,8 +1090,9 @@ function IncomingTab({ location, showToast }) {
                 <div className="col-span-3 flex items-center justify-end gap-2">
                   <button
                     onClick={() => handleReject(req.id)}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
                   >
+                    <X className="w-4 h-4" />
                     {t("branchRequests.incoming.rejectBtn")}
                   </button>
                   <button
@@ -1326,7 +1359,7 @@ function HistoryTab({ location }) {
           </div>
 
           {/* Table Body */}
-          <div className="divide-y divide-neutral-100">
+          <div className="divide-y divide-neutral-100 max-h-[600px] overflow-y-auto">
             {filteredRequests.map((req) => {
               const partner =
                 direction === "outgoing"

@@ -9,7 +9,9 @@
     "operations": "Operatsiyalar",
     "profile": "Profil",
     "inventoryBatches": "Inventar partiyalari",
-    "userManagement": "Foydalanuvchilar boshqaruvi"
+    "userManagement": "Foydalanuvchilar boshqaruvi",
+    "settings": "Sozlamalar",
+    "inventoryManagement": "Inventar"
   },
   "app": {
     "title": "Ombor"
@@ -32,7 +34,19 @@
     "showingRange": "{{total}} dan {{from}}–{{to}} ko‘rsatilmoqda",
     "authError": "Avtorizatsiya xatosi",
     "failedLoad": "Ma’lumotlarni yuklab bo‘lmadi",
-    "close": "Yopish"
+    "close": "Yopish",
+    "actions": "Amallar",
+    "save": "Saqlash",
+    "delete": "O'chirish",
+    "dash": "—"
+  },
+  "warehouseInventory": {
+    "title": "Inventar boshqaruvi",
+    "subtitle": "Audit va ombor tuzatishlarni boshqarish",
+    "tabs": {
+      "auditReview": "Audit tekshiruvi",
+      "stockCorrections": "Ombor tuzatishlari"
+    }
   },
   "ownerHome": {
     "title": "Inventar ko‘rinishi",
@@ -51,7 +65,9 @@
       "sku": "SKU",
       "category": "Kategoriya",
       "price": "Narx",
-      "total": "Jami"
+      "total": "Jami",
+      "inDelivery": "Yo'lda",
+      "inDeliveryTooltip": "Tasdiqlangan lekin hali qabul qilinmagan mahsulotlar"
     },
     "empty": {
       "noProducts": "Mahsulot topilmadi"
@@ -387,7 +403,8 @@
     "roles": {
       "owner": "Ega",
       "warehouse": "Ombor",
-      "branch": "Filial"
+      "branch": "Filial",
+      "allLocations": "Barcha lokatsiyalar"
     },
 
     "status": {
@@ -397,6 +414,7 @@
 
     "table": {
       "user": "Foydalanuvchi",
+      "email": "Email",
       "role": "Rol",
       "location": "Lokatsiya",
       "status": "Holat",
@@ -407,7 +425,8 @@
       "addUser": "Qo‘shish",
       "approve": "Tasdiqlash",
       "revoke": "Bekor qilish",
-      "adding": "Qo‘shilmoqda..."
+      "adding": "Qo'shilmoqda...",
+      "editRole": "Rolni tahrirlash"
     },
 
     "empty": "Foydalanuvchi topilmadi",
@@ -415,6 +434,13 @@
     "modal": {
       "title": "Yangi foydalanuvchi qo‘shish",
       "subtitle": "Yangi akkaunt yarating"
+    },
+
+    "editRole": {
+      "title": "Rolni o'zgartirish",
+      "currentRole": "Joriy rol",
+      "selectRole": "Yangi rolni tanlang",
+      "save": "Saqlash"
     },
 
     "form": {
@@ -445,6 +471,107 @@
       "autoAssignedFirst": "Lokatsiya avtomatik biriktirildi: \"{{label}}\" (birinchisi)."
     }
   },
+  "ownerSettings": {
+    "title": "Sozlamalar",
+    "subtitle": "Ilova sozlamalari va konfiguratsiya",
+    "tabs": {
+      "categories": "Kategoriyalar",
+      "users": "Foydalanuvchilar",
+      "locations": "Manzillar"
+    },
+    "categories": {
+      "title": "Kategoriyalarni boshqarish",
+      "subtitle": "Jami {{count}} ta kategoriya",
+      "addCategory": "Kategoriya qo'shish",
+      "adding": "Qo'shilmoqda...",
+      "editCategory": "Kategoriyani o'zgartirish",
+      "empty": "Kategoriya topilmadi",
+      "name": "Kategoriya",
+      "products": "Mahsulotlar",
+      "cannotDeleteHint": "O'chirib bo'lmaydi - mahsulotlar bor",
+      "stats": {
+        "all": "Barcha kategoriyalar",
+        "withProducts": "Mahsulotli",
+        "empty": "Bo'sh"
+      },
+      "modal": {
+        "title": "Yangi kategoriya qo'shish",
+        "subtitle": "Yangi mahsulot kategoriyasini yarating"
+      },
+      "form": {
+        "nameLabel": "Kategoriya nomi",
+        "namePlaceholder": "Kategoriya nomini kiriting..."
+      }
+    },
+    "locations": {
+      "title": "Manzillarni boshqarish",
+      "subtitle": "Jami {{count}} ta manzil",
+      "addLocation": "Manzil qo'shish",
+      "empty": "Manzil topilmadi",
+      "name": "Manzil",
+      "code": "Kod",
+      "kind": "Turi",
+      "products": "Elementlar",
+      "cannotDeleteHint": "O'chirib bo'lmaydi - elementlar bor",
+      "kinds": {
+        "warehouse": "Ombor",
+        "branch": "Filial"
+      },
+      "stats": {
+        "all": "Barcha manzillar",
+        "warehouse": "Omborlar",
+        "branch": "Filiallar"
+      },
+      "modal": {
+        "title": "Yangi manzil qo'shish",
+        "editTitle": "Manzilni tahrirlash",
+        "subtitle": "Manzil yaratish yoki o'zgartirish"
+      },
+      "form": {
+        "nameLabel": "Manzil nomi",
+        "namePlaceholder": "Manzil nomini kiriting...",
+        "codeLabel": "Manzil kodi",
+        "codePlaceholder": "masalan, OM-01, FIL-ASOSIY",
+        "kindLabel": "Manzil turi",
+        "roleLabel": "Rolga biriktirish",
+        "rolePlaceholder": "Rolni tanlang...",
+        "roleHint": "Bu manzilni foydalanuvchi tayinlash uchun filial roliga bog'laydi"
+      },
+      "errors": {
+        "nameRequired": "Manzil nomi talab qilinadi",
+        "saveFailed": "Manzilni saqlashda xatolik",
+        "updateFailed": "Manzilni yangilashda xatolik",
+        "deleteFailed": "Manzilni o'chirishda xatolik",
+        "cannotDelete": "\"{{name}}\" ni o'chirib bo'lmaydi - {{count}} ta element bor",
+        "roleCreateFailed": "Filial rolini yaratishda xatolik"
+      },
+      "success": {
+        "added": "Manzil qo'shildi",
+        "updated": "Manzil yangilandi",
+        "deleted": "Manzil o'chirildi"
+      },
+      "confirm": {
+        "delete": "\"{{name}}\" ni o'chirishni xohlaysizmi?"
+      }
+    },
+    "errors": {
+      "loadFailed": "Sozlamalarni yuklashda xatolik",
+      "duplicateCategory": "Bu nomdagi kategoriya allaqachon mavjud",
+      "addFailed": "Kategoriya qo'shishda xatolik",
+      "updateFailed": "Kategoriyani yangilashda xatolik",
+      "deleteFailed": "Kategoriyani o'chirishda xatolik",
+      "cannotDelete": "\"{{name}}\" ni o'chirib bo'lmaydi - {{count}} ta mahsulot ishlatmoqda",
+      "nameRequired": "Kategoriya nomi talab qilinadi"
+    },
+    "success": {
+      "categoryAdded": "Kategoriya qo'shildi",
+      "categoryUpdated": "Kategoriya yangilandi",
+      "categoryDeleted": "Kategoriya o'chirildi"
+    },
+    "confirm": {
+      "deleteCategory": "\"{{name}}\" ni o'chirishni xohlaysizmi?"
+    }
+  },
   "branch1": {
     "home": {
       "title": "Filial ombori",
@@ -459,6 +586,7 @@
         "products": "Mahsulotlar",
         "totalItems": "Jami birlik",
         "lowStock": "Kam qoldiq",
+        "outOfStock": "Tugagan",
         "stockValue": "Ombor qiymati"
       },
       "search": {

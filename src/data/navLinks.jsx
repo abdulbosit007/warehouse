@@ -10,6 +10,7 @@ import {
   UserCircle,
   Wrench,
   AlertTriangle,
+  Settings,
 } from "lucide-react";
 
 /* -----------------------------
@@ -32,19 +33,9 @@ export const warehouseLinks = [
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
-    to: "/warehouse/stock-corrections",
-    label: "nav.stockCorrections",
-    icon: <AlertTriangle className="w-4 h-4" />,
-  },
-  {
-    to: "/warehouse/audit-review",
-    label: "nav.auditReview",
+    to: "/warehouse/inventory-management",
+    label: "nav.inventoryManagement",
     icon: <ClipboardCheck className="w-4 h-4" />,
-  },
-  {
-    to: "/warehouse/history",
-    label: "nav.history",
-    icon: <Clock className="w-4 h-4" />,
   },
   {
     to: "/warehouse/profile",
@@ -73,14 +64,9 @@ export const ownerLinks = [
     icon: <Wrench className="w-4 h-4" />,
   },
   {
-    to: "/owner/history",
-    label: "nav.history",
-    icon: <Clock className="w-4 h-4" />,
-  },
-  {
-    to: "/owner/user-management",
-    label: "nav.userManagement",
-    icon: <Users className="w-4 h-4" />,
+    to: "/owner/settings",
+    label: "nav.settings",
+    icon: <Settings className="w-4 h-4" />,
   },
   {
     to: "/owner/profile",
@@ -104,13 +90,8 @@ export const branchLinks = (branchId) => {
       icon: <Home className="w-4 h-4" />,
     },
     {
-      to: `${base}/stock-corrections`,
-      label: "nav.stockCorrections",
-      icon: <AlertTriangle className="w-4 h-4" />,
-    },
-    {
-      to: `${base}/audit-review`,
-      label: "nav.auditReview",
+      to: `${base}/inventory-management`,
+      label: "nav.inventoryManagement",
       icon: <ClipboardCheck className="w-4 h-4" />,
     },
     {

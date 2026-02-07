@@ -9,6 +9,7 @@ import {
   Search,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
@@ -173,6 +174,7 @@ export default function BranchHome() {
 
   const [products, setProducts] = useState([]);
   const [productList, setProductList] = useState([]);
+  const [allProductList, setAllProductList] = useState([]); // All locations
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -204,7 +206,7 @@ export default function BranchHome() {
     setError(null);
 
     try {
-      const [productsRes, listRes, categoriesRes] = await Promise.all([
+      const [productsRes, listRes, allListRes, categoriesRes] = await Promise.all([
         supabase
           .from("products")
           .select("id, name, sku, sale_price, category_id, categories:category_id(id, name)")
@@ -215,6 +217,11 @@ export default function BranchHome() {
           .eq("status", "available")
           .eq("location_id", locationId),
         supabase
+          .from("product_list")
+          .select("product_id, location_id, quantity, status")
+          .eq("status", "available")
+          .gt("quantity", 0), // Products with stock in ANY location
+        supabase
           .from("categories")
           .select("id, name")
           .order("name", { ascending: true }),
@@ -222,10 +229,12 @@ export default function BranchHome() {
 
       if (productsRes.error) throw productsRes.error;
       if (listRes.error) throw listRes.error;
+      if (allListRes.error) throw allListRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
 
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
+      setAllProductList(allListRes.data || []);
       setCategories(categoriesRes.data || []);
     } catch (err) {
       console.error("Error loading data:", err);
@@ -296,8 +305,31 @@ export default function BranchHome() {
   const activeFilterCount = [filters.category_id, filters.stockStatus, filters.priceMin || filters.priceMax].filter(Boolean).length;
 
   const totalItems = productsWithStock.reduce((sum, p) => sum + p.quantity, 0);
-  const totalValue = productsWithStock.reduce((sum, p) => sum + p.value, 0);
   const lowStockCount = productsWithStock.filter((p) => p.quantity > 0 && p.quantity <= 5).length;
+
+  // Out of Stock: products that exist in OTHER locations but NOT in current branch
+  const outOfStockCount = useMemo(() => {
+    // Products with stock in at least one OTHER location
+    const productsInOtherLocations = new Set(
+      allProductList
+        .filter((item) => item.location_id !== locationId && item.quantity > 0)
+        .map((item) => item.product_id)
+    );
+    // Products with stock in current location
+    const productsInCurrentLocation = new Set(
+      productList
+        .filter((item) => item.quantity > 0)
+        .map((item) => item.product_id)
+    );
+    // Count products in other locations but NOT in current
+    let count = 0;
+    for (const productId of productsInOtherLocations) {
+      if (!productsInCurrentLocation.has(productId)) {
+        count++;
+      }
+    }
+    return count;
+  }, [allProductList, productList, locationId]);
 
   if (authLoading) {
     return (
@@ -394,21 +426,20 @@ export default function BranchHome() {
           </div>
         </div>
 
-        <div className="rounded-2xl p-4 text-left" style={{ background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" }}>
+        <div className="rounded-2xl p-4 text-left" style={{ background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" }}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-                {t("branch1.home.stats.stockValue")}
+              <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
+                {t("branch1.home.stats.outOfStock")}
               </p>
-              <p className="mt-1 text-2xl font-bold text-neutral-900">
-                {totalValue.toLocaleString()}
-              </p>
+              <p className="mt-1 text-3xl font-bold text-neutral-900">{outOfStockCount}</p>
             </div>
-            <div className="p-2 rounded-xl text-blue-600 bg-white/50">
-              <DollarSign className="w-5 h-5" />
+            <div className="p-2 rounded-xl text-red-600 bg-white/50">
+              <AlertTriangle className="w-5 h-5" />
             </div>
           </div>
         </div>
+
       </div>
 
       {/* Search & Filters */}
@@ -546,9 +577,6 @@ export default function BranchHome() {
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                     {t("branch1.home.table.quantity")}
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
-                    {t("branch1.home.table.value")}
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -580,9 +608,6 @@ export default function BranchHome() {
                         >
                           {product.quantity}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-700 text-right font-mono">
-                        {product.value.toLocaleString()}
                       </td>
                     </tr>
                   );

@@ -179,8 +179,14 @@ function FilterModal({ t, categories, locations, filters, onApply, onClose }) {
 ───────────────────────────────────────────────────────────────────────────── */
 export default function WarehouseHome() {
   const { t } = useTranslation();
-  const { loading: authLoading, error: authError, roleBase, locationName } =
-    useCurrentUser();
+  const { 
+    loading: authLoading, 
+    error: authError, 
+    roleBase, 
+    locationName,
+    locationId: userLocationId,
+    isSuperWarehouse 
+  } = useCurrentUser();
 
   const [products, setProducts] = useState([]);
   const [productList, setProductList] = useState([]);
@@ -207,24 +213,41 @@ export default function WarehouseHome() {
     if (authLoading || authError || roleBase !== "warehouse") return;
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, authError, roleBase]);
+  }, [authLoading, authError, roleBase, userLocationId, isSuperWarehouse]);
 
   async function loadData() {
     setLoading(true);
     setError(null);
 
     try {
-      const locationsRes = await supabase
+      // Fetch warehouse locations - super user sees all, regular user sees only their assigned location
+      let locationsQuery = supabase
         .from("locations")
         .select("id, name, location_name, kind")
         .eq("kind", "warehouse")
         .order("location_name", { ascending: true });
+      
+      // If not super warehouse and has assigned location, filter to just that location
+      if (!isSuperWarehouse && userLocationId) {
+        locationsQuery = locationsQuery.eq("id", userLocationId);
+      }
+
+      const locationsRes = await locationsQuery;
 
       if (locationsRes.error) throw locationsRes.error;
       const warehouseLocations = locationsRes.data || [];
       setLocations(warehouseLocations);
 
       const warehouseIds = warehouseLocations.map((l) => l.id);
+
+      // If no warehouse locations available for this user, skip the rest
+      if (warehouseIds.length === 0) {
+        setProducts([]);
+        setProductList([]);
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
 
       const [productsRes, listRes, categoriesRes] = await Promise.all([
         supabase
@@ -257,6 +280,7 @@ export default function WarehouseHome() {
       setLoading(false);
     }
   }
+
 
   /* ─────────────────────────────────────────────────────────────────────────
      COMPUTE TABLE DATA

@@ -387,7 +387,7 @@ function AuditDetailModal({ t, audit, products, onClose }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-export default function BranchAuditReview() {
+export default function BranchAuditReview({ asTab = false }) {
   const { t } = useTranslation();
 
   const {
@@ -731,7 +731,7 @@ export default function BranchAuditReview() {
     }
   }
 
-  if (authLoading || loading) {
+  if (!asTab && (authLoading || loading)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
@@ -742,7 +742,18 @@ export default function BranchAuditReview() {
     );
   }
 
-  if (authError || error) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">{t("branchAudit.common.loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!asTab && (authError || error)) {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -755,7 +766,7 @@ export default function BranchAuditReview() {
     );
   }
 
-  if (roleBase !== "branch") {
+  if (!asTab && roleBase !== "branch") {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -774,28 +785,50 @@ export default function BranchAuditReview() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            {t("branchAudit.title")}
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
+      {/* Header - only show when not in tab mode */}
+      {!asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+              {t("branchAudit.title")}
+            </h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {t("branchAudit.subtitle", {
+                branch: locationName || t("branchAudit.common.yourBranch"),
+                count: selectedAuditForReview ? products.length : products.length,
+              })}
+            </p>
+          </div>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            {t("branchAudit.actions.refresh")}
+          </button>
+        </div>
+      )}
+
+      {/* Tab mode header */}
+      {asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-neutral-500">
             {t("branchAudit.subtitle", {
               branch: locationName || t("branchAudit.common.yourBranch"),
-              count: selectedAuditForReview ? products.length : products.length,
+              count: products.length,
             })}
           </p>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            {t("branchAudit.actions.refresh")}
+          </button>
         </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          {t("branchAudit.actions.refresh")}
-        </button>
-      </div>
+      )}
 
       {/* Back Button - When in product review */}
       {selectedAuditForReview && (

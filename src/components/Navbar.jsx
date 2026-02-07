@@ -49,6 +49,7 @@ export default function Navbar({
 }) {
   const themeConfig = THEMES[theme] || THEMES.indigo;
   const [open, setOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const navigate = useNavigate();
 
   // ✅ i18n
@@ -149,27 +150,51 @@ export default function Navbar({
               ))}
             </nav>
 
-            {/* Language selector (desktop / lg+) */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${themeConfig.bgLight} border ${themeConfig.border}`}>
-              {/* globe icon */}
-              <svg className={`w-4 h-4 ${themeConfig.text}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
-                <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
-                <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
-              </svg>
-
-              <select
-                value={lang}
-                onChange={(e) => changeLang(e.target.value)}
-                className={`bg-transparent border-none text-xs font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
+            {/* Language selector (desktop / lg+) - Custom Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen(!langOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-100 border border-neutral-200 hover:bg-neutral-200 transition-colors"
                 aria-label="Select language"
               >
-                {LANG_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                {/* globe icon */}
+                <svg className="w-4 h-4 text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
+                  <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
+                </svg>
+                <span className="text-xs font-semibold tracking-wide text-neutral-700">
+                  {LANG_OPTIONS.find((o) => o.value === lang)?.label || "UZ"}
+                </span>
+                <svg className={`w-3 h-3 text-neutral-500 transition-transform ${langOpen ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none" stroke="currentColor">
+                  <path d="M3 4.5L6 7.5L9 4.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {/* Dropdown Panel */}
+              {langOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
+                  <div className="absolute right-0 mt-2 z-50 bg-white rounded-2xl shadow-lg border border-neutral-200 p-1.5 min-w-[70px]">
+                    {LANG_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          changeLang(opt.value);
+                          setLangOpen(false);
+                        }}
+                        className={`w-full px-3 py-1 text-sm font-medium text-center rounded-lg transition-colors hover:bg-neutral-200 ${
+                          lang === opt.value
+                            ? "text-indigo-600"
+                            : "text-neutral-700"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -204,26 +229,47 @@ export default function Navbar({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Language selector (mobile+tablet) */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${themeConfig.bgLighter} border ${themeConfig.borderLight}`}>
-              <svg className={`w-4 h-4 ${themeConfig.text}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
-                <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
-                <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
-              </svg>
-
-              <select
-                value={lang}
-                onChange={(e) => changeLang(e.target.value)}
-                className={`bg-transparent border-none text-[11px] font-semibold tracking-wide ${themeConfig.text} focus:outline-none focus:ring-0 cursor-pointer`}
+            {/* Language selector (mobile+tablet) - Custom Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen(!langOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 border border-neutral-200 hover:bg-neutral-200 transition-colors"
                 aria-label="Select language mobile"
               >
-                {LANG_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <svg className="w-4 h-4 text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Z" strokeWidth="1.6" />
+                  <path d="M3.6 9h16.8M3.6 15h16.8" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9Z" strokeWidth="1.4" />
+                </svg>
+                <span className="text-[11px] font-semibold tracking-wide text-neutral-700">
+                  {LANG_OPTIONS.find((o) => o.value === lang)?.label || "UZ"}
+                </span>
+                <svg className={`w-3 h-3 text-neutral-500 transition-transform ${langOpen ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none" stroke="currentColor">
+                  <path d="M3 4.5L6 7.5L9 4.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {/* Dropdown Panel */}
+              {langOpen && (
+                <div className="absolute right-0 mt-2 z-[70] bg-white rounded-2xl shadow-lg border border-neutral-200 p-1.5 min-w-[70px]">
+                  {LANG_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        changeLang(opt.value);
+                        setLangOpen(false);
+                      }}
+                      className={`w-full px-3 py-1 text-sm font-medium text-center rounded-lg transition-colors hover:bg-neutral-200 ${
+                        lang === opt.value
+                          ? "text-indigo-600"
+                          : "text-neutral-700"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button onClick={() => setOpen(false)} aria-label="Close menu" className="p-2 rounded-lg hover:bg-neutral-100">

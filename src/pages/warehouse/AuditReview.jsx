@@ -316,9 +316,9 @@ function AuditDetailModal({ audit, products, onClose }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-export default function WarehouseAuditReview() {
+export default function WarehouseAuditReview({ asTab = false }) {
   const { t } = useTranslation();
-  const { loading: authLoading, error: authError, roleBase, userRow } = useCurrentUser();
+  const { loading: authLoading, error: authError, roleBase, userRow, isSuperWarehouse, locationId } = useCurrentUser();
 
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [warehouseLocation, setWarehouseLocation] = useState(null);
@@ -358,22 +358,43 @@ export default function WarehouseAuditReview() {
     if (authLoading || authError || roleBase !== "warehouse") return;
 
     (async () => {
-      const { data, error: err } = await supabase
-        .from("locations")
-        .select("id, name, location_name, kind, code")
-        .eq("kind", "warehouse")
-        .order("location_name", { ascending: true });
+      // For non-super warehouse users, only fetch their assigned location
+      if (!isSuperWarehouse && locationId) {
+        const { data, error: err } = await supabase
+          .from("locations")
+          .select("id, name, location_name, kind, code")
+          .eq("id", locationId)
+          .maybeSingle();
 
-      if (err) {
-        console.error("Warehouse locations error:", err);
-        setError(err.message);
-        return;
+        if (err) {
+          console.error("Warehouse location error:", err);
+          setError(err.message);
+          return;
+        }
+
+        if (data) {
+          setAllWarehouses([data]);
+          setWarehouseLocation(data);
+        }
+      } else {
+        // Super warehouse users see all warehouses
+        const { data, error: err } = await supabase
+          .from("locations")
+          .select("id, name, location_name, kind, code")
+          .eq("kind", "warehouse")
+          .order("location_name", { ascending: true });
+
+        if (err) {
+          console.error("Warehouse locations error:", err);
+          setError(err.message);
+          return;
+        }
+
+        setAllWarehouses(data || []);
+        if (data && data.length > 0) setWarehouseLocation(data[0]);
       }
-
-      setAllWarehouses(data || []);
-      if (data && data.length > 0) setWarehouseLocation(data[0]);
     })();
-  }, [authLoading, authError, roleBase]);
+  }, [authLoading, authError, roleBase, isSuperWarehouse, locationId]);
 
   useEffect(() => {
     if (!warehouseLocation) return;
@@ -635,7 +656,8 @@ export default function WarehouseAuditReview() {
     }
   }
 
-  if (authLoading || loading) {
+  // When used as tab, parent handles auth - show local loading state only
+  if (!asTab && authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
@@ -646,7 +668,18 @@ export default function WarehouseAuditReview() {
     );
   }
 
-  if (authError || error) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!asTab && (authError || error)) {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -659,7 +692,18 @@ export default function WarehouseAuditReview() {
     );
   }
 
-  if (roleBase !== "warehouse") {
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="w-6 h-6" />
+          <span className="font-medium">{error}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!asTab && roleBase !== "warehouse") {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -674,23 +718,44 @@ export default function WarehouseAuditReview() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">{t("warehouseAudit.page.title")}</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+      {/* Page Header - only show when not in tab mode */}
+      {!asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">{t("warehouseAudit.page.title")}</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {(warehouseLocation?.location_name || warehouseLocation?.name || t("warehouseAudit.labels.warehouse"))} •{" "}
+              {t("warehouseAudit.page.productsToReview", { count: products.length })}
+            </p>
+          </div>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            {t("common.refresh")}
+          </button>
+        </div>
+      )}
+
+      {/* Tab mode header - simpler with refresh button */}
+      {asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-neutral-500">
             {(warehouseLocation?.location_name || warehouseLocation?.name || t("warehouseAudit.labels.warehouse"))} •{" "}
             {t("warehouseAudit.page.productsToReview", { count: products.length })}
           </p>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            {t("common.refresh")}
+          </button>
         </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          {t("common.refresh")}
-        </button>
-      </div>
+      )}
 
       {!selectedAuditForReview && allWarehouses.length > 1 && (
         <div className="relative">

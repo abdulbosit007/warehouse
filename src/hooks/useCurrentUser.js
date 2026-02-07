@@ -7,9 +7,10 @@ import { supabase } from "../lib/supabaseClient";
  *  - authUser: session.user (or null)
  *  - userRow: users_list row subset
  *  - roleBase: "owner" | "warehouse" | "branch" | null
- *  - locationId: UUID of location (only for branch users)
- *  - locationName: string|null (from locations.location_name; only for branch users)
+ *  - locationId: UUID of location (for warehouse and branch users with assigned location)
+ *  - locationName: string|null (from locations.location_name)
  *  - roleId: UUID of the user's role (useful for comparisons)
+ *  - isSuperWarehouse: boolean (true if user has access to all warehouses)
  */
 export default function useCurrentUser() {
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,7 @@ export default function useCurrentUser() {
   const [locationId, setLocationId] = useState(null);
   const [locationName, setLocationName] = useState(null);
   const [roleId, setRoleId] = useState(null);
+  const [isSuperWarehouse, setIsSuperWarehouse] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export default function useCurrentUser() {
       setLocationId(null);
       setLocationName(null);
       setRoleId(null);
+      setIsSuperWarehouse(false);
 
       // session
       const { data: sessData, error: sessErr } =
@@ -70,29 +73,44 @@ export default function useCurrentUser() {
 
       const r = data.roles || {};
       const raw = (r.name || "").trim().toLowerCase();
-      const base =
-        raw === "owner"
-          ? "owner"
-          : raw === "warehouse"
-          ? "warehouse"
-          : raw.startsWith("branch")
-          ? "branch"
-          : null;
+      
+      // Determine role base and super status
+      // - "owner" → owner
+      // - "warehouse" (exact) → warehouse with super access (all warehouses)
+      // - "warehouse-1", "warehouse-2"... OR "warehouse1", "warehouse2"... → warehouse (specific location)
+      // - "branch-1", "branch-2"... OR "branch1", "branch2"... → branch (specific location)
+      let base = null;
+      let superWarehouse = false;
+      
+      if (raw === "owner") {
+        base = "owner";
+      } else if (raw === "warehouse") {
+        // Exact match = super warehouse with access to all
+        base = "warehouse";
+        superWarehouse = true;
+      } else if (raw.startsWith("warehouse-") || raw.startsWith("warehouse") && raw !== "warehouse") {
+        // Warehouse-1 or warehouse1 = regular warehouse with specific location
+        base = "warehouse";
+        superWarehouse = false;
+      } else if (raw.startsWith("branch-") || raw.startsWith("branch")) {
+        base = "branch";
+      }
 
-      // Only BRANCH users have a single enforced inventory location.
-      // For them, fetch the human label from locations.location_name by role_id.
-      // Owners & Warehouse users: locationName remains null (no enforcement).
+      // Fetch location for warehouse (non-super) and branch users
+      // They have a single enforced inventory location linked via role_id
       let locId = null;
       let locName = null;
-      if (base === "branch" && r.id) {
-        const { data: loc, error: locErr } = await supabase
-          .from("locations")
-          .select("id, location_name")
-          .eq("role_id", r.id)
-          .maybeSingle();
-        if (!locErr && loc) {
-          locId = loc.id;
-          locName = loc.location_name;
+      if ((base === "warehouse" && !superWarehouse) || base === "branch") {
+        if (r.id) {
+          const { data: loc, error: locErr } = await supabase
+            .from("locations")
+            .select("id, location_name")
+            .eq("role_id", r.id)
+            .maybeSingle();
+          if (!locErr && loc) {
+            locId = loc.id;
+            locName = loc.location_name;
+          }
         }
       }
 
@@ -106,7 +124,8 @@ export default function useCurrentUser() {
         setRoleId(r.id || null);
         setRoleBase(base);
         setLocationId(locId);
-        setLocationName(locName); // null for owner/warehouse
+        setLocationName(locName);
+        setIsSuperWarehouse(superWarehouse);
         setLoading(false);
       }
     })();
@@ -116,6 +135,15 @@ export default function useCurrentUser() {
     };
   }, []);
 
-  return { loading, error, authUser, userRow, roleBase, locationId, locationName, roleId };
+  return { 
+    loading, 
+    error, 
+    authUser, 
+    userRow, 
+    roleBase, 
+    locationId, 
+    locationName, 
+    roleId,
+    isSuperWarehouse 
+  };
 }
-

@@ -2,11 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
-// Parse "Branch-3" → { type:'branch', branchId:'3' }
+// Parse role name to determine type
+// - "Owner" → owner
+// - "Warehouse" (exact) → warehouse (super)
+// - "Warehouse-1", "Warehouse-2"... → warehouse (specific location)
+// - "Branch-1", "Branch-2"... → branch
 function parseRoleName(name = "") {
   const n = String(name || "").trim();
   if (/^owner$/i.test(n)) return { type: "owner" };
+  // Super warehouse (exact match)
   if (/^warehouse$/i.test(n)) return { type: "warehouse" };
+  // Warehouse with specific location (Warehouse-1, Warehouse-2, etc)
+  if (/^warehouse[-_ ]?\d+$/i.test(n)) return { type: "warehouse" };
+  // Branch with specific location (Branch-1, Branch-2, etc)
   const m = n.match(/^branch[-_ ]?(\d+)$/i);
   if (m) return { type: "branch", branchId: m[1] };
   return { type: "unknown" };

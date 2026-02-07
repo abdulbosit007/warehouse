@@ -94,9 +94,16 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onCli
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-export default function WarehouseStockCorrections() {
+export default function WarehouseStockCorrections({ asTab = false }) {
   const { t } = useTranslation();
-  const { loading, error, roleBase, userRow } = useCurrentUser();
+  const { 
+    loading, 
+    error, 
+    roleBase, 
+    userRow,
+    locationId: userLocationId,
+    isSuperWarehouse 
+  } = useCurrentUser();
 
   // All warehouse locations
   const [allWarehouses, setAllWarehouses] = useState([]);
@@ -141,11 +148,18 @@ export default function WarehouseStockCorrections() {
       setLocationLoading(true);
       setLocationError(null);
 
-      const { data, error: err } = await supabase
+      let query = supabase
         .from("locations")
         .select("id, name, location_name, kind, code")
         .eq("kind", "warehouse")
         .order("location_name", { ascending: true });
+      
+      // If not super warehouse and has assigned location, filter to just that location
+      if (!isSuperWarehouse && userLocationId) {
+        query = query.eq("id", userLocationId);
+      }
+
+      const { data, error: err } = await query;
 
       if (ignore) return;
 
@@ -169,7 +183,7 @@ export default function WarehouseStockCorrections() {
     return () => {
       ignore = true;
     };
-  }, [loading, error, roleBase, t]);
+  }, [loading, error, roleBase, t, userLocationId, isSuperWarehouse]);
 
   // Function to switch warehouse
   function handleWarehouseChange(warehouseId) {
@@ -403,9 +417,20 @@ export default function WarehouseStockCorrections() {
   /* ─────────────────────────────────────────────────────────────────────────
      UI GUARDS
   ───────────────────────────────────────────────────────────────────────── */
-  if (loading || locationLoading) {
+  if (!asTab && (loading || locationLoading)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">{t("warehouseStockCorrections.loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (locationLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           <p className="text-sm text-neutral-500">{t("warehouseStockCorrections.loading")}</p>
@@ -463,15 +488,16 @@ export default function WarehouseStockCorrections() {
   return (
     <div className="space-y-6">
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            {t("warehouseStockCorrections.page.title")}
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            {t("warehouseStockCorrections.page.subtitle")}
-          </p>
-        </div>
+      {!asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+              {t("warehouseStockCorrections.page.title")}
+            </h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {t("warehouseStockCorrections.page.subtitle")}
+            </p>
+          </div>
 
         <div className="flex items-center gap-3">
           {/* Warehouse Selector */}
@@ -511,6 +537,7 @@ export default function WarehouseStockCorrections() {
           </button>
         </div>
       </div>
+      )}
 
       {/* ──────────────── STATS CARDS ──────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

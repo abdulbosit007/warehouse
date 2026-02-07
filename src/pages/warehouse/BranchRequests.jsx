@@ -112,8 +112,14 @@ function Toast({ message, type, onClose }) {
 /* -------------------------------------------------------------------------- */
 export default function BranchRequests() {
   const { t } = useTranslation();
-  const { loading: authLoading, error: authError, roleBase, roleId } =
-    useCurrentUser();
+  const { 
+    loading: authLoading, 
+    error: authError, 
+    roleBase, 
+    roleId,
+    locationId: userLocationId,
+    isSuperWarehouse 
+  } = useCurrentUser();
 
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -125,16 +131,23 @@ export default function BranchRequests() {
     if (authLoading || authError || !roleId || roleBase !== "warehouse") return;
 
     async function loadLocations() {
-      const { data } = await supabase
+      let query = supabase
         .from("locations")
         .select("id, name, location_name, code, kind")
         .eq("kind", "warehouse");
+      
+      // If not super warehouse and has assigned location, filter to just that location
+      if (!isSuperWarehouse && userLocationId) {
+        query = query.eq("id", userLocationId);
+      }
+
+      const { data } = await query;
 
       setLocations(data || []);
       if (data?.length > 0) setSelectedLocation(data[0]);
     }
     loadLocations();
-  }, [authLoading, authError, roleId, roleBase]);
+  }, [authLoading, authError, roleId, roleBase, userLocationId, isSuperWarehouse]);
 
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
@@ -621,6 +634,7 @@ function NewRequestTab({ t, location, showToast }) {
 function OutgoingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -648,12 +662,20 @@ function OutgoingTab({ t, location, showToast }) {
   }, [loadRequests]);
 
   async function handleCancel(requestId) {
-    await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", requestId);
-    showToast(t("warehouseRequests.toast.cancelled"), "info");
-    loadRequests();
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
+    try {
+      await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", requestId);
+      showToast(t("warehouseRequests.toast.cancelled"), "info");
+      loadRequests();
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   async function handleConfirmReceipt(requestId) {
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
     try {
       const { data: request, error: fetchErr } = await supabase
         .from("branch_requests")
@@ -701,6 +723,17 @@ function OutgoingTab({ t, location, showToast }) {
         }
       }
 
+      // Update branch_request_items status to completed
+      const { error: itemsError } = await supabase
+        .from("branch_request_items")
+        .update({ status: "completed" })
+        .eq("request_id", requestId);
+      
+      if (itemsError) {
+        console.error("Failed to update branch_request_items:", itemsError);
+      }
+
+      // Update branch_requests status to completed
       await supabase
         .from("branch_requests")
         .update({
@@ -714,6 +747,8 @@ function OutgoingTab({ t, location, showToast }) {
     } catch (err) {
       console.error("Confirm receipt error:", err);
       showToast(t("warehouseRequests.toast.receivedFail"), "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
@@ -865,6 +900,7 @@ function OutgoingTab({ t, location, showToast }) {
 function IncomingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -895,6 +931,8 @@ function IncomingTab({ t, location, showToast }) {
   }, [loadRequests]);
 
   async function handleApprove(request) {
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(request.id);
     try {
       for (const item of request.items) {
         const { data: product } = await supabase
@@ -932,13 +970,21 @@ function IncomingTab({ t, location, showToast }) {
     } catch (err) {
       console.error(err);
       showToast(t("warehouseRequests.toast.approvedFail"), "error");
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleReject(requestId) {
-    await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
-    showToast(t("warehouseRequests.toast.rejected"), "info");
-    loadRequests();
+    if (processingId) return; // Guard against rapid clicks
+    setProcessingId(requestId);
+    try {
+      await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
+      showToast(t("warehouseRequests.toast.rejected"), "info");
+      loadRequests();
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   if (loading) {
@@ -1041,8 +1087,9 @@ function IncomingTab({ t, location, showToast }) {
                 <div className="col-span-3 flex items-center justify-end gap-2">
                   <button
                     onClick={() => handleReject(req.id)}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
                   >
+                    <X className="w-4 h-4" />
                     {t("warehouseRequests.actions.reject")}
                   </button>
                   <button
@@ -1303,7 +1350,7 @@ function HistoryTab({ t, location }) {
           </div>
 
           {/* Table Body */}
-          <div className="divide-y divide-neutral-100">
+          <div className="divide-y divide-neutral-100 max-h-[600px] overflow-y-auto">
             {filteredRequests.map((req) => {
               const partner =
                 direction === "outgoing"

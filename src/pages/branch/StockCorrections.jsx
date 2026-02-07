@@ -95,7 +95,7 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onCli
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-export default function BranchStockCorrections() {
+export default function BranchStockCorrections({ asTab = false }) {
   const { t } = useTranslation();
   const { loading, error, roleBase, roleId, locationName, userRow } = useCurrentUser();
 
@@ -363,7 +363,7 @@ export default function BranchStockCorrections() {
   /* ─────────────────────────────────────────────────────────────────────────
      UI GUARDS
   ───────────────────────────────────────────────────────────────────────── */
-  if (loading) {
+  if (!asTab && loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
@@ -374,7 +374,7 @@ export default function BranchStockCorrections() {
     );
   }
 
-  if (error) {
+  if (!asTab && error) {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
@@ -387,7 +387,7 @@ export default function BranchStockCorrections() {
     );
   }
 
-  if (roleBase !== "branch") {
+  if (!asTab && roleBase !== "branch") {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
@@ -417,24 +417,42 @@ export default function BranchStockCorrections() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            {t("branch.stockCorrections.title")}
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
+      {/* Header - only show when not in tab mode */}
+      {!asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+              {t("branch.stockCorrections.title")}
+            </h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {t("branch.stockCorrections.subtitle", { branch: branchLabel })}
+            </p>
+          </div>
+          <button
+            onClick={loadCorrections}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {t("common.refresh")}
+          </button>
+        </div>
+      )}
+
+      {/* Tab mode header */}
+      {asTab && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-neutral-500">
             {t("branch.stockCorrections.subtitle", { branch: branchLabel })}
           </p>
+          <button
+            onClick={loadCorrections}
+            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {t("common.refresh")}
+          </button>
         </div>
-        <button
-          onClick={loadCorrections}
-          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95"
-        >
-          <RefreshCw className="w-4 h-4" />
-          {t("common.refresh")}
-        </button>
-      </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

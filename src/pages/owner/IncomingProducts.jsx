@@ -305,7 +305,24 @@ export default function IncomingBatches() {
     if (!ok) return;
 
     try {
+      const deletedOrigin = (b.origin || "").toLowerCase();
+      
       await deleteBatch(b.id);
+      
+      // After deleting, find the most recent closed batch of the same origin and reopen it
+      const previousClosedBatch = rows
+        .filter(
+          (batch) =>
+            batch.id !== b.id && // Not the deleted batch
+            (batch.origin || "").toLowerCase() === deletedOrigin &&
+            (batch.status || "").toLowerCase() === "closed"
+        )
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]; // Most recent first
+
+      if (previousClosedBatch) {
+        await updateBatch(previousClosedBatch.id, { status: "open" });
+      }
+
       await load();
     } catch (e) {
       setErr(e.message);
