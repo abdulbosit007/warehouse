@@ -105,27 +105,74 @@ async function fetchIncomingBatchItems(startDate, endDate) {
 }
 
 /**
- * Fetch active loan items (from loan_items table)
+ * Fetch all loan and loan_return transactions up to a given end date.
+ * Used to calculate outstanding loans at the end of a month.
  */
-async function fetchLoanItems() {
+async function fetchAllLoanTransactionsUpTo(endDate) {
   const { data, error } = await supabase
-    .from("loan_items")
+    .from("transactions")
     .select(`
       id,
-      product_id,
-      quantity,
-      returned_quantity,
-      sold_quantity,
-      loan_batch_id,
-      loan_batches ( location_id, status )
+      type,
+      status,
+      location_id,
+      created_at,
+      items:transaction_items ( product_id, qty )
     `)
-    .not("loan_batches", "is", null);
+    .eq("status", "committed")
+    .in("type", ["loan", "loan_return"])
+    .lte("created_at", endDate.toISOString());
 
   if (error) {
-    console.warn("Could not fetch loan_items:", error.message);
+    console.warn("Could not fetch loan transactions:", error.message);
     return [];
   }
   return data || [];
+}
+
+/**
+ * Calculate active loan quantities from flat transactions
+ * Loans are type='loan', returns are type='loan_return'
+ * Active loan = loan qty - loan_return qty for same product/location
+ */
+function calculateActiveLoansByLocation(flatTransactions) {
+  // Group by location -> product -> { loaned, returned }
+  const loanMap = new Map(); // Map<location_id, Map<product_id, { loaned, returned }>>
+
+  for (const tx of flatTransactions) {
+    if (tx.type === "loan") {
+      if (!loanMap.has(tx.location_id)) loanMap.set(tx.location_id, new Map());
+      const productMap = loanMap.get(tx.location_id);
+      if (!productMap.has(tx.product_id)) {
+        productMap.set(tx.product_id, { loaned: 0, returned: 0 });
+      }
+      productMap.get(tx.product_id).loaned += tx.quantity || 0;
+    } else if (tx.type === "loan_return") {
+      if (!loanMap.has(tx.location_id)) loanMap.set(tx.location_id, new Map());
+      const productMap = loanMap.get(tx.location_id);
+      if (!productMap.has(tx.product_id)) {
+        productMap.set(tx.product_id, { loaned: 0, returned: 0 });
+      }
+      productMap.get(tx.product_id).returned += tx.quantity || 0;
+    }
+  }
+
+  // Convert to flat array with remaining quantities
+  const result = [];
+  for (const [locationId, productMap] of loanMap) {
+    for (const [productId, sums] of productMap) {
+      const remaining = Math.max(0, sums.loaned - sums.returned);
+      if (remaining > 0) {
+        result.push({
+          product_id: productId,
+          location_id: locationId,
+          remaining_quantity: remaining,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -218,13 +265,9 @@ function aggregateLocationData(
       .filter(
         (li) =>
           li.product_id === product.id &&
-          li.loan_batches?.location_id === locationId &&
-          li.loan_batches?.status === "active"
+          li.location_id === locationId
       )
-      .reduce((sum, li) => {
-        const remaining = (li.quantity || 0) - (li.returned_quantity || 0) - (li.sold_quantity || 0);
-        return sum + Math.max(0, remaining);
-      }, 0);
+      .reduce((sum, li) => sum + (li.remaining_quantity || 0), 0);
 
     // Calculate beginning of month stock (back-calculation)
     // Beginning = End - Incoming + Sales - SaleReturns + OutgoingTransfers - LoanReturns
@@ -310,11 +353,8 @@ function aggregateOverallData(
 
     // Total active loans
     const totalOnLoan = loanItems
-      .filter((li) => li.product_id === product.id && li.loan_batches?.status === "active")
-      .reduce((sum, li) => {
-        const remaining = (li.quantity || 0) - (li.returned_quantity || 0) - (li.sold_quantity || 0);
-        return sum + Math.max(0, remaining);
-      }, 0);
+      .filter((li) => li.product_id === product.id)
+      .reduce((sum, li) => sum + (li.remaining_quantity || 0), 0);
 
     // Back-calculate beginning stock
     const totalBeginningStock =
@@ -503,18 +543,22 @@ export async function generateMonthlyReport(year, month) {
     const endDate = endOfMonth(monthDate);
 
     // Fetch all required data
-    const [locations, products, productList, transactions, incomingItems, loanItems] =
+    const [locations, products, productList, transactions, incomingItems, allLoanTransactions] =
       await Promise.all([
         fetchLocations(),
         fetchProducts(),
         fetchProductList(),
         fetchTransactionsWithItems(startDate, endDate),
         fetchIncomingBatchItems(startDate, endDate),
-        fetchLoanItems(),
+        fetchAllLoanTransactionsUpTo(endDate), // All loans up to end date for active loan calculation
       ]);
 
     // Flatten transactions into per-product records
     const flatTransactions = flattenTransactions(transactions);
+
+    // Flatten loan transactions and calculate active loans
+    const flatLoanTransactions = flattenTransactions(allLoanTransactions);
+    const loanItems = calculateActiveLoansByLocation(flatLoanTransactions);
 
     // Build SKU to product ID map
     const skuToProductMap = buildSkuToProductMap(products);

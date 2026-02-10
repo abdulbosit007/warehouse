@@ -7,9 +7,16 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true, // important for OAuth/magic links
-      storage: window.localStorage,
+      detectSessionInUrl: true,
+      flowType: 'pkce', // More secure and better iOS compatibility
+      storageKey: 'wms-auth', // Unique key to avoid conflicts
     },
   }
 );
+
+// Debug: Log auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('[Auth]', event, session ? 'session exists' : 'no session');
+});
+
 window.supabase = supabase;

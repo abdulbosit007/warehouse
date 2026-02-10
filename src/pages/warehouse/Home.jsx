@@ -666,9 +666,11 @@ export default function WarehouseHome() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                     {t("warehouseHome.table.category")}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white bg-blue-700">
-                    {t("warehouseHome.table.total")}
-                  </th>
+                  {isSuperWarehouse && (
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white bg-blue-700">
+                      {t("warehouseHome.table.total")}
+                    </th>
+                  )}
                   {locations.map((loc) => (
                     <th
                       key={loc.id}
@@ -707,19 +709,21 @@ export default function WarehouseHome() {
                       <td className="px-4 py-3 text-sm text-neutral-600">
                         {product.categories?.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold ${
-                            isLowStock
-                              ? "bg-amber-100 text-amber-700"
-                              : totalQty > 0
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-neutral-100 text-neutral-400"
-                          }`}
-                        >
-                          {totalQty}
-                        </span>
-                      </td>
+                      {isSuperWarehouse && (
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold ${
+                              isLowStock
+                                ? "bg-amber-100 text-amber-700"
+                                : totalQty > 0
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-neutral-100 text-neutral-400"
+                            }`}
+                          >
+                            {totalQty}
+                          </span>
+                        </td>
+                      )}
 
                       {locations.map((loc) => {
                         const qty = getQtyAt(product.id, loc.id);

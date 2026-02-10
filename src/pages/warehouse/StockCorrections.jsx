@@ -489,55 +489,54 @@ export default function WarehouseStockCorrections({ asTab = false }) {
     <div className="space-y-6">
       {/* ──────────────── HEADER ──────────────── */}
       {!asTab && (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-              {t("warehouseStockCorrections.page.title")}
-            </h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              {t("warehouseStockCorrections.page.subtitle")}
-            </p>
-          </div>
-
-        <div className="flex items-center gap-3">
-          {/* Warehouse Selector */}
-          {allWarehouses.length > 1 && (
-            <div className="flex items-center gap-2">
-              <Warehouse className="w-4 h-4 text-neutral-500" />
-              <div className="w-40">
-                <CustomSelect
-                  value={warehouseLocation?.id || ""}
-                  onChange={handleWarehouseChange}
-                  options={allWarehouses.map((wh) => ({
-                    value: wh.id,
-                    label: wh.location_name || wh.name,
-                  }))}
-                  color="blue"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Show label if only 1 warehouse */}
-          {allWarehouses.length === 1 && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-100">
-              <Warehouse className="w-4 h-4 text-neutral-600" />
-              <span className="text-sm font-medium text-neutral-700">
-                {warehouseLocation?.location_name || warehouseLocation?.name}
-              </span>
-            </div>
-          )}
-
-          <button
-            onClick={loadCorrections}
-            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95"
-          >
-            <RefreshCw className="w-4 h-4" />
-            {t("warehouseStockCorrections.actions.refresh")}
-          </button>
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+            {t("warehouseStockCorrections.page.title")}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {t("warehouseStockCorrections.page.subtitle")}
+          </p>
         </div>
-      </div>
       )}
+
+      {/* ──────────────── WAREHOUSE SELECTOR (always visible) ──────────────── */}
+      <div className="flex items-center gap-3">
+        {/* Warehouse Selector */}
+        {allWarehouses.length > 1 && (
+          <div className="flex items-center gap-2">
+            <Warehouse className="w-4 h-4 text-neutral-500" />
+            <div className="w-40">
+              <CustomSelect
+                value={warehouseLocation?.id || ""}
+                onChange={handleWarehouseChange}
+                options={allWarehouses.map((wh) => ({
+                  value: wh.id,
+                  label: wh.location_name || wh.name,
+                }))}
+                color="blue"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Show label if only 1 warehouse */}
+        {allWarehouses.length === 1 && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-100">
+            <Warehouse className="w-4 h-4 text-neutral-600" />
+            <span className="text-sm font-medium text-neutral-700">
+              {warehouseLocation?.location_name || warehouseLocation?.name}
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={loadCorrections}
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 hover:shadow-md active:scale-95"
+        >
+          <RefreshCw className="w-4 h-4" />
+          {t("warehouseStockCorrections.actions.refresh")}
+        </button>
+      </div>
 
       {/* ──────────────── STATS CARDS ──────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
