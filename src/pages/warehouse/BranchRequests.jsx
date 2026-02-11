@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   History,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
   Inbox,
   X,
@@ -134,7 +135,8 @@ export default function BranchRequests() {
       let query = supabase
         .from("locations")
         .select("id, name, location_name, code, kind")
-        .eq("kind", "warehouse");
+        .eq("kind", "warehouse")
+        .order("name", { ascending: true });
       
       // If not super warehouse and has assigned location, filter to just that location
       if (!isSuperWarehouse && userLocationId) {
@@ -634,7 +636,17 @@ function NewRequestTab({ t, location, showToast }) {
 function OutgoingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
+  const [processingId, setProcessingId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const toggleExpand = useCallback((id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -654,6 +666,8 @@ function OutgoingTab({ t, location, showToast }) {
       .order("created_at", { ascending: false });
 
     setRequests(data || []);
+    // Auto-expand all requests
+    setExpandedIds(new Set((data || []).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
@@ -662,7 +676,7 @@ function OutgoingTab({ t, location, showToast }) {
   }, [loadRequests]);
 
   async function handleCancel(requestId) {
-    if (processingId) return; // Guard against rapid clicks
+    if (processingId) return;
     setProcessingId(requestId);
     try {
       await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", requestId);
@@ -674,7 +688,7 @@ function OutgoingTab({ t, location, showToast }) {
   }
 
   async function handleConfirmReceipt(requestId) {
-    if (processingId) return; // Guard against rapid clicks
+    if (processingId) return;
     setProcessingId(requestId);
     try {
       const { data: request, error: fetchErr } = await supabase
@@ -700,7 +714,7 @@ function OutgoingTab({ t, location, showToast }) {
           .select("id, quantity")
           .eq("product_id", item.product.id)
           .eq("location_id", location.id)
-          .limit(1); // Use limit(1) to avoid error if duplicates exist
+          .limit(1);
 
         if (existing && existing.length > 0) {
           const row = existing[0];
@@ -784,93 +798,79 @@ function OutgoingTab({ t, location, showToast }) {
         </p>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-medium text-white uppercase tracking-wide">
-          <div className="col-span-3">{t("warehouseRequests.table.products")}</div>
-          <div className="col-span-2">{t("warehouseRequests.table.source")}</div>
-          <div className="col-span-1 text-center">{t("warehouseRequests.table.qty")}</div>
-          <div className="col-span-2 text-center">{t("warehouseRequests.table.status")}</div>
-          <div className="col-span-2 text-center">{t("warehouseRequests.table.date")}</div>
-          <div className="col-span-2 text-right">{t("warehouseRequests.table.actions")}</div>
-        </div>
+      {/* Request Cards */}
+      <div className="space-y-4">
+        {requests.map((req) => {
+          const source =
+            req.items?.[0]?.source_location?.location_name ||
+            req.items?.[0]?.source_location?.name ||
+            t("warehouseRequests.common.unknown");
+          const totalQty =
+            req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+          const isPending = req.status === "sent";
+          const isApproved = req.status === "approved";
+          const isExpanded = expandedIds.has(req.id);
 
-        {/* Table Body */}
-        <div className="divide-y divide-neutral-100">
-          {requests.map((req) => {
-            const source =
-              req.items?.[0]?.source_location?.location_name ||
-              req.items?.[0]?.source_location?.name ||
-              t("warehouseRequests.common.unknown");
-            const totalQty =
-              req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
-            const productInfo =
-              req.items
-                ?.slice(0, 2)
-                .map(
-                  (i) =>
-                    `${i.product?.name || t("warehouseRequests.common.unknown")}${
-                      i.product?.sku ? ` (${i.product.sku})` : ""
-                    }`
-                )
-                .join(", ") || "—";
-            const moreCount = (req.items?.length || 0) - 2;
-            const isPending = req.status === "sent";
-            const isApproved = req.status === "approved";
-
-            return (
-              <div
-                key={req.id}
-                className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-blue-50/30 transition-colors items-center"
+          return (
+            <div
+              key={req.id}
+              className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm"
+            >
+              {/* Request Header — clickable to expand/collapse */}
+              <button
+                onClick={() => toggleExpand(req.id)}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
               >
-                <div className="col-span-3 text-sm text-neutral-700 truncate">
-                  {productInfo}
-                  {moreCount > 0 && (
-                    <span className="text-neutral-400"> +{moreCount}</span>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-neutral-400" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-neutral-400" />
+                    )}
+                    <div className="text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-neutral-900">
+                          {t("warehouseRequests.table.source")}: {source}
+                        </p>
+                        {isPending && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                            <Clock className="w-3 h-3" />
+                            {t("warehouseRequests.status.pending")}
+                          </span>
+                        )}
+                        {isApproved && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                            <Check className="w-3 h-3" />
+                            {t("warehouseRequests.status.approved")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-500">
+                        {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
+                        {" · "}
+                        {t("warehouseRequests.table.qty")}: {totalQty}
+                        {" · "}
+                        {new Date(req.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        {new Date(req.created_at).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-neutral-900">{source}</p>
-                </div>
-                <div className="col-span-1 text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
-                    {totalQty}
-                  </span>
-                </div>
-                <div className="col-span-2 text-center">
-                  {isPending && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-                      <Clock className="w-3 h-3" />
-                      {t("warehouseRequests.status.pending")}
-                    </span>
-                  )}
-                  {isApproved && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
-                      <Check className="w-3 h-3" />
-                      {t("warehouseRequests.status.approved")}
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-2 text-center">
-                  <p className="text-sm text-neutral-600">
-                    {new Date(req.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                  <p className="text-xs text-neutral-400">
-                    {new Date(req.created_at).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2">
+
+                {/* Actions on header */}
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {isPending && (
                     <button
                       onClick={() => handleCancel(req.id)}
-                      className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-sm font-medium hover:bg-neutral-50 transition-colors"
+                      disabled={!!processingId}
+                      className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors disabled:opacity-50"
                     >
                       {t("warehouseRequests.actions.cancel")}
                     </button>
@@ -878,17 +878,94 @@ function OutgoingTab({ t, location, showToast }) {
                   {isApproved && (
                     <button
                       onClick={() => handleConfirmReceipt(req.id)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                      disabled={!!processingId}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
-                      <PackageCheck className="w-4 h-4" />
+                      <PackageCheck className="w-3.5 h-3.5" />
                       {t("warehouseRequests.actions.received")}
                     </button>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              </button>
+
+              {/* Expanded Items List */}
+              {isExpanded && (
+                <div className="border-t border-neutral-100">
+                  {/* Items table header */}
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                    <div className="col-span-5">{t("warehouseRequests.table.products")}</div>
+                    <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
+                    <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
+                    <div className="col-span-3 text-center">{t("warehouseRequests.table.status")}</div>
+                  </div>
+
+                  {/* Items rows */}
+                  <div className="divide-y divide-neutral-50">
+                    {req.items?.map((item) => {
+                      const isItemApproved = item.status === "approved";
+                      const isItemRejected = item.status === "rejected";
+                      const isItemPending = item.status === "requested";
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                            isItemApproved
+                              ? "bg-emerald-50/50"
+                              : isItemRejected
+                              ? "bg-red-50/50"
+                              : "hover:bg-blue-50/30"
+                          }`}
+                        >
+                          <div className="col-span-5">
+                            <p className="text-sm font-medium text-neutral-900">
+                              {item.product?.name || t("warehouseRequests.common.unknown")}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-sm text-neutral-500">
+                              {item.product?.sku || "—"}
+                            </p>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
+                              {item.requested_qty}
+                            </span>
+                            {isItemApproved && item.approved_qty != null && item.approved_qty !== item.requested_qty && (
+                              <span className="ml-1 text-xs text-emerald-600 font-medium">
+                                (✓{item.approved_qty})
+                              </span>
+                            )}
+                          </div>
+                          <div className="col-span-3 text-center">
+                            {isItemApproved && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                <Check className="w-3 h-3" />
+                                {t("warehouseRequests.status.approved")}
+                              </span>
+                            )}
+                            {isItemRejected && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                                <X className="w-3 h-3" />
+                                {t("warehouseRequests.status.rejected")}
+                              </span>
+                            )}
+                            {isItemPending && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                <Clock className="w-3 h-3" />
+                                {t("warehouseRequests.status.pending")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -900,7 +977,17 @@ function OutgoingTab({ t, location, showToast }) {
 function IncomingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null); // Prevent double-clicks
+  const [processingId, setProcessingId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const toggleExpand = useCallback((id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -923,6 +1010,8 @@ function IncomingTab({ t, location, showToast }) {
     );
 
     setRequests(filtered);
+    // Auto-expand all requests so items are visible
+    setExpandedIds(new Set((filtered || []).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
@@ -930,11 +1019,69 @@ function IncomingTab({ t, location, showToast }) {
     loadRequests();
   }, [loadRequests]);
 
-  async function handleApprove(request) {
-    if (processingId) return; // Guard against rapid clicks
+  // Approve a single item
+  async function handleApproveItem(request, item) {
+    if (processingId) return;
+    setProcessingId(item.id);
+    try {
+      // Deduct from warehouse stock
+      const { data: product } = await supabase
+        .from("product_list")
+        .select("id, quantity")
+        .eq("product_id", item.product.id)
+        .eq("location_id", location.id)
+        .single();
+
+      if (product) {
+        await supabase
+          .from("product_list")
+          .update({
+            quantity: Math.max(0, product.quantity - item.requested_qty),
+          })
+          .eq("id", product.id);
+      }
+
+      // Mark this item as approved
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "approved", approved_qty: item.requested_qty })
+        .eq("id", item.id);
+
+      // Check if all items in this request are now approved
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .eq("status", "requested");
+
+      if (!remaining || remaining.length === 0) {
+        // All items approved — mark the whole request as approved
+        await supabase
+          .from("branch_requests")
+          .update({
+            status: "approved",
+            warehouse_decided_at: new Date().toISOString(),
+          })
+          .eq("id", request.id);
+      }
+
+      showToast(t("warehouseRequests.toast.approvedOk"), "success");
+      loadRequests();
+    } catch (err) {
+      console.error(err);
+      showToast(t("warehouseRequests.toast.approvedFail"), "error");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  // Approve all items in a request at once
+  async function handleApproveAll(request) {
+    if (processingId) return;
     setProcessingId(request.id);
     try {
       for (const item of request.items) {
+        if (item.status === "approved") continue;
         const { data: product } = await supabase
           .from("product_list")
           .select("id, quantity")
@@ -975,11 +1122,67 @@ function IncomingTab({ t, location, showToast }) {
     }
   }
 
-  async function handleReject(requestId) {
-    if (processingId) return; // Guard against rapid clicks
+  // Reject a single item
+  async function handleRejectItem(request, item) {
+    if (processingId) return;
+    setProcessingId(item.id);
+    try {
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "rejected" })
+        .eq("id", item.id);
+
+      // Check if all items are now decided (approved or rejected)
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .eq("status", "requested");
+
+      if (!remaining || remaining.length === 0) {
+        // Check if any were approved
+        const { data: approvedItems } = await supabase
+          .from("branch_request_items")
+          .select("id")
+          .eq("request_id", request.id)
+          .eq("status", "approved");
+
+        const finalStatus = approvedItems && approvedItems.length > 0 ? "approved" : "rejected";
+        await supabase
+          .from("branch_requests")
+          .update({
+            status: finalStatus,
+            warehouse_decided_at: new Date().toISOString(),
+          })
+          .eq("id", request.id);
+      }
+
+      showToast(t("warehouseRequests.toast.rejected"), "info");
+      loadRequests();
+    } catch (err) {
+      console.error(err);
+      showToast(t("warehouseRequests.toast.approvedFail"), "error");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  // Reject entire request
+  async function handleRejectAll(requestId) {
+    if (processingId) return;
     setProcessingId(requestId);
     try {
-      await supabase.from("branch_requests").update({ status: "rejected" }).eq("id", requestId);
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "rejected" })
+        .eq("request_id", requestId)
+        .eq("status", "requested");
+
+      await supabase
+        .from("branch_requests")
+        .update({ status: "rejected", warehouse_decided_at: new Date().toISOString() })
+        .eq("id", requestId);
+
       showToast(t("warehouseRequests.toast.rejected"), "info");
       loadRequests();
     } finally {
@@ -1019,91 +1222,169 @@ function IncomingTab({ t, location, showToast }) {
         </p>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-medium text-white uppercase tracking-wide">
-          <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
-          <div className="col-span-2">{t("warehouseRequests.incoming.requester")}</div>
-          <div className="col-span-1 text-center">{t("warehouseRequests.table.qty")}</div>
-          <div className="col-span-2 text-center">{t("warehouseRequests.table.date")}</div>
-          <div className="col-span-3 text-right">{t("warehouseRequests.table.actions")}</div>
-        </div>
+      {/* Request Cards */}
+      <div className="space-y-4">
+        {requests.map((req) => {
+          const requester =
+            req.to_location?.location_name ||
+            req.to_location?.name ||
+            t("warehouseRequests.common.unknown");
+          const totalQty =
+            req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
+          const isExpanded = expandedIds.has(req.id);
+          const pendingItems = req.items?.filter((i) => i.status === "requested") || [];
 
-        {/* Table Body */}
-        <div className="divide-y divide-neutral-100">
-          {requests.map((req) => {
-            const requester =
-              req.to_location?.location_name ||
-              req.to_location?.name ||
-              t("warehouseRequests.common.unknown");
-            const totalQty =
-              req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
-            const productInfo =
-              req.items
-                ?.slice(0, 2)
-                .map(
-                  (i) =>
-                    `${i.product?.name || t("warehouseRequests.common.unknown")}${
-                      i.product?.sku ? ` (${i.product.sku})` : ""
-                    }`
-                )
-                .join(", ") || "—";
-            const moreCount = (req.items?.length || 0) - 2;
-
-            return (
-              <div
-                key={req.id}
-                className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-blue-50/30 transition-colors items-center"
+          return (
+            <div
+              key={req.id}
+              className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm"
+            >
+              {/* Request Header — clickable to expand/collapse */}
+              <button
+                onClick={() => toggleExpand(req.id)}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
               >
-                <div className="col-span-4 text-sm text-neutral-700 truncate">
-                  {productInfo}
-                  {moreCount > 0 && (
-                    <span className="text-neutral-400"> +{moreCount}</span>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-neutral-400" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-neutral-400" />
+                    )}
+                    <div className="text-left">
+                      <p className="font-semibold text-neutral-900">{requester}</p>
+                      <p className="text-xs text-neutral-500">
+                        {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
+                        {" · "}
+                        {t("warehouseRequests.table.qty")}: {totalQty}
+                        {" · "}
+                        {new Date(req.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        {new Date(req.created_at).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-neutral-900">{requester}</p>
-                </div>
-                <div className="col-span-1 text-right">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
-                    {totalQty}
-                  </span>
-                </div>
-                <div className="col-span-2 text-center">
-                  <p className="text-sm text-neutral-600">
-                    {new Date(req.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                  <p className="text-xs text-neutral-400">
-                    {new Date(req.created_at).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <div className="col-span-3 flex items-center justify-end gap-2">
+
+                {/* Bulk actions on header */}
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => handleReject(req.id)}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
+                    onClick={() => handleRejectAll(req.id)}
+                    disabled={!!processingId}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1 disabled:opacity-50"
                   >
-                    <X className="w-4 h-4" />
-                    {t("warehouseRequests.actions.reject")}
+                    <X className="w-3.5 h-3.5" />
+                    {t("warehouseRequests.actions.reject")} All
                   </button>
                   <button
-                    onClick={() => handleApprove(req)}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
+                    onClick={() => handleApproveAll(req)}
+                    disabled={!!processingId}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
                   >
-                    <Check className="w-4 h-4" />
-                    {t("warehouseRequests.actions.approve")}
+                    <Check className="w-3.5 h-3.5" />
+                    {t("warehouseRequests.actions.approve")} All
                   </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              </button>
+
+              {/* Expanded Items List */}
+              {isExpanded && (
+                <div className="border-t border-neutral-100">
+                  {/* Items table header */}
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                    <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
+                    <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
+                    <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
+                    <div className="col-span-1 text-center">{t("warehouseRequests.table.status")}</div>
+                    <div className="col-span-3 text-right">{t("warehouseRequests.table.actions")}</div>
+                  </div>
+
+                  {/* Items rows */}
+                  <div className="divide-y divide-neutral-50">
+                    {req.items?.map((item) => {
+                      const isItemPending = item.status === "requested";
+                      const isItemApproved = item.status === "approved";
+                      const isItemRejected = item.status === "rejected";
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                            isItemApproved
+                              ? "bg-emerald-50/50"
+                              : isItemRejected
+                              ? "bg-red-50/50"
+                              : "hover:bg-blue-50/30"
+                          }`}
+                        >
+                          <div className="col-span-4">
+                            <p className="text-sm font-medium text-neutral-900">
+                              {item.product?.name || t("warehouseRequests.common.unknown")}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-sm text-neutral-500">
+                              {item.product?.sku || "—"}
+                            </p>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
+                              {item.requested_qty}
+                            </span>
+                          </div>
+                          <div className="col-span-1 text-center">
+                            {isItemApproved && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                <Check className="w-3 h-3" />
+                              </span>
+                            )}
+                            {isItemRejected && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                                <X className="w-3 h-3" />
+                              </span>
+                            )}
+                            {isItemPending && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                <Clock className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="col-span-3 flex items-center justify-end gap-2">
+                            {isItemPending && (
+                              <>
+                                <button
+                                  onClick={() => handleRejectItem(req, item)}
+                                  disabled={!!processingId}
+                                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  {t("warehouseRequests.actions.reject")}
+                                </button>
+                                <button
+                                  onClick={() => handleApproveItem(req, item)}
+                                  disabled={!!processingId}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  {t("warehouseRequests.actions.approve")}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
