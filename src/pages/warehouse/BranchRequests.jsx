@@ -687,28 +687,39 @@ function OutgoingTab({ t, location, showToast }) {
     }
   }
 
-  async function handleConfirmReceipt(requestId) {
+  async function handleCancelItem(request, item) {
     if (processingId) return;
-    setProcessingId(requestId);
+    setProcessingId(item.id);
     try {
-      const { data: request, error: fetchErr } = await supabase
-        .from("branch_requests")
-        .select(`
-          id,
-          items:branch_request_items (
-            id, requested_qty, approved_qty,
-            product:product_id (id)
-          )
-        `)
-        .eq("id", requestId)
-        .single();
+      await supabase.from("branch_request_items").update({ status: "cancelled" }).eq("id", item.id);
 
-      if (fetchErr || !request) throw fetchErr || new Error("Request not found");
+      // Check if all items are now cancelled
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .not("status", "eq", "cancelled");
 
-      for (const item of request.items) {
-        const qtyToAdd = item.approved_qty || item.requested_qty || 0;
-        if (qtyToAdd <= 0) continue;
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", request.id);
+      }
 
+      showToast(t("warehouseRequests.toast.cancelled"), "info");
+      loadRequests();
+    } catch (err) {
+      console.error("Cancel item error:", err);
+      showToast(t("warehouseRequests.toast.cancelFail"), "error");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleConfirmReceiptItem(request, item) {
+    if (processingId) return;
+    setProcessingId(item.id);
+    try {
+      const qtyToAdd = item.approved_qty || item.requested_qty || 0;
+      if (qtyToAdd > 0) {
         const { data: existing } = await supabase
           .from("product_list")
           .select("id, quantity")
@@ -718,48 +729,38 @@ function OutgoingTab({ t, location, showToast }) {
 
         if (existing && existing.length > 0) {
           const row = existing[0];
-          const { error: upErr } = await supabase
-            .from("product_list")
-            .update({ quantity: (row.quantity || 0) + qtyToAdd })
-            .eq("id", row.id);
-          if (upErr) console.error("Update inventory error:", upErr);
+          await supabase.from("product_list").update({ quantity: (row.quantity || 0) + qtyToAdd }).eq("id", row.id);
         } else {
-          const { error: insErr } = await supabase
-            .from("product_list")
-            .insert({
-              id: crypto.randomUUID(),
-              product_id: item.product.id,
-              location_id: location.id,
-              quantity: qtyToAdd,
-              status: "available",
-            });
-          if (insErr) console.error("Insert inventory error:", insErr);
+          await supabase.from("product_list").insert({
+            id: crypto.randomUUID(),
+            product_id: item.product.id,
+            location_id: location.id,
+            quantity: qtyToAdd,
+            status: "available",
+          });
         }
       }
 
-      // Update branch_request_items status to completed
-      const { error: itemsError } = await supabase
-        .from("branch_request_items")
-        .update({ status: "completed" })
-        .eq("request_id", requestId);
-      
-      if (itemsError) {
-        console.error("Failed to update branch_request_items:", itemsError);
-      }
+      await supabase.from("branch_request_items").update({ status: "completed" }).eq("id", item.id);
 
-      // Update branch_requests status to completed
-      await supabase
-        .from("branch_requests")
-        .update({
+      // Check if all approved items are now completed
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .eq("status", "approved");
+
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({
           status: "completed",
           branch_confirmed_at: new Date().toISOString(),
-        })
-        .eq("id", requestId);
+        }).eq("id", request.id);
+      }
 
       showToast(t("warehouseRequests.toast.receivedOk"), "success");
       loadRequests();
     } catch (err) {
-      console.error("Confirm receipt error:", err);
+      console.error("Confirm receipt item error:", err);
       showToast(t("warehouseRequests.toast.receivedFail"), "error");
     } finally {
       setProcessingId(null);
@@ -875,16 +876,7 @@ function OutgoingTab({ t, location, showToast }) {
                       {t("warehouseRequests.actions.cancel")}
                     </button>
                   )}
-                  {isApproved && (
-                    <button
-                      onClick={() => handleConfirmReceipt(req.id)}
-                      disabled={!!processingId}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                    >
-                      <PackageCheck className="w-3.5 h-3.5" />
-                      {t("warehouseRequests.actions.received")}
-                    </button>
-                  )}
+
                 </div>
               </button>
 
@@ -893,10 +885,10 @@ function OutgoingTab({ t, location, showToast }) {
                 <div className="border-t border-neutral-100">
                   {/* Items table header */}
                   <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                    <div className="col-span-5">{t("warehouseRequests.table.products")}</div>
+                    <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
                     <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
                     <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
-                    <div className="col-span-3 text-center">{t("warehouseRequests.table.status")}</div>
+                    <div className="col-span-4 text-right">{t("warehouseRequests.table.actions")}</div>
                   </div>
 
                   {/* Items rows */}
@@ -910,14 +902,16 @@ function OutgoingTab({ t, location, showToast }) {
                         <div
                           key={item.id}
                           className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
-                            isItemApproved
+                            item.status === "completed"
                               ? "bg-emerald-50/50"
+                              : isItemApproved
+                              ? "bg-emerald-50/30"
                               : isItemRejected
                               ? "bg-red-50/50"
                               : "hover:bg-blue-50/30"
                           }`}
                         >
-                          <div className="col-span-5">
+                          <div className="col-span-4">
                             <p className="text-sm font-medium text-neutral-900">
                               {item.product?.name || t("warehouseRequests.common.unknown")}
                             </p>
@@ -937,11 +931,21 @@ function OutgoingTab({ t, location, showToast }) {
                               </span>
                             )}
                           </div>
-                          <div className="col-span-3 text-center">
+                          <div className="col-span-4 flex items-center justify-end gap-2">
                             {isItemApproved && (
+                              <button
+                                onClick={() => handleConfirmReceiptItem(req, item)}
+                                disabled={!!processingId}
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                              >
+                                <PackageCheck className="w-3.5 h-3.5" />
+                                {t("warehouseRequests.actions.received")}
+                              </button>
+                            )}
+                            {item.status === "completed" && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
-                                <Check className="w-3 h-3" />
-                                {t("warehouseRequests.status.approved")}
+                                <PackageCheck className="w-3 h-3" />
+                                {t("warehouseRequests.actions.received")}
                               </span>
                             )}
                             {isItemRejected && (
@@ -951,9 +955,19 @@ function OutgoingTab({ t, location, showToast }) {
                               </span>
                             )}
                             {isItemPending && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                                <Clock className="w-3 h-3" />
-                                {t("warehouseRequests.status.pending")}
+                              <button
+                                onClick={() => handleCancelItem(req, item)}
+                                disabled={!!processingId}
+                                className="px-2.5 py-1.5 rounded-lg border border-neutral-300 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                {t("warehouseRequests.actions.cancel")}
+                              </button>
+                            )}
+                            {item.status === "cancelled" && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">
+                                <X className="w-3 h-3" />
+                                {t("warehouseRequests.status.cancelled")}
                               </span>
                             )}
                           </div>
@@ -1075,52 +1089,7 @@ function IncomingTab({ t, location, showToast }) {
     }
   }
 
-  // Approve all items in a request at once
-  async function handleApproveAll(request) {
-    if (processingId) return;
-    setProcessingId(request.id);
-    try {
-      for (const item of request.items) {
-        if (item.status === "approved") continue;
-        const { data: product } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", item.product.id)
-          .eq("location_id", location.id)
-          .single();
 
-        if (product) {
-          await supabase
-            .from("product_list")
-            .update({
-              quantity: Math.max(0, product.quantity - item.requested_qty),
-            })
-            .eq("id", product.id);
-        }
-
-        await supabase
-          .from("branch_request_items")
-          .update({ status: "approved", approved_qty: item.requested_qty })
-          .eq("id", item.id);
-      }
-
-      await supabase
-        .from("branch_requests")
-        .update({
-          status: "approved",
-          warehouse_decided_at: new Date().toISOString(),
-        })
-        .eq("id", request.id);
-
-      showToast(t("warehouseRequests.toast.approvedOk"), "success");
-      loadRequests();
-    } catch (err) {
-      console.error(err);
-      showToast(t("warehouseRequests.toast.approvedFail"), "error");
-    } finally {
-      setProcessingId(null);
-    }
-  }
 
   // Reject a single item
   async function handleRejectItem(request, item) {
@@ -1167,28 +1136,7 @@ function IncomingTab({ t, location, showToast }) {
     }
   }
 
-  // Reject entire request
-  async function handleRejectAll(requestId) {
-    if (processingId) return;
-    setProcessingId(requestId);
-    try {
-      await supabase
-        .from("branch_request_items")
-        .update({ status: "rejected" })
-        .eq("request_id", requestId)
-        .eq("status", "requested");
 
-      await supabase
-        .from("branch_requests")
-        .update({ status: "rejected", warehouse_decided_at: new Date().toISOString() })
-        .eq("id", requestId);
-
-      showToast(t("warehouseRequests.toast.rejected"), "info");
-      loadRequests();
-    } finally {
-      setProcessingId(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -1232,7 +1180,7 @@ function IncomingTab({ t, location, showToast }) {
           const totalQty =
             req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
           const isExpanded = expandedIds.has(req.id);
-          const pendingItems = req.items?.filter((i) => i.status === "requested") || [];
+
 
           return (
             <div
@@ -1269,26 +1217,6 @@ function IncomingTab({ t, location, showToast }) {
                       </p>
                     </div>
                   </div>
-                </div>
-
-                {/* Bulk actions on header */}
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => handleRejectAll(req.id)}
-                    disabled={!!processingId}
-                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    {t("warehouseRequests.actions.reject")} All
-                  </button>
-                  <button
-                    onClick={() => handleApproveAll(req)}
-                    disabled={!!processingId}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    {t("warehouseRequests.actions.approve")} All
-                  </button>
                 </div>
               </button>
 
@@ -1400,6 +1328,16 @@ function HistoryTab({ t, location }) {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const toggleExpand = useCallback((id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Filters - direction is CLIENT-SIDE only (no reload)
   const [direction, setDirection] = useState("outgoing");
@@ -1604,7 +1542,7 @@ function HistoryTab({ t, location }) {
         </div>
       </div>
 
-      {/* Results Table */}
+      {/* Results */}
       {filteredRequests.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
           <History className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
@@ -1616,120 +1554,123 @@ function HistoryTab({ t, location }) {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
-          {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-xs font-medium text-white uppercase tracking-wide">
-            <div className="col-span-5">{t("warehouseRequests.table.products")}</div>
-            <div className="col-span-2">
-              {direction === "outgoing"
-                ? t("warehouseRequests.history.from")
-                : t("warehouseRequests.history.to")}
-            </div>
-            <div className="col-span-1 text-right">{t("warehouseRequests.table.qty")}</div>
-            <div className="col-span-2 text-center">{t("warehouseRequests.table.status")}</div>
-            <div className="col-span-2 text-right">{t("warehouseRequests.table.date")}</div>
-          </div>
+        <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          {filteredRequests.map((req) => {
+            const partner =
+              direction === "outgoing"
+                ? (req.items?.[0]?.source_location?.location_name ||
+                    req.items?.[0]?.source_location?.name ||
+                    t("warehouseRequests.common.unknown"))
+                : (req.to_location?.location_name ||
+                    req.to_location?.name ||
+                    t("warehouseRequests.common.unknown"));
 
-          {/* Table Body */}
-          <div className="divide-y divide-neutral-100 max-h-[600px] overflow-y-auto">
-            {filteredRequests.map((req) => {
-              const partner =
-                direction === "outgoing"
-                  ? (req.items?.[0]?.source_location?.location_name ||
-                      req.items?.[0]?.source_location?.name ||
-                      t("warehouseRequests.common.unknown"))
-                  : (req.to_location?.location_name ||
-                      req.to_location?.name ||
-                      t("warehouseRequests.common.unknown"));
+            const totalQty =
+              req.items?.reduce(
+                (sum, i) => sum + (i.approved_qty || i.requested_qty || 0),
+                0
+              ) || 0;
 
-              const totalQty =
-                req.items?.reduce(
-                  (sum, i) => sum + (i.approved_qty || i.requested_qty || 0),
-                  0
-                ) || 0;
+            const config = STATUS_CONFIG[req.status] || { color: "bg-neutral-100 text-neutral-600", labelKey: "" };
+            const StatusIcon = config.icon || Clock;
+            const label = config.labelKey ? t(config.labelKey) : String(req.status);
+            const isExpanded = expandedIds.has(req.id);
 
-              const productInfo =
-                req.items
-                  ?.slice(0, 2)
-                  .map(
-                    (i) =>
-                      `${i.product?.name || t("warehouseRequests.common.unknown")}${
-                        i.product?.sku ? ` (${i.product.sku})` : ""
-                      }`
-                  )
-                  .join(", ") || "—";
-
-              const moreCount = (req.items?.length || 0) - 2;
-              const config = STATUS_CONFIG[req.status] || {
-                labelKey: "",
-                label: req.status,
-                color: "bg-neutral-100 text-neutral-600",
-              };
-              const label = config.labelKey ? t(config.labelKey) : (config.label || req.status);
-
-              return (
-                <div
-                  key={req.id}
-                  className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-neutral-50/50 transition-colors items-center"
+            return (
+              <div key={req.id} className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+                {/* Card Header */}
+                <button
+                  onClick={() => toggleExpand(req.id)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
                 >
-                  <div className="col-span-5 text-sm text-neutral-700 truncate">
-                    {productInfo}
-                    {moreCount > 0 && (
-                      <span className="text-neutral-400"> +{moreCount}</span>
-                    )}
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
+                    <div className="text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-neutral-900">
+                          {direction === "outgoing" ? t("warehouseRequests.table.source") : t("warehouseRequests.history.to")}: {partner}
+                        </p>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500">
+                        {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
+                        {" · "}{t("warehouseRequests.table.qty")}: {totalQty}
+                        {" · "}{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                        {new Date(req.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium text-neutral-900 truncate">
-                      {partner}
-                    </p>
-                  </div>
-                  <div className="col-span-1 text-right">
-                    <span className="text-sm font-semibold text-neutral-900">
-                      {totalQty}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-center">
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${config.color}`}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-right">
-                    <p className="text-sm text-neutral-600">
-                      {new Date(req.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p className="text-xs text-neutral-400">
-                      {new Date(req.created_at).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                </button>
 
-          {/* Load More */}
-          {hasMore && (
-            <div className="px-4 py-3 bg-neutral-50 border-t border-neutral-200">
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="w-full py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
-              >
-                {loadingMore ? (
-                  <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
-                ) : (
-                  t("warehouseRequests.history.loadMore", { count: filteredRequests.length })
+                {/* Expanded Items */}
+                {isExpanded && (
+                  <div className="border-t border-neutral-100">
+                    <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                      <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
+                      <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
+                      <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
+                      <div className="col-span-4 text-center">{t("warehouseRequests.table.status")}</div>
+                    </div>
+                    <div className="divide-y divide-neutral-50">
+                      {req.items?.map((item) => {
+                        const itemStatus = item.status || "requested";
+                        const itemConfig = STATUS_CONFIG[itemStatus] || STATUS_CONFIG[req.status] || { color: "bg-neutral-100 text-neutral-600", labelKey: "" };
+                        const ItemIcon = itemConfig.icon || Clock;
+                        const itemLabel = itemConfig.labelKey ? t(itemConfig.labelKey) : String(itemStatus);
+
+                        return (
+                          <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                            itemStatus === "approved" || itemStatus === "completed" ? "bg-emerald-50/30" : itemStatus === "rejected" ? "bg-red-50/30" : ""
+                          }`}>
+                            <div className="col-span-4">
+                              <p className="text-sm font-medium text-neutral-900">{item.product?.name || t("warehouseRequests.common.unknown")}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p>
+                            </div>
+                            <div className="col-span-2 text-center">
+                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
+                                {item.approved_qty || item.requested_qty}
+                              </span>
+                              {item.approved_qty != null && item.approved_qty !== item.requested_qty && (
+                                <span className="ml-1 text-xs text-neutral-400 line-through">{item.requested_qty}</span>
+                              )}
+                            </div>
+                            <div className="col-span-4 text-center">
+                              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${itemConfig.color}`}>
+                                <ItemIcon className="w-3 h-3" />
+                                {itemLabel}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
-              </button>
-            </div>
-          )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Load More */}
+      {hasMore && filteredRequests.length > 0 && (
+        <div className="text-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="px-6 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+            ) : (
+              t("warehouseRequests.history.loadMore", { count: filteredRequests.length })
+            )}
+          </button>
         </div>
       )}
 
