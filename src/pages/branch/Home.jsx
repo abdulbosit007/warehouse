@@ -539,7 +539,7 @@ export default function BranchHome() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
@@ -558,7 +558,7 @@ export default function BranchHome() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-emerald-600 to-teal-600">

@@ -434,7 +434,7 @@ export default function IncomingBatches() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
@@ -446,7 +446,7 @@ export default function IncomingBatches() {
             <p className="text-xs text-neutral-400 mt-1">{t("ownerIncomingBatches.empty.subtitle")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">

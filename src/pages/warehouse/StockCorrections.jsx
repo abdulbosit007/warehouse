@@ -778,7 +778,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
       </div>
 
       {/* ──────────────── CORRECTIONS LIST ──────────────── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
         {listLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
@@ -792,7 +792,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
             <p className="text-xs text-neutral-400 mt-1">{t("warehouseStockCorrections.list.emptySubtitle")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-blue-600 to-indigo-600">
                 <tr className="text-xs font-medium text-white uppercase tracking-wider">

@@ -345,7 +345,7 @@ function CategoriesTab() {
       </div>
 
       {/* Categories Table - matching UsersTab */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
@@ -356,7 +356,7 @@ function CategoriesTab() {
             <p className="text-sm">{t("ownerSettings.categories.empty")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-indigo-600 to-purple-600">
                 <tr className="text-xs font-semibold uppercase tracking-wider text-white">
