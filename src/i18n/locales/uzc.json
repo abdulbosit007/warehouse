@@ -820,7 +820,9 @@
       "approved": "Йўлда",
       "rejected": "Рад этилди",
       "completed": "Якунланди",
-      "cancelled": "Бекор қилинди"
+      "cancelled": "Бекор қилинди",
+      "awaitingReceipt": "Қабул кутилмоқда",
+      "received": "Қабул қилинди"
     },
 
     "toast": {
@@ -1060,7 +1062,9 @@
       "approved": "Тасдиқланган",
       "rejected": "Рад этилган",
       "completed": "Якунланган",
-      "cancelled": "Бекор қилинган"
+      "cancelled": "Бекор қилинган",
+      "awaitingReceipt": "Қабул кутилмоқда",
+      "received": "Қабул қилинди"
     },
     "actions": {
       "cancel": "Бекор қилиш",

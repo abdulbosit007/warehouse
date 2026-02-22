@@ -356,7 +356,7 @@ export default function BranchHome() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-clip">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -539,7 +539,7 @@ export default function BranchHome() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-auto max-h-[75vh]">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />

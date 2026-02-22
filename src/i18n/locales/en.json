@@ -823,7 +823,9 @@
       "approved": "In Transit",
       "rejected": "Rejected",
       "completed": "Completed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaitingReceipt": "Awaiting receipt",
+      "received": "Received"
     },
 
     "toast": {
@@ -1063,7 +1065,9 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "completed": "Completed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaitingReceipt": "Awaiting receipt",
+      "received": "Received"
     },
     "actions": {
       "cancel": "Cancel",

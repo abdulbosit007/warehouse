@@ -691,7 +691,7 @@ export default function BranchStockCorrections({ asTab = false }) {
       </div>
 
       {/* Corrections list */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-x-auto">
         {listLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />

@@ -822,7 +822,9 @@
       "approved": "В пути",
       "rejected": "Отклонено",
       "completed": "Завершено",
-      "cancelled": "Отменено"
+      "cancelled": "Отменено",
+      "awaitingReceipt": "Ожидает получения",
+      "received": "Получено"
     },
 
     "toast": {
@@ -1062,7 +1064,9 @@
       "approved": "Одобрено",
       "rejected": "Отклонено",
       "completed": "Завершено",
-      "cancelled": "Отменено"
+      "cancelled": "Отменено",
+      "awaitingReceipt": "Ожидает получения",
+      "received": "Получено"
     },
     "actions": {
       "cancel": "Отменить",

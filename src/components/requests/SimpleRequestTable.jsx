@@ -4,7 +4,7 @@
  */
 export default function SimpleRequestTable({ rows }) {
   return (
-    <div className="overflow-clip rounded-2xl border border-zinc-200 bg-white">
+    <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
       <table className="w-full text-sm">
         <thead className="bg-zinc-50">
           <tr className="text-left">

@@ -821,7 +821,9 @@
       "approved": "Yo‘lda",
       "rejected": "Rad etildi",
       "completed": "Yakunlandi",
-      "cancelled": "Bekor qilindi"
+      "cancelled": "Bekor qilindi",
+      "awaitingReceipt": "Qabul kutilmoqda",
+      "received": "Qabul qilindi"
     },
 
     "toast": {
@@ -1061,7 +1063,9 @@
       "approved": "Tasdiqlangan",
       "rejected": "Rad etilgan",
       "completed": "Yakunlangan",
-      "cancelled": "Bekor qilingan"
+      "cancelled": "Bekor qilingan",
+      "awaitingReceipt": "Qabul kutilmoqda",
+      "received": "Qabul qilindi"
     },
     "actions": {
       "cancel": "Bekor qilish",

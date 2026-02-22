@@ -525,7 +525,7 @@ export default function WarehouseBatchDetail() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-x-auto">
         {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
             <Package className="w-12 h-12 mb-3 text-neutral-300" />

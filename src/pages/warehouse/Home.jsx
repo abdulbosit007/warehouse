@@ -626,7 +626,7 @@ export default function WarehouseHome() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-auto max-h-[75vh]">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />

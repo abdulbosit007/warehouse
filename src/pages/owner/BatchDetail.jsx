@@ -627,7 +627,7 @@ export default function BatchDetail() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-amber-500 to-orange-500">
@@ -664,7 +664,7 @@ export default function BatchDetail() {
             {t("ownerBatchDetail.sections.otherItems")}
           </h2>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">

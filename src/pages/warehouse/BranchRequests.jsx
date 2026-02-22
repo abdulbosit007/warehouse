@@ -636,7 +636,7 @@ function NewRequestTab({ t, location, showToast }) {
 function OutgoingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
+  const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   const toggleExpand = useCallback((id) => {
@@ -657,7 +657,7 @@ function OutgoingTab({ t, location, showToast }) {
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
-          product:product_id (name, sku),
+          product:product_id (id, name, sku),
           source_location:source_location_id (id, name, location_name)
         )
       `)
@@ -666,34 +666,83 @@ function OutgoingTab({ t, location, showToast }) {
       .order("created_at", { ascending: false });
 
     setRequests(data || []);
-    // Auto-expand all requests
     setExpandedIds(new Set((data || []).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
   useEffect(() => {
     loadRequests();
+
+    // Subscribe to real-time item status changes (approvals, rejections from other side)
+    const channel = supabase
+      .channel("outgoing-item-updates-warehouse")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "branch_request_items" },
+        (payload) => {
+          const updated = payload.new;
+          setRequests((prev) => {
+            const next = prev.map((req) => {
+              const matchIdx = req.items?.findIndex((it) => it.id === updated.id);
+              if (matchIdx === -1 || matchIdx == null) return req;
+              const updatedItems = req.items.map((it) =>
+                it.id === updated.id
+                  ? { ...it, status: updated.status, approved_qty: updated.approved_qty }
+                  : it
+              );
+              const hasActionable = updatedItems.some((it) =>
+                ["requested", "approved"].includes(it.status)
+              );
+              if (!hasActionable) return null;
+              return { ...req, items: updatedItems };
+            });
+            return next.filter(Boolean);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadRequests]);
 
+  // Helper: update a single item's status in local state
+  function updateItemLocally(requestId, itemId, newStatus) {
+    setRequests((prev) => {
+      const updated = prev.map((req) => {
+        if (req.id !== requestId) return req;
+        const updatedItems = req.items.map((it) =>
+          it.id === itemId ? { ...it, status: newStatus } : it
+        );
+        const hasActionable = updatedItems.some((it) =>
+          ["requested", "approved"].includes(it.status)
+        );
+        if (!hasActionable) return null;
+        return { ...req, items: updatedItems };
+      });
+      return updated.filter(Boolean);
+    });
+  }
+
   async function handleCancel(requestId) {
-    if (processingId) return;
-    setProcessingId(requestId);
+    if (processingIds.has(requestId)) return;
+    setProcessingIds((prev) => new Set(prev).add(requestId));
     try {
       await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", requestId);
       showToast(t("warehouseRequests.toast.cancelled"), "info");
-      loadRequests();
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(requestId); return next; });
     }
   }
 
   async function handleCancelItem(request, item) {
-    if (processingId) return;
-    setProcessingId(item.id);
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
       await supabase.from("branch_request_items").update({ status: "cancelled" }).eq("id", item.id);
 
-      // Check if all items are now cancelled
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id, status")
@@ -705,45 +754,31 @@ function OutgoingTab({ t, location, showToast }) {
       }
 
       showToast(t("warehouseRequests.toast.cancelled"), "info");
-      loadRequests();
+      updateItemLocally(request.id, item.id, "cancelled");
     } catch (err) {
       console.error("Cancel item error:", err);
       showToast(t("warehouseRequests.toast.cancelFail"), "error");
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }
   }
 
   async function handleConfirmReceiptItem(request, item) {
-    if (processingId) return;
-    setProcessingId(item.id);
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
       const qtyToAdd = item.approved_qty || item.requested_qty || 0;
       if (qtyToAdd > 0) {
-        const { data: existing } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", item.product.id)
-          .eq("location_id", location.id)
-          .limit(1);
-
-        if (existing && existing.length > 0) {
-          const row = existing[0];
-          await supabase.from("product_list").update({ quantity: (row.quantity || 0) + qtyToAdd }).eq("id", row.id);
-        } else {
-          await supabase.from("product_list").insert({
-            id: crypto.randomUUID(),
-            product_id: item.product.id,
-            location_id: location.id,
-            quantity: qtyToAdd,
-            status: "available",
-          });
-        }
+        const { error: stockErr } = await supabase.rpc("fn_add_stock", {
+          p_product_id: item.product.id,
+          p_location_id: location.id,
+          p_qty: qtyToAdd,
+        });
+        if (stockErr) throw stockErr;
       }
 
       await supabase.from("branch_request_items").update({ status: "completed" }).eq("id", item.id);
 
-      // Check if all approved items are now completed
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id, status")
@@ -758,12 +793,12 @@ function OutgoingTab({ t, location, showToast }) {
       }
 
       showToast(t("warehouseRequests.toast.receivedOk"), "success");
-      loadRequests();
+      updateItemLocally(request.id, item.id, "completed");
     } catch (err) {
       console.error("Confirm receipt item error:", err);
       showToast(t("warehouseRequests.toast.receivedFail"), "error");
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }
   }
 
@@ -870,7 +905,7 @@ function OutgoingTab({ t, location, showToast }) {
                   {isPending && (
                     <button
                       onClick={() => handleCancel(req.id)}
-                      disabled={!!processingId}
+                      disabled={processingIds.has(req.id)}
                       className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors disabled:opacity-50"
                     >
                       {t("warehouseRequests.actions.cancel")}
@@ -933,14 +968,18 @@ function OutgoingTab({ t, location, showToast }) {
                           </div>
                           <div className="col-span-4 flex items-center justify-end gap-2">
                             {isItemApproved && (
-                              <button
-                                onClick={() => handleConfirmReceiptItem(req, item)}
-                                disabled={!!processingId}
-                                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                              >
-                                <PackageCheck className="w-3.5 h-3.5" />
-                                {t("warehouseRequests.actions.received")}
-                              </button>
+                              processingIds.has(item.id) ? (
+                                <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
+                              ) : (
+                                <button
+                                  onClick={() => handleConfirmReceiptItem(req, item)}
+                                  disabled={processingIds.has(item.id)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <PackageCheck className="w-3.5 h-3.5" />
+                                  {t("warehouseRequests.actions.received")}
+                                </button>
+                              )
                             )}
                             {item.status === "completed" && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
@@ -955,14 +994,18 @@ function OutgoingTab({ t, location, showToast }) {
                               </span>
                             )}
                             {isItemPending && (
-                              <button
-                                onClick={() => handleCancelItem(req, item)}
-                                disabled={!!processingId}
-                                className="px-2.5 py-1.5 rounded-lg border border-neutral-300 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors flex items-center gap-1 disabled:opacity-50"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                {t("warehouseRequests.actions.cancel")}
-                              </button>
+                              processingIds.has(item.id) ? (
+                                <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
+                              ) : (
+                                <button
+                                  onClick={() => handleCancelItem(req, item)}
+                                  disabled={processingIds.has(item.id)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-neutral-300 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  {t("warehouseRequests.actions.cancel")}
+                                </button>
+                              )
                             )}
                             {item.status === "cancelled" && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">
@@ -991,7 +1034,7 @@ function OutgoingTab({ t, location, showToast }) {
 function IncomingTab({ t, location, showToast }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
+  const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   const toggleExpand = useCallback((id) => {
@@ -1016,7 +1059,7 @@ function IncomingTab({ t, location, showToast }) {
           source_location:source_location_id (id, name, location_name)
         )
       `)
-      .eq("status", "sent")
+      .in("status", ["sent", "approved"])
       .order("created_at", { ascending: false });
 
     const filtered = (data || []).filter((req) =>
@@ -1024,21 +1067,72 @@ function IncomingTab({ t, location, showToast }) {
     );
 
     setRequests(filtered);
-    // Auto-expand all requests so items are visible
     setExpandedIds(new Set((filtered || []).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
   useEffect(() => {
     loadRequests();
+
+    // Subscribe to real-time item status changes (cancellations from requester side)
+    const channel = supabase
+      .channel("incoming-item-updates-warehouse")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "branch_request_items" },
+        (payload) => {
+          const updated = payload.new;
+          setRequests((prev) => {
+            const next = prev.map((req) => {
+              const matchIdx = req.items?.findIndex((it) => it.id === updated.id);
+              if (matchIdx === -1 || matchIdx == null) return req;
+              const updatedItems = req.items.map((it) =>
+                it.id === updated.id
+                  ? { ...it, status: updated.status, approved_qty: updated.approved_qty }
+                  : it
+              );
+              // Remove only when ALL items are finalized (no requested or approved remaining)
+              const hasActive = updatedItems.some((it) =>
+                ["requested", "approved"].includes(it.status)
+              );
+              if (!hasActive) return null;
+              return { ...req, items: updatedItems };
+            });
+            return next.filter(Boolean);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadRequests]);
+
+  // Helper: update a single item's status in local state
+  function updateItemLocally(requestId, itemId, newStatus, extraFields = {}) {
+    setRequests((prev) => {
+      const updated = prev.map((req) => {
+        if (req.id !== requestId) return req;
+        const updatedItems = req.items.map((it) =>
+          it.id === itemId ? { ...it, status: newStatus, ...extraFields } : it
+        );
+        // Remove only when ALL items are fully finalized (no requested or approved remaining)
+        const hasActive = updatedItems.some((it) =>
+          ["requested", "approved"].includes(it.status)
+        );
+        if (!hasActive) return null;
+        return { ...req, items: updatedItems };
+      });
+      return updated.filter(Boolean);
+    });
+  }
 
   // Approve a single item
   async function handleApproveItem(request, item) {
-    if (processingId) return;
-    setProcessingId(item.id);
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      // Deduct from warehouse stock
       const { data: product } = await supabase
         .from("product_list")
         .select("id, quantity")
@@ -1055,13 +1149,11 @@ function IncomingTab({ t, location, showToast }) {
           .eq("id", product.id);
       }
 
-      // Mark this item as approved
       await supabase
         .from("branch_request_items")
         .update({ status: "approved", approved_qty: item.requested_qty })
         .eq("id", item.id);
 
-      // Check if all items in this request are now approved
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id, status")
@@ -1069,7 +1161,6 @@ function IncomingTab({ t, location, showToast }) {
         .eq("status", "requested");
 
       if (!remaining || remaining.length === 0) {
-        // All items approved — mark the whole request as approved
         await supabase
           .from("branch_requests")
           .update({
@@ -1080,28 +1171,29 @@ function IncomingTab({ t, location, showToast }) {
       }
 
       showToast(t("warehouseRequests.toast.approvedOk"), "success");
-      loadRequests();
+      updateItemLocally(request.id, item.id, "approved", { approved_qty: item.requested_qty });
     } catch (err) {
       console.error(err);
       showToast(t("warehouseRequests.toast.approvedFail"), "error");
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
     }
   }
 
-
-
   // Reject a single item
   async function handleRejectItem(request, item) {
-    if (processingId) return;
-    setProcessingId(item.id);
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
       await supabase
         .from("branch_request_items")
         .update({ status: "rejected" })
         .eq("id", item.id);
 
-      // Check if all items are now decided (approved or rejected)
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id, status")
@@ -1109,7 +1201,6 @@ function IncomingTab({ t, location, showToast }) {
         .eq("status", "requested");
 
       if (!remaining || remaining.length === 0) {
-        // Check if any were approved
         const { data: approvedItems } = await supabase
           .from("branch_request_items")
           .select("id")
@@ -1127,12 +1218,16 @@ function IncomingTab({ t, location, showToast }) {
       }
 
       showToast(t("warehouseRequests.toast.rejected"), "info");
-      loadRequests();
+      updateItemLocally(request.id, item.id, "rejected");
     } catch (err) {
       console.error(err);
       showToast(t("warehouseRequests.toast.approvedFail"), "error");
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
     }
   }
 
@@ -1262,17 +1357,27 @@ function IncomingTab({ t, location, showToast }) {
                           </div>
                           <div className="col-span-2 text-center">
                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
-                              {item.requested_qty}
+                              {item.approved_qty || item.requested_qty}
                             </span>
                           </div>
                           <div className="col-span-1 text-center">
                             {isItemApproved && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                <Clock className="w-3 h-3" />
+                              </span>
+                            )}
+                            {item.status === "completed" && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
-                                <Check className="w-3 h-3" />
+                                <PackageCheck className="w-3 h-3" />
                               </span>
                             )}
                             {isItemRejected && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                                <X className="w-3 h-3" />
+                              </span>
+                            )}
+                            {item.status === "cancelled" && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">
                                 <X className="w-3 h-3" />
                               </span>
                             )}
@@ -1285,24 +1390,32 @@ function IncomingTab({ t, location, showToast }) {
                           <div className="col-span-3 flex items-center justify-end gap-2">
                             {isItemPending && (
                               <>
-                                <button
-                                  onClick={() => handleRejectItem(req, item)}
-                                  disabled={!!processingId}
-                                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                  {t("warehouseRequests.actions.reject")}
-                                </button>
-                                <button
-                                  onClick={() => handleApproveItem(req, item)}
-                                  disabled={!!processingId}
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  {t("warehouseRequests.actions.approve")}
-                                </button>
+                                {processingIds.has(item.id) ? (
+                                  <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => handleRejectItem(req, item)}
+                                      disabled={processingIds.has(item.id)}
+                                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      {t("warehouseRequests.actions.reject")}
+                                    </button>
+                                    <button
+                                      onClick={() => handleApproveItem(req, item)}
+                                      disabled={processingIds.has(item.id)}
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      {t("warehouseRequests.actions.approve")}
+                                    </button>
+                                  </>
+                                )}
                               </>
                             )}
+                            {isItemApproved && <span className="text-xs text-amber-600 font-medium">{t("warehouseRequests.status.awaitingReceipt") || "Awaiting receipt"}</span>}
+                            {item.status === "completed" && <span className="text-xs text-emerald-600 font-medium">{t("warehouseRequests.status.received") || "Received"}</span>}
                           </div>
                         </div>
                       );
@@ -1363,7 +1476,7 @@ function HistoryTab({ t, location }) {
         id, status, created_at, to_location_id,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
-          id, requested_qty, approved_qty,
+          id, requested_qty, approved_qty, status,
           product:product_id (name, sku),
           source_location:source_location_id (id, name, location_name)
         )
@@ -1414,7 +1527,9 @@ function HistoryTab({ t, location }) {
         ? allRequests.filter((r) => r._isOutgoing)
         : allRequests.filter((r) => r._isIncoming);
 
-    if (status !== "all") result = result.filter((r) => r.status === status);
+    if (status !== "all") {
+      result = result.filter((r) => r.status === status);
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -1435,12 +1550,13 @@ function HistoryTab({ t, location }) {
       ? allRequests.filter((r) => r._isOutgoing)
       : allRequests.filter((r) => r._isIncoming);
 
-  const counts = {
-    all: directionFiltered.length,
-    completed: directionFiltered.filter((r) => r.status === "completed").length,
-    cancelled: directionFiltered.filter((r) => r.status === "cancelled").length,
-    rejected: directionFiltered.filter((r) => r.status === "rejected").length,
-  };
+  const counts = useMemo(() => {
+    return {
+      all: directionFiltered.length,
+      completed: directionFiltered.filter((r) => r.status === "completed").length,
+      cancelled: directionFiltered.filter((r) => r.status === "cancelled").length,
+    };
+  }, [directionFiltered]);
 
   if (loading) {
     return (
@@ -1524,7 +1640,6 @@ function HistoryTab({ t, location }) {
               { key: "all", labelKey: "warehouseRequests.history.statusAll" },
               { key: "completed", labelKey: "warehouseRequests.status.completed" },
               { key: "cancelled", labelKey: "warehouseRequests.status.cancelled" },
-              { key: "rejected", labelKey: "warehouseRequests.status.rejected" },
             ].map(({ key, labelKey }) => (
               <button
                 key={key}

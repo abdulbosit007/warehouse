@@ -28,14 +28,16 @@ export default function OwnerLayout({ user }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       <Navbar
         user={user}
         links={ownerLinks}
         brand={{ code: "O", title: "Owner" }}
       />
-      <main className="mx-auto max-w-7xl p-3 md:p-6">
-        <Outlet />
+      <main className="flex-1 overflow-auto">
+        <div className="mx-auto max-w-7xl p-3 md:p-6">
+          <Outlet />
+        </div>
       </main>
       {/* Your Owner pages will be nested here */}
     </div>

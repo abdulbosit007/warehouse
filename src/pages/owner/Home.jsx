@@ -717,7 +717,7 @@ export default function OwnerHome() {
   const totalStock = productList.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-clip">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -939,7 +939,7 @@ export default function OwnerHome() {
       )}
 
       {/* Table */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-clip">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-auto max-h-[75vh]">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
@@ -971,7 +971,7 @@ export default function OwnerHome() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white sticky left-0 bg-indigo-600 z-30">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white bg-indigo-600 sticky left-0 z-30">
                     {t("ownerHome.table.product")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
@@ -1034,7 +1034,7 @@ export default function OwnerHome() {
                   const totalQty = getTotalQty(product.id);
 
                   return (
-                    <tr key={product.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={product.id} className="bg-white">
                       <td className="px-4 py-3 text-sm font-medium text-neutral-900 sticky left-0 bg-white z-10">
                         {product.name || "—"}
                       </td>
