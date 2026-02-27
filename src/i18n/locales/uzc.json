@@ -841,7 +841,8 @@
       "loading": "Юкланмоқда...",
       "searching": "Қидирилмоқда...",
       "unknown": "Номаълум",
-      "qty": "сони"
+      "qty": "сони",
+      "product": "Маҳсулот"
     },
 
     "newRequest": {
@@ -856,7 +857,22 @@
       "emptyCartText": "Қидириб маҳсулот қўшинг ва сўров юборинг",
       "from": "Қайердан",
       "sendRequest": "Сўров юбориш",
-      "sending": "Юборилмоқда..."
+      "sending": "Юборилмоқда...",
+      "modeSearch": "Қидириш",
+      "modeIncoming": "Келган товарлардан",
+      "selectOrigin": "Келиб чиқишни танланг",
+      "chinese": "Хитой",
+      "uzbek": "Ўзбекистон",
+      "batchDate": "Партия: {{date}}",
+      "noBatchFound": "Бу келиб чиқиш учун сўнгги партия топилмади",
+      "selectItems": "Сўраш учун товарларни танланг",
+      "addSelectedToCart": "{{count}} та танланганни саватга қўшиш",
+      "loadingBatch": "Партия юкланмоқда...",
+      "itemsCount": "{{count}} та маҳсулот",
+      "arrived": "Келган",
+      "addToCart": "Саватга қўшиш",
+      "noStock": "Ҳеч қайси омборхонада мавжуд эмас",
+      "addedToCartBulk": "{{count}} та маҳсулот саватга қўшилди"
     },
 
     "outgoing": {

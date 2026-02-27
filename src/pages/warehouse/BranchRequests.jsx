@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
+import CustomSelect from "../../components/CustomSelect";
 import {
   Package,
   Search,
@@ -24,6 +25,8 @@ import {
   AlertCircle,
   Truck,
   PackageCheck,
+  Filter,
+  SlidersHorizontal,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -301,6 +304,11 @@ function NewRequestTab({ t, location, showToast }) {
   const [submitting, setSubmitting] = useState(false);
   const [cart, setCart] = useState([]);
 
+  // Category filter state
+  const [allCategories, setAllCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+
   // Track quantities for each location (for batch add)
   const [locationQtys, setLocationQtys] = useState({});
 
@@ -315,30 +323,49 @@ function NewRequestTab({ t, location, showToast }) {
     loadLocations();
   }, [location.id]);
 
+  // Load categories
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    async function loadCategories() {
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name", { ascending: true });
+      setAllCategories(data || []);
+    }
+    loadCategories();
+  }, []);
+
+  // Search products — or browse by category
+  useEffect(() => {
+    // If no search text AND no category, clear
+    if (!searchQuery.trim() && !selectedCategory) {
       setProducts([]);
       return;
     }
 
-    // NEW: Don't search if the query matches the selected product (prevent reopening dropdown)
+    // Don't search if the query matches the selected product (prevent reopening dropdown)
     if (selectedProduct && searchQuery.trim() === selectedProduct.name) {
       return;
     }
 
     const debounce = setTimeout(async () => {
       setLoading(true);
-      const { data } = await supabase
+      let query = supabase
         .from("products")
-        .select("id, name, sku, price")
-        .or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`)
-        .limit(20);
+        .select("id, name, sku, price, category_id");
+      if (searchQuery.trim()) {
+        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+      }
+      if (selectedCategory) {
+        query = query.eq("category_id", selectedCategory);
+      }
+      const { data } = await query.order("name", { ascending: true }).limit(50);
       setProducts(data || []);
       setLoading(false);
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [searchQuery, selectedProduct]);
+  }, [searchQuery, selectedProduct, selectedCategory]);
 
   useEffect(() => {
     if (!selectedProduct) {
@@ -444,13 +471,43 @@ function NewRequestTab({ t, location, showToast }) {
   const selectedLocationsCount = Object.values(locationQtys).filter((q) => q > 0).length;
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Product Search */}
       <div className="space-y-4">
         <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3 className="font-semibold text-neutral-900 mb-4">
-            {t("warehouseRequests.new.searchTitle")}
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-neutral-900">
+              {t("warehouseRequests.new.searchTitle")}
+            </h3>
+            {allCategories.length > 0 && (
+              <button
+                onClick={() => setShowCategoryFilter(true)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
+                  selectedCategory
+                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                    : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                {selectedCategory && (
+                  <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Active Filter Pill */}
+          {selectedCategory && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+                {allCategories.find((c) => c.id === selectedCategory)?.name || "Category"}
+                <button onClick={() => setSelectedCategory("")}>
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            </div>
+          )}
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -627,6 +684,21 @@ function NewRequestTab({ t, location, showToast }) {
         )}
       </div>
     </div>
+
+      {showCategoryFilter && (
+        <CategoryFilterModal
+          categories={allCategories.map((c) => c.name)}
+          selectedCategory={allCategories.find((c) => c.id === selectedCategory)?.name || ""}
+          onApply={(catName) => {
+            const cat = allCategories.find((c) => c.name === catName);
+            setSelectedCategory(cat?.id || "");
+            setShowCategoryFilter(false);
+          }}
+          onClose={() => setShowCategoryFilter(false)}
+          color="blue"
+        />
+      )}
+    </>
   );
 }
 
@@ -638,6 +710,39 @@ function OutgoingTab({ t, location, showToast }) {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [filterQuery, setFilterQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(
+      requests.flatMap((req) =>
+        (req.items || []).map((item) => item.product?.categories?.name).filter(Boolean)
+      )
+    )];
+    cats.sort((a, b) => a.localeCompare(b));
+    return cats;
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    let result = requests;
+    if (selectedCategory) {
+      result = result.filter((req) =>
+        req.items?.some((item) => item.product?.categories?.name === selectedCategory)
+      );
+    }
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((req) =>
+        req.items?.some(
+          (item) =>
+            (item.product?.name || "").toLowerCase().includes(q) ||
+            (item.product?.sku || "").toLowerCase().includes(q)
+        )
+      );
+    }
+    return result;
+  }, [requests, filterQuery, selectedCategory]);
 
   const toggleExpand = useCallback((id) => {
     setExpandedIds((prev) => {
@@ -657,7 +762,7 @@ function OutgoingTab({ t, location, showToast }) {
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
-          product:product_id (id, name, sku),
+          product:product_id (id, name, sku, category_id, categories:category_id(name)),
           source_location:source_location_id (id, name, location_name)
         )
       `)
@@ -826,17 +931,59 @@ function OutgoingTab({ t, location, showToast }) {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="flex items-center justify-between">
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
+          <span className="font-semibold text-neutral-900">{filteredRequests.length}</span>{" "}
           {t("warehouseRequests.outgoing.activeCountLabel")}
+          {(filterQuery || selectedCategory) && filteredRequests.length !== requests.length && (
+            <span className="text-neutral-400 ml-1">({t("warehouseRequests.common.ofTotal", { total: requests.length }) || `of ${requests.length}`})</span>
+          )}
         </p>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder={t("warehouseRequests.filter.placeholder") || "Filter by product name or SKU..."}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="w-full sm:w-56 rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all"
+            />
+          </div>
+          {categories.length > 0 && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                selectedCategory
+                  ? "border-blue-300 bg-blue-50 text-blue-700"
+                  : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedCategory && (
+                <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Active Filter Pill */}
+      {selectedCategory && (
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+            {selectedCategory}
+            <button onClick={() => setSelectedCategory("")}>
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Request Cards */}
       <div className="space-y-4">
-        {requests.map((req) => {
+        {filteredRequests.map((req) => {
           const source =
             req.items?.[0]?.source_location?.location_name ||
             req.items?.[0]?.source_location?.name ||
@@ -1024,6 +1171,16 @@ function OutgoingTab({ t, location, showToast }) {
           );
         })}
       </div>
+
+      {showFilters && (
+        <CategoryFilterModal
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onApply={(val) => { setSelectedCategory(val); setShowFilters(false); }}
+          onClose={() => setShowFilters(false)}
+          color="blue"
+        />
+      )}
     </div>
   );
 }
@@ -1036,6 +1193,39 @@ function IncomingTab({ t, location, showToast }) {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [filterQuery, setFilterQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(
+      requests.flatMap((req) =>
+        (req.items || []).map((item) => item.product?.categories?.name).filter(Boolean)
+      )
+    )];
+    cats.sort((a, b) => a.localeCompare(b));
+    return cats;
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    let result = requests;
+    if (selectedCategory) {
+      result = result.filter((req) =>
+        req.items?.some((item) => item.product?.categories?.name === selectedCategory)
+      );
+    }
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((req) =>
+        req.items?.some(
+          (item) =>
+            (item.product?.name || "").toLowerCase().includes(q) ||
+            (item.product?.sku || "").toLowerCase().includes(q)
+        )
+      );
+    }
+    return result;
+  }, [requests, filterQuery, selectedCategory]);
 
   const toggleExpand = useCallback((id) => {
     setExpandedIds((prev) => {
@@ -1055,7 +1245,7 @@ function IncomingTab({ t, location, showToast }) {
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
-          product:product_id (id, name, sku),
+          product:product_id (id, name, sku, category_id, categories:category_id(name)),
           source_location:source_location_id (id, name, location_name)
         )
       `)
@@ -1257,17 +1447,59 @@ function IncomingTab({ t, location, showToast }) {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="flex items-center justify-between">
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
+          <span className="font-semibold text-neutral-900">{filteredRequests.length}</span>{" "}
           {t("warehouseRequests.incoming.summary")}
+          {(filterQuery || selectedCategory) && filteredRequests.length !== requests.length && (
+            <span className="text-neutral-400 ml-1">({t("warehouseRequests.common.ofTotal", { total: requests.length }) || `of ${requests.length}`})</span>
+          )}
         </p>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder={t("warehouseRequests.filter.placeholder") || "Filter by product name or SKU..."}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="w-full sm:w-56 rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all"
+            />
+          </div>
+          {categories.length > 0 && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                selectedCategory
+                  ? "border-blue-300 bg-blue-50 text-blue-700"
+                  : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedCategory && (
+                <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Active Filter Pill */}
+      {selectedCategory && (
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+            {selectedCategory}
+            <button onClick={() => setSelectedCategory("")}>
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Request Cards */}
       <div className="space-y-4">
-        {requests.map((req) => {
+        {filteredRequests.map((req) => {
           const requester =
             req.to_location?.location_name ||
             req.to_location?.name ||
@@ -1427,6 +1659,16 @@ function IncomingTab({ t, location, showToast }) {
           );
         })}
       </div>
+
+      {showFilters && (
+        <CategoryFilterModal
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onApply={(val) => { setSelectedCategory(val); setShowFilters(false); }}
+          onClose={() => setShowFilters(false)}
+          color="blue"
+        />
+      )}
     </div>
   );
 }
@@ -1907,6 +2149,83 @@ function RequestCard({ request, type, onCancel, onConfirmReceipt, onApprove, onR
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        CATEGORY FILTER MODAL                                */
+/* -------------------------------------------------------------------------- */
+function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, color = "blue" }) {
+  const { t } = useTranslation();
+  const [localCategory, setLocalCategory] = useState(selectedCategory);
+
+  const gradientMap = {
+    emerald: "from-emerald-600 to-teal-600",
+    blue: "from-blue-600 to-cyan-600",
+  };
+
+  const btnMap = {
+    emerald: "from-emerald-600 to-teal-600",
+    blue: "from-blue-600 to-cyan-600",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-visible"
+      >
+        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
+          <div className="flex items-center gap-3">
+            <SlidersHorizontal className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">Filtrlar</h3>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 min-h-[200px]">
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+              Kategoriya
+            </label>
+            <CustomSelect
+              value={localCategory || ""}
+              onChange={(val) => setLocalCategory(val)}
+              placeholder="Barcha kategoriyalar"
+              color={color === "emerald" ? "green" : "blue"}
+              options={[
+                { value: "", label: "Barcha kategoriyalar" },
+                ...categories.map((cat) => ({
+                  value: cat,
+                  label: cat,
+                })),
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => onApply(localCategory)}
+            className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${btnMap[color]} px-4 py-2 text-sm font-semibold text-white shadow-lg`}
+          >
+            <Check className="w-4 h-4" />
+            Qo'llash
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

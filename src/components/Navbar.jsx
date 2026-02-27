@@ -120,9 +120,7 @@ export default function Navbar({
               className="flex items-center gap-2"
               aria-label="Go to home"
             >
-              <div className={`flex items-center justify-center w-8 h-8 text-white ${themeConfig.bg} shadow-sm rounded-xl`}>
-                {brand.code}
-              </div>
+              <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-xl shadow-sm object-contain" />
               <span className="hidden text-[15px] font-semibold md:inline">
                 {brand.title}
               </span>
@@ -220,9 +218,7 @@ export default function Navbar({
         {/* Drawer header */}
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 border-b border-neutral-200">
           <div className="flex items-center gap-2">
-            <div className={`flex items-center justify-center text-white ${themeConfig.bg} h-9 w-9 rounded-xl`}>
-              {brand.code}
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-9 w-9 rounded-xl object-contain" />
             <div className="flex flex-col">
               <span className="text-[15px] font-semibold">{brand.title}</span>
             </div>

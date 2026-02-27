@@ -80,6 +80,7 @@ export default function BranchOperations() {
 
   // search + cart
   const [q, setQ] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(""); // "" = all
   const [cart, setCart] = useState([]); // [{product_id,name,sku,maxQty,qty}]
   const [note, setNote] = useState("");
 
@@ -130,15 +131,27 @@ export default function BranchOperations() {
   const [saleHistoryLoading, setSaleHistoryLoading] = useState(false);
 
   /* -------------------------------- MEMOS -------------------------------- */
+  const categories = useMemo(() => {
+    const cats = [...new Set(catalog.map((r) => r.category).filter(Boolean))];
+    cats.sort((a, b) => a.localeCompare(b));
+    return cats;
+  }, [catalog]);
+
   const filteredCatalog = useMemo(() => {
+    let result = catalog;
+    if (selectedCategory) {
+      result = result.filter((r) => r.category === selectedCategory);
+    }
     const s = q.trim().toLowerCase();
-    if (!s) return catalog;
-    return catalog.filter(
-      (r) =>
-        (r.name || "").toLowerCase().includes(s) ||
-        (r.sku || "").toLowerCase().includes(s)
-    );
-  }, [catalog, q]);
+    if (s) {
+      result = result.filter(
+        (r) =>
+          (r.name || "").toLowerCase().includes(s) ||
+          (r.sku || "").toLowerCase().includes(s)
+      );
+    }
+    return result;
+  }, [catalog, q, selectedCategory]);
 
   const cartValid = useMemo(
     () =>
@@ -1426,6 +1439,10 @@ return (
             cartValid={cartValid}
             onCommitSale={commitSale}
             nf={nf}
+            // Category filter props
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
             // Sale history props
             saleHistoryDay={saleHistoryDay}
             setSaleHistoryDay={setSaleHistoryDay}
@@ -1457,6 +1474,10 @@ return (
             loanValid={loanValid}
             onCommitLoan={commitLoan}
             nf={nf}
+            // Category filter props
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
             // Active loans props
             activeLoans={activeLoans}
             activeLoansLoading={activeLoansLoading}

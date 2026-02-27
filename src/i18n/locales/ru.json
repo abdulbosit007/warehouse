@@ -843,7 +843,8 @@
       "loading": "Загрузка...",
       "searching": "Поиск...",
       "unknown": "Неизвестно",
-      "qty": "кол-во"
+      "qty": "кол-во",
+      "product": "Товар"
     },
 
     "newRequest": {
@@ -858,7 +859,22 @@
       "emptyCartText": "Найдите товар, добавьте и отправьте запрос",
       "from": "Откуда",
       "sendRequest": "Отправить запрос",
-      "sending": "Отправка..."
+      "sending": "Отправка...",
+      "modeSearch": "Поиск",
+      "modeIncoming": "Из поступлений",
+      "selectOrigin": "Выберите происхождение",
+      "chinese": "Китай",
+      "uzbek": "Узбекистан",
+      "batchDate": "Партия: {{date}}",
+      "noBatchFound": "Не найдена недавняя партия для этого происхождения",
+      "selectItems": "Выберите товары для запроса",
+      "addSelectedToCart": "Добавить {{count}} выбр. в корзину",
+      "loadingBatch": "Загрузка партии...",
+      "itemsCount": "{{count}} позиций",
+      "arrived": "Поступило",
+      "addToCart": "В корзину",
+      "noStock": "Нет в наличии ни на одном складе",
+      "addedToCartBulk": "{{count}} товаров добавлено в корзину"
     },
 
     "outgoing": {

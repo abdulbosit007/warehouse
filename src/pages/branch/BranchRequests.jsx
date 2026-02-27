@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
+import { getLatestClosedBatchItems } from "../../lib/incoming";
+import CustomSelect from "../../components/CustomSelect";
 import {
   Package,
   Search,
@@ -24,6 +26,9 @@ import {
   AlertCircle,
   Truck,
   PackageCheck,
+  Globe,
+  Filter,
+  SlidersHorizontal,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -275,19 +280,76 @@ export default function BranchRequests() {
 function NewRequestTab({ location, showToast }) {
   const { t } = useTranslation();
 
+  // Mode toggle: "search" (old flow) vs "incoming" (new flow)
+  const [mode, setMode] = useState("search");
+
+  // ── Search mode state ──
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [allLocations, setAllLocations] = useState([]);
   const [productStock, setProductStock] = useState({});
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [stockLoading, setStockLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Track quantities per location for search mode
+  const [locationQtys, setLocationQtys] = useState({});
 
-  // Cart: { productId, productName, sku, sourceLocationId, sourceLocationName, qty }
+  // ── Incoming mode state ──
+  const [selectedOrigin, setSelectedOrigin] = useState(null);
+  const [batchInfo, setBatchInfo] = useState(null);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  // Stock for ALL batch items: { sku: { totalStock, productId, stocks: [{locId, qty}] } }
+  const [allBatchStock, setAllBatchStock] = useState({});
+  // Qty per batch item id
+  const [incomingQtys, setIncomingQtys] = useState({});
+
   const [cart, setCart] = useState([]);
 
-  // Track quantities for each location (for batch add)
-  const [locationQtys, setLocationQtys] = useState({});
+  // Category filter state
+  const [allCategories, setAllCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+
+  /**
+   * Auto-allocate requested qty across warehouses.
+   * Priority: try WH1 alone → WH2 alone → WH1+WH2 → WH3 → WH2+WH3 → WH1+WH2+WH3 → …
+   * When combining, later warehouses fill first, remainder from earlier.
+   */
+  function allocateAcrossWarehouses(qty, warehouseStocks) {
+    if (qty <= 0 || warehouseStocks.length === 0) return [];
+    const n = warehouseStocks.length;
+    for (let end = 0; end < n; end++) {
+      for (let start = end; start >= 0; start--) {
+        const subset = warehouseStocks.slice(start, end + 1);
+        const totalAvail = subset.reduce((s, w) => s + w.stock, 0);
+        if (totalAvail >= qty) {
+          const alloc = [];
+          let rem = qty;
+          for (let i = subset.length - 1; i >= 0 && rem > 0; i--) {
+            const take = Math.min(rem, subset[i].stock);
+            if (take > 0) {
+              alloc.push({ locationId: subset[i].id, locationName: subset[i].name, qty: take });
+              rem -= take;
+            }
+          }
+          return alloc;
+        }
+      }
+    }
+    // Not enough stock anywhere — take what we can from all (last first)
+    const alloc = [];
+    let rem = qty;
+    for (let i = n - 1; i >= 0 && rem > 0; i--) {
+      const take = Math.min(rem, warehouseStocks[i].stock);
+      if (take > 0) {
+        alloc.push({ locationId: warehouseStocks[i].id, locationName: warehouseStocks[i].name, qty: take });
+        rem -= take;
+      }
+    }
+    return alloc;
+  }
 
   // Load all locations except current
   useEffect(() => {
@@ -301,95 +363,211 @@ function NewRequestTab({ location, showToast }) {
     loadLocations();
   }, [location.id]);
 
-  // Search products
+  // Load categories
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    async function loadCategories() {
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name", { ascending: true });
+      setAllCategories(data || []);
+    }
+    loadCategories();
+  }, []);
+
+  // Search products (search mode) — or browse by category
+  useEffect(() => {
+    if (mode !== "search") return;
+    // If no search text AND no category, clear
+    if (!searchQuery.trim() && !selectedCategory) {
       setProducts([]);
       return;
     }
-
-    // NEW: Don't search if the query matches the selected product (prevent reopening dropdown)
     if (selectedProduct && searchQuery.trim() === selectedProduct.name) {
       return;
     }
-
     const debounce = setTimeout(async () => {
       setLoading(true);
-      const { data } = await supabase
+      let query = supabase
         .from("products")
-        .select("id, name, sku, price")
-        .or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`)
-        .limit(20);
+        .select("id, name, sku, price, category_id");
+      if (searchQuery.trim()) {
+        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+      }
+      if (selectedCategory) {
+        query = query.eq("category_id", selectedCategory);
+      }
+      const { data } = await query.order("name", { ascending: true }).limit(50);
       setProducts(data || []);
       setLoading(false);
     }, 300);
-
     return () => clearTimeout(debounce);
-  }, [searchQuery, selectedProduct]);
+  }, [searchQuery, selectedProduct, mode, selectedCategory]);
 
-  // Load stock for selected product across all locations
+  // Load stock for selected product across all locations (search mode)
   useEffect(() => {
     if (!selectedProduct) {
       setProductStock({});
+      setStockLoading(false);
       return;
     }
-
+    setStockLoading(true);
     async function loadStock() {
       const { data } = await supabase
         .from("product_list")
         .select("location_id, quantity")
         .eq("product_id", selectedProduct.id)
         .neq("location_id", location.id);
-
       const stockMap = {};
       (data || []).forEach((row) => {
         stockMap[row.location_id] = row.quantity;
       });
       setProductStock(stockMap);
+      setStockLoading(false);
     }
     loadStock();
   }, [selectedProduct, location.id]);
 
-  function handleBatchAddToCart() {
-    if (!selectedProduct) return;
+  // ── Incoming mode: load batch + stock for ALL items when origin changes ──
+  useEffect(() => {
+    if (mode !== "incoming" || !selectedOrigin) return;
+    setBatchLoading(true);
+    setBatchItems([]);
+    setBatchInfo(null);
+    setAllBatchStock({});
+    setIncomingQtys({});
 
-    const newItems = Object.entries(locationQtys)
-      .filter(([_, qty]) => qty > 0)
-      .map(([locId, qty]) => {
-        const loc = allLocations.find((l) => l.id === locId);
-        return {
+    (async () => {
+      const { batch, items, error } = await getLatestClosedBatchItems(selectedOrigin);
+      if (error) console.error("Load batch error:", error);
+      setBatchInfo(batch);
+      setBatchItems(items);
+
+      // Load stock for ALL items at once
+      if (items.length > 0) {
+        const skus = [...new Set(items.map((it) => it.sku).filter(Boolean))];
+        // Get product IDs for all SKUs
+        const { data: prods } = await supabase
+          .from("products")
+          .select("id, sku")
+          .in("sku", skus);
+        const skuToId = {};
+        (prods || []).forEach((p) => { skuToId[p.sku] = p.id; });
+
+        // Get stock for all found product IDs
+        const prodIds = Object.values(skuToId);
+        if (prodIds.length > 0) {
+          const { data: stockRows } = await supabase
+            .from("product_list")
+            .select("product_id, location_id, quantity")
+            .in("product_id", prodIds)
+            .neq("location_id", location.id);
+
+          const stockBySku = {};
+          skus.forEach((sku) => {
+            const pid = skuToId[sku];
+            if (!pid) return;
+            const rows = (stockRows || []).filter((r) => r.product_id === pid);
+            const total = rows.reduce((s, r) => s + (r.quantity || 0), 0);
+            stockBySku[sku] = { productId: pid, totalStock: total };
+          });
+          setAllBatchStock(stockBySku);
+        }
+      }
+
+      setBatchLoading(false);
+    })();
+  }, [mode, selectedOrigin]);
+
+  // Build locationQtys from existing cart entries for a product
+  function getCartQtysForProduct(productId) {
+    const qtys = {};
+    cart.forEach((item) => {
+      if (item.productId === productId) {
+        qtys[item.sourceLocationId] = (qtys[item.sourceLocationId] || 0) + item.qty;
+      }
+    });
+    return qtys;
+  }
+
+  function handleAddToCart() {
+    if (!selectedProduct) return;
+    const newItems = [];
+    allLocations.forEach((loc) => {
+      const qty = parseInt(locationQtys[loc.id], 10) || 0;
+      const stock = productStock[loc.id] || 0;
+      if (qty > 0 && stock > 0) {
+        newItems.push({
           productId: selectedProduct.id,
           productName: selectedProduct.name,
           sku: selectedProduct.sku,
-          sourceLocationId: locId,
-          sourceLocationName: loc?.location_name || loc?.name || t("branchRequests.common.unknown"),
-          qty: qty,
-        };
-      });
-
+          sourceLocationId: loc.id,
+          sourceLocationName: loc.location_name || loc.name,
+          qty: Math.min(qty, stock),
+        });
+      }
+    });
     if (newItems.length === 0) return;
-
-    setCart((prev) => [...prev, ...newItems]);
+    // Replace existing entries for this product, then add new ones
+    setCart((prev) => [
+      ...prev.filter((item) => item.productId !== selectedProduct.id),
+      ...newItems,
+    ]);
     setSelectedProduct(null);
     setSearchQuery("");
     setProducts([]);
     setLocationQtys({});
+    setProductStock({});
   }
 
-  function handleRemoveFromCart(index) {
-    setCart((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function handleSubmitRequests() {
-    if (cart.length === 0) return;
+  // ── Incoming mode: submit ALL items with qty > 0 directly ──
+  async function handleIncomingSubmit() {
+    const itemsToSubmit = [];
+    for (const item of batchItems) {
+      const qty = parseInt(incomingQtys[item.id], 10) || 0;
+      if (qty <= 0) continue;
+      const stockInfo = allBatchStock[item.sku];
+      if (!stockInfo) continue;
+      itemsToSubmit.push({
+        productId: stockInfo.productId,
+        productName: item.product_name,
+        sku: item.sku,
+        qty: qty,
+      });
+    }
+    if (itemsToSubmit.length === 0) return;
 
     setSubmitting(true);
     try {
-      const bySource = {};
-      cart.forEach((item) => {
-        if (!bySource[item.sourceLocationId]) {
-          bySource[item.sourceLocationId] = [];
+      // For each item, fetch per-location stock and allocate
+      const allAllocated = []; // { productId, sourceLocationId, qty }
+      for (const ci of itemsToSubmit) {
+        const { data: stockRows } = await supabase
+          .from("product_list")
+          .select("location_id, quantity")
+          .eq("product_id", ci.productId)
+          .neq("location_id", location.id);
+        const warehouseStocks = allLocations
+          .map((loc) => ({
+            id: loc.id,
+            name: loc.location_name || loc.name,
+            stock: (stockRows || []).find((r) => r.location_id === loc.id)?.quantity || 0,
+          }))
+          .filter((w) => w.stock > 0);
+        const allocation = allocateAcrossWarehouses(ci.qty, warehouseStocks);
+        for (const a of allocation) {
+          allAllocated.push({
+            productId: ci.productId,
+            sourceLocationId: a.locationId,
+            qty: a.qty,
+          });
         }
+      }
+
+      // Group by source location and create requests
+      const bySource = {};
+      allAllocated.forEach((item) => {
+        if (!bySource[item.sourceLocationId]) bySource[item.sourceLocationId] = [];
         bySource[item.sourceLocationId].push(item);
       });
 
@@ -403,9 +581,7 @@ function NewRequestTab({ location, showToast }) {
           })
           .select("id")
           .single();
-
         if (reqError) throw reqError;
-
         const itemInserts = items.map((item) => ({
           request_id: request.id,
           product_id: item.productId,
@@ -413,14 +589,60 @@ function NewRequestTab({ location, showToast }) {
           requested_qty: item.qty,
           status: "requested",
         }));
-
         const { error: itemError } = await supabase
           .from("branch_request_items")
           .insert(itemInserts);
-
         if (itemError) throw itemError;
       }
 
+      setIncomingQtys({});
+      showToast(t("branchRequests.toast.requestSentSuccess"), "success");
+    } catch (err) {
+      console.error(err);
+      showToast(t("branchRequests.toast.requestSentFail"), "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleRemoveFromCart(index) {
+    setCart((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmitRequests() {
+    if (cart.length === 0) return;
+    setSubmitting(true);
+    try {
+      const bySource = {};
+      cart.forEach((item) => {
+        if (!bySource[item.sourceLocationId]) {
+          bySource[item.sourceLocationId] = [];
+        }
+        bySource[item.sourceLocationId].push(item);
+      });
+      for (const [sourceId, items] of Object.entries(bySource)) {
+        const { data: request, error: reqError } = await supabase
+          .from("branch_requests")
+          .insert({
+            to_location_id: location.id,
+            status: "sent",
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select("id")
+          .single();
+        if (reqError) throw reqError;
+        const itemInserts = items.map((item) => ({
+          request_id: request.id,
+          product_id: item.productId,
+          source_location_id: item.sourceLocationId,
+          requested_qty: item.qty,
+          status: "requested",
+        }));
+        const { error: itemError } = await supabase
+          .from("branch_request_items")
+          .insert(itemInserts);
+        if (itemError) throw itemError;
+      }
       setCart([]);
       showToast(t("branchRequests.toast.requestSentSuccess"), "success");
     } catch (err) {
@@ -431,18 +653,248 @@ function NewRequestTab({ location, showToast }) {
     }
   }
 
-  const locationsCount = Object.values(locationQtys).filter((q) => q > 0).length;
+  const totalSearchStock = allLocations.reduce((s, loc) => s + (productStock[loc.id] || 0), 0);
+  const incomingItemsWithQty = batchItems.filter((it) => parseInt(incomingQtys[it.id], 10) > 0).length;
 
+  // ── Computed values for incoming mode ──
+  const availableBatchItems = batchItems.filter((item) => (allBatchStock[item.sku]?.totalStock || 0) > 0);
+  const incomingTotalQty = batchItems.reduce((s, it) => s + (parseInt(incomingQtys[it.id], 10) || 0), 0);
+
+  // ── INCOMING MODE: full-width layout ──
+  if (mode === "incoming") {
+    return (
+      <div className="space-y-4">
+        {/* Mode Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+            <button
+              onClick={() => setMode("search")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+            >
+              <Search className="w-4 h-4" />
+              {t("branchRequests.newRequest.modeSearch")}
+            </button>
+            <button
+              onClick={() => setMode("incoming")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white text-neutral-900 shadow-sm"
+            >
+              <Globe className="w-4 h-4 text-emerald-600" />
+              {t("branchRequests.newRequest.modeIncoming")}
+            </button>
+          </div>
+        </div>
+
+        {/* Origin selector — compact pills */}
+        <div className="flex gap-3">
+          {["chinese", "uzbek"].map((origin) => (
+            <button
+              key={origin}
+              onClick={() => setSelectedOrigin(origin)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                selectedOrigin === origin
+                  ? origin === "chinese"
+                    ? "border-red-400 bg-red-50 text-red-700 shadow-sm"
+                    : "border-blue-400 bg-blue-50 text-blue-700 shadow-sm"
+                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:shadow-sm"
+              }`}
+            >
+              <span className="text-base">{origin === "chinese" ? "🇨🇳" : "🇺🇿"}</span>
+              {t(`branchRequests.newRequest.${origin}`)}
+            </button>
+          ))}
+        </div>
+
+        {/* Batch loading */}
+        {batchLoading && (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm text-center">
+            <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin mx-auto mb-3" />
+            <p className="text-sm text-neutral-500">{t("branchRequests.newRequest.loadingBatch")}</p>
+          </div>
+        )}
+
+        {/* No batch found */}
+        {!batchLoading && selectedOrigin && !batchInfo && (
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm text-center">
+            <Package className="w-12 h-12 mx-auto mb-3 text-neutral-300" />
+            <p className="text-sm text-neutral-500">
+              {t("branchRequests.newRequest.noBatchFound")}
+            </p>
+          </div>
+        )}
+
+        {/* Batch items — professional full-width table */}
+        {!batchLoading && batchInfo && availableBatchItems.length > 0 && (
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+            {/* Header bar */}
+            <div className="px-5 py-4 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-neutral-900 text-base">
+                    {t("branchRequests.newRequest.selectItems")}
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {t("branchRequests.newRequest.batchDate", {
+                      date: new Date(batchInfo.created_at).toLocaleDateString(),
+                    })}{" "}
+                    • {t("branchRequests.newRequest.itemsCount", { count: availableBatchItems.length })}
+                  </p>
+                </div>
+                {/* Summary badge */}
+                {incomingItemsWithQty > 0 && (
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-1.5 text-xs font-semibold">
+                      <PackageCheck className="w-3.5 h-3.5" />
+                      {incomingItemsWithQty} {t("branchRequests.newRequest.selected")} • {incomingTotalQty} {t("branchRequests.common.qty")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_90px_100px] sm:grid-cols-[1fr_100px_120px] gap-3 px-5 py-2.5 bg-neutral-50/80 border-b border-neutral-100 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+              <span>{t("branchRequests.common.product")}</span>
+              <span className="text-center">{t("branchRequests.newRequest.available")}</span>
+              <span className="text-center">{t("branchRequests.common.qty")}</span>
+            </div>
+
+            {/* Items rows */}
+            <div className="max-h-[460px] overflow-y-auto divide-y divide-neutral-50">
+              {availableBatchItems.map((item, idx) => {
+                const stockInfo = allBatchStock[item.sku];
+                const totalStock = stockInfo?.totalStock || 0;
+                const currentQty = incomingQtys[item.id] || "";
+                const hasQty = parseInt(currentQty, 10) > 0;
+                return (
+                  <div
+                    key={item.id}
+                    className={`grid grid-cols-[1fr_90px_100px] sm:grid-cols-[1fr_100px_120px] gap-3 px-5 py-3 items-center transition-colors ${
+                      hasQty ? "bg-emerald-50/40" : idx % 2 === 0 ? "bg-white" : "bg-neutral-50/30"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-neutral-900 text-sm truncate">
+                        {item.product_name}
+                      </p>
+                      <p className="text-xs text-neutral-400 truncate">
+                        {item.sku || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <span className="inline-flex items-center justify-center min-w-[2.5rem] rounded-md bg-emerald-50 text-emerald-700 text-sm font-semibold px-2 py-0.5">
+                        {totalStock}
+                      </span>
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max={totalStock}
+                        value={currentQty}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = Math.min(totalStock, Math.max(0, parseInt(e.target.value, 10) || 0));
+                          setIncomingQtys((prev) => ({ ...prev, [item.id]: val || "" }));
+                        }}
+                        className={`w-full rounded-lg border px-3 py-1.5 text-sm text-center transition-all focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+                          hasQty
+                            ? "border-emerald-300 bg-emerald-50 font-semibold text-emerald-800"
+                            : "border-neutral-200 bg-white text-neutral-700"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Submit footer */}
+            {incomingItemsWithQty > 0 && (
+              <div className="px-5 py-4 border-t border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
+                <button
+                  onClick={handleIncomingSubmit}
+                  disabled={submitting}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      {t("branchRequests.common.loading")}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      {t("branchRequests.newRequest.sendRequest")} ({incomingItemsWithQty} {t("branchRequests.newRequest.items")}, {incomingTotalQty} {t("branchRequests.common.qty")})
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── SEARCH MODE: 2-column grid with cart ──
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Product Search */}
       <div className="space-y-4">
-        <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3 className="font-semibold text-neutral-900 mb-4">
-            {t("branchRequests.newRequest.searchTitle")}
-          </h3>
+        {/* Mode Toggle */}
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          <button
+            onClick={() => setMode("search")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white text-neutral-900 shadow-sm"
+          >
+            <Search className="w-4 h-4 text-emerald-600" />
+            {t("branchRequests.newRequest.modeSearch")}
+          </button>
+          <button
+            onClick={() => setMode("incoming")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+          >
+            <Globe className="w-4 h-4" />
+            {t("branchRequests.newRequest.modeIncoming")}
+          </button>
+        </div>
 
-          {/* Search Input */}
+        {/* Search input */}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-neutral-900">
+              {t("branchRequests.newRequest.searchTitle")}
+            </h3>
+            {allCategories.length > 0 && (
+              <button
+                onClick={() => setShowCategoryFilter(true)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all ${
+                  selectedCategory
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                {selectedCategory && (
+                  <span className="bg-emerald-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Active Filter Pill */}
+          {selectedCategory && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+                {allCategories.find((c) => c.id === selectedCategory)?.name || "Category"}
+                <button onClick={() => setSelectedCategory("")}>
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            </div>
+          )}
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
@@ -453,8 +905,6 @@ function NewRequestTab({ location, showToast }) {
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
-
-          {/* Search Results */}
           {products.length > 0 && (
             <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
               {products.map((product) => (
@@ -464,6 +914,8 @@ function NewRequestTab({ location, showToast }) {
                     setSelectedProduct(product);
                     setProducts([]);
                     setSearchQuery(product.name);
+                    // Pre-fill location qtys from cart if product is already there
+                    setLocationQtys(getCartQtysForProduct(product.id));
                   }}
                   className="w-full text-left p-3 rounded-xl border border-neutral-200 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
                 >
@@ -475,7 +927,6 @@ function NewRequestTab({ location, showToast }) {
               ))}
             </div>
           )}
-
           {loading && (
             <div className="mt-3 text-sm text-neutral-500 flex items-center gap-2">
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -484,81 +935,80 @@ function NewRequestTab({ location, showToast }) {
           )}
         </div>
 
-        {/* Stock Availability - with batch add */}
+        {/* Stock per location — manual qty per warehouse */}
         {selectedProduct && (
           <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h3 className="font-semibold text-neutral-900 mb-1">{selectedProduct.name}</h3>
             <p className="text-xs text-neutral-500 mb-4">
-              {t("branchRequests.newRequest.stockHint")}
+              SKU: {selectedProduct.sku}
             </p>
 
-            <div className="space-y-2">
-              {allLocations.map((loc) => {
-                const stock = productStock[loc.id] || 0;
-                const currentQty = locationQtys[loc.id] || 0;
+            {stockLoading ? (
+              <div className="flex items-center justify-center py-6 text-neutral-400">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                <span className="text-sm">{t("branchRequests.common.searching")}</span>
+              </div>
+            ) : (
+              <>
+                {/* Per-location stock rows */}
+                <div className="space-y-2 mb-4">
+                  {allLocations
+                    .filter((loc) => (productStock[loc.id] || 0) > 0)
+                    .map((loc) => {
+                      const stock = productStock[loc.id] || 0;
+                      return (
+                        <div key={loc.id} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-neutral-900 truncate">
+                              <MapPin className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
+                              {loc.location_name || loc.name}
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {t("branchRequests.newRequest.available")}:{" "}
+                              <span className="text-emerald-600 font-semibold">{stock}</span>
+                            </p>
+                          </div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={stock}
+                            value={locationQtys[loc.id] || ""}
+                            placeholder={t("branchRequests.common.qty")}
+                            onChange={(e) => {
+                              const val = Math.min(stock, Math.max(0, parseInt(e.target.value, 10) || 0));
+                              setLocationQtys((prev) => ({ ...prev, [loc.id]: val || "" }));
+                            }}
+                            className="w-20 rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                        </div>
+                      );
+                    })}
+                  {allLocations.filter((loc) => (productStock[loc.id] || 0) > 0).length === 0 && (
+                    <p className="text-sm text-red-500 text-center py-2">
+                      {t("branchRequests.newRequest.noStock")}
+                    </p>
+                  )}
+                </div>
 
-                return (
-                  <div
-                    key={loc.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200"
+                {/* Add to Cart button */}
+                {Object.values(locationQtys).some((v) => parseInt(v, 10) > 0) && (
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full rounded-xl bg-emerald-600 text-white py-2.5 px-4 font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    <div>
-                      <p className="font-medium text-neutral-900 text-sm">
-                        {loc.location_name || loc.name}
-                      </p>
-                      <p className="text-xs text-neutral-500">
-                        {t("branchRequests.newRequest.available")}:{" "}
-                        <span
-                          className={
-                            stock > 0 ? "text-emerald-600 font-medium" : "text-red-500"
-                          }
-                        >
-                          {stock}
-                        </span>
-                      </p>
-                    </div>
-
-                    {stock > 0 && (
-                      <input
-                        type="number"
-                        min="0"
-                        max={stock}
-                        value={currentQty || ""}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const val = Math.min(
-                            stock,
-                            Math.max(0, parseInt(e.target.value, 10) || 0)
-                          );
-                          setLocationQtys((prev) => ({ ...prev, [loc.id]: val }));
-                        }}
-                        className="w-20 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Add All to Cart button */}
-            {locationsCount > 0 && (
-              <button
-                onClick={handleBatchAddToCart}
-                className="w-full mt-4 rounded-xl bg-emerald-600 text-white py-2.5 px-4 font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                {t("branchRequests.newRequest.addLocationsToCart", {
-                  count: locationsCount,
-                })}
-              </button>
+                    <Plus className="w-4 h-4" />
+                    {t("branchRequests.newRequest.addToCart")}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
 
       {/* Right: Cart */}
-      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <h3 className="font-semibold text-neutral-900 mb-4">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm max-h-[calc(100vh-8rem)] flex flex-col sticky top-4 min-h-0 overflow-hidden">
+        <h3 className="font-semibold text-neutral-900 mb-4 shrink-0">
           {t("branchRequests.newRequest.cartItems", { count: cart.length })}
         </h3>
 
@@ -569,27 +1019,63 @@ function NewRequestTab({ location, showToast }) {
             <p className="text-xs mt-1">{t("branchRequests.newRequest.emptyCartText")}</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {cart.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200"
-              >
-                <div>
-                  <p className="font-medium text-neutral-900 text-sm">{item.productName}</p>
-                  <p className="text-xs text-neutral-500">
-                    {t("branchRequests.newRequest.from")}: {item.sourceLocationName} •{" "}
-                    {t("branchRequests.common.qty")}: {item.qty}
-                  </p>
+          <div className="space-y-3 overflow-y-auto flex-1">
+            {/* Group cart items by product */}
+            {(() => {
+              const grouped = {};
+              cart.forEach((item, idx) => {
+                if (!grouped[item.productId]) {
+                  grouped[item.productId] = { ...item, entries: [] };
+                }
+                grouped[item.productId].entries.push({ ...item, cartIndex: idx });
+              });
+              return Object.values(grouped).map((group) => (
+                <div key={group.productId} className={`rounded-xl border overflow-hidden transition-all ${
+                  selectedProduct?.id === group.productId
+                    ? "border-emerald-400 ring-2 ring-emerald-100"
+                    : "border-neutral-200"
+                }`}>
+                  {/* Product header — clickable to edit */}
+                  <button
+                    onClick={() => {
+                      setSelectedProduct({ id: group.productId, name: group.productName, sku: group.sku });
+                      setSearchQuery(group.productName);
+                      setProducts([]);
+                      setLocationQtys(getCartQtysForProduct(group.productId));
+                    }}
+                    className="flex items-center justify-between px-3 py-2.5 bg-neutral-50 w-full text-left hover:bg-neutral-100 transition-colors cursor-pointer"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-neutral-900 text-sm truncate">{group.productName}</p>
+                      <p className="text-xs text-neutral-400">{group.sku}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
+                  </button>
+                  {/* Location rows */}
+                  <div className="divide-y divide-neutral-100">
+                    {group.entries.map((entry) => (
+                      <div
+                        key={entry.cartIndex}
+                        className="flex items-center justify-between px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2 text-xs text-neutral-600">
+                          <MapPin className="w-3 h-3 text-neutral-400" />
+                          <span>{entry.sourceLocationName}</span>
+                          <span className="text-neutral-300">•</span>
+                          <span className="font-semibold text-neutral-800">{entry.qty}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveFromCart(entry.cartIndex)}
+                          className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleRemoveFromCart(i)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              ));
+            })()}
 
             <button
               onClick={handleSubmitRequests}
@@ -612,6 +1098,21 @@ function NewRequestTab({ location, showToast }) {
         )}
       </div>
     </div>
+
+      {showCategoryFilter && (
+        <CategoryFilterModal
+          categories={allCategories.map((c) => c.name)}
+          selectedCategory={allCategories.find((c) => c.id === selectedCategory)?.name || ""}
+          onApply={(catName) => {
+            const cat = allCategories.find((c) => c.name === catName);
+            setSelectedCategory(cat?.id || "");
+            setShowCategoryFilter(false);
+          }}
+          onClose={() => setShowCategoryFilter(false)}
+          color="emerald"
+        />
+      )}
+    </>
   );
 }
 
@@ -625,6 +1126,39 @@ function OutgoingTab({ location, showToast }) {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [filterQuery, setFilterQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(
+      requests.flatMap((req) =>
+        (req.items || []).map((item) => item.product?.categories?.name).filter(Boolean)
+      )
+    )];
+    cats.sort((a, b) => a.localeCompare(b));
+    return cats;
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    let result = requests;
+    if (selectedCategory) {
+      result = result.filter((req) =>
+        req.items?.some((item) => item.product?.categories?.name === selectedCategory)
+      );
+    }
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((req) =>
+        req.items?.some(
+          (item) =>
+            (item.product?.name || "").toLowerCase().includes(q) ||
+            (item.product?.sku || "").toLowerCase().includes(q)
+        )
+      );
+    }
+    return result;
+  }, [requests, filterQuery, selectedCategory]);
 
   const toggleExpand = useCallback((id) => {
     setExpandedIds((prev) => {
@@ -644,7 +1178,7 @@ function OutgoingTab({ location, showToast }) {
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
-          product:product_id (id, name, sku),
+          product:product_id (id, name, sku, category_id, categories:category_id(name)),
           source_location:source_location_id (id, name, location_name)
         )
       `)
@@ -823,17 +1357,59 @@ function OutgoingTab({ location, showToast }) {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="flex items-center justify-between">
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
-          {t("branchRequests.outgoing.summary", { count: requests.length })}
+          <span className="font-semibold text-neutral-900">{filteredRequests.length}</span>{" "}
+          {t("branchRequests.outgoing.summary", { count: filteredRequests.length })}
+          {(filterQuery || selectedCategory) && filteredRequests.length !== requests.length && (
+            <span className="text-neutral-400 ml-1">({t("branchRequests.common.ofTotal", { total: requests.length }) || `of ${requests.length}`})</span>
+          )}
         </p>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder={t("branchRequests.filter.placeholder") || "Filter by product name or SKU..."}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="w-full sm:w-56 rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition-all"
+            />
+          </div>
+          {categories.length > 0 && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                selectedCategory
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                  : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedCategory && (
+                <span className="bg-emerald-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Active Filter Pill */}
+      {selectedCategory && (
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+            {selectedCategory}
+            <button onClick={() => setSelectedCategory("")}>
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Request Cards */}
       <div className="space-y-4">
-        {requests.map((req) => {
+        {filteredRequests.map((req) => {
           const source =
             req.items?.[0]?.source_location?.location_name ||
             req.items?.[0]?.source_location?.name ||
@@ -946,6 +1522,16 @@ function OutgoingTab({ location, showToast }) {
           );
         })}
       </div>
+
+      {showFilters && (
+        <CategoryFilterModal
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onApply={(val) => { setSelectedCategory(val); setShowFilters(false); }}
+          onClose={() => setShowFilters(false)}
+          color="emerald"
+        />
+      )}
     </div>
   );
 }
@@ -960,6 +1546,39 @@ function IncomingTab({ location, showToast }) {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState(new Set());
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [filterQuery, setFilterQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(
+      requests.flatMap((req) =>
+        (req.items || []).map((item) => item.product?.categories?.name).filter(Boolean)
+      )
+    )];
+    cats.sort((a, b) => a.localeCompare(b));
+    return cats;
+  }, [requests]);
+
+  const filteredRequests = useMemo(() => {
+    let result = requests;
+    if (selectedCategory) {
+      result = result.filter((req) =>
+        req.items?.some((item) => item.product?.categories?.name === selectedCategory)
+      );
+    }
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((req) =>
+        req.items?.some(
+          (item) =>
+            (item.product?.name || "").toLowerCase().includes(q) ||
+            (item.product?.sku || "").toLowerCase().includes(q)
+        )
+      );
+    }
+    return result;
+  }, [requests, filterQuery, selectedCategory]);
 
   const toggleExpand = useCallback((id) => {
     setExpandedIds((prev) => {
@@ -979,7 +1598,7 @@ function IncomingTab({ location, showToast }) {
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
-          product:product_id (id, name, sku),
+          product:product_id (id, name, sku, category_id, categories:category_id(name)),
           source_location:source_location_id (id, name, location_name)
         )
       `)
@@ -1126,15 +1745,58 @@ function IncomingTab({ location, showToast }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-neutral-600">
-          <span className="font-semibold text-neutral-900">{requests.length}</span>{" "}
-          {t("branchRequests.incoming.summary", { count: requests.length })}
+          <span className="font-semibold text-neutral-900">{filteredRequests.length}</span>{" "}
+          {t("branchRequests.incoming.summary", { count: filteredRequests.length })}
+          {(filterQuery || selectedCategory) && filteredRequests.length !== requests.length && (
+            <span className="text-neutral-400 ml-1">({t("branchRequests.common.ofTotal", { total: requests.length }) || `of ${requests.length}`})</span>
+          )}
         </p>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder={t("branchRequests.filter.placeholder") || "Filter by product name or SKU..."}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="w-full sm:w-56 rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition-all"
+            />
+          </div>
+          {categories.length > 0 && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                selectedCategory
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                  : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedCategory && (
+                <span className="bg-emerald-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">1</span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Active Filter Pill */}
+      {selectedCategory && (
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
+            {selectedCategory}
+            <button onClick={() => setSelectedCategory("")}>
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {requests.map((req) => {
+        {filteredRequests.map((req) => {
           const requester = req.to_location?.location_name || req.to_location?.name || t("branchRequests.common.unknown");
           const totalQty = req.items?.reduce((sum, i) => sum + (i.requested_qty || 0), 0) || 0;
           const isExpanded = expandedIds.has(req.id);
@@ -1212,6 +1874,16 @@ function IncomingTab({ location, showToast }) {
           );
         })}
       </div>
+
+      {showFilters && (
+        <CategoryFilterModal
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onApply={(val) => { setSelectedCategory(val); setShowFilters(false); }}
+          onClose={() => setShowFilters(false)}
+          color="emerald"
+        />
+      )}
     </div>
   );
 }
@@ -1585,6 +2257,82 @@ function HistoryTab({ location }) {
           all: counts.all,
         })}
         {search ? ` • "${search}"` : ""}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        CATEGORY FILTER MODAL                                */
+/* -------------------------------------------------------------------------- */
+function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, color = "emerald" }) {
+  const [localCategory, setLocalCategory] = useState(selectedCategory);
+
+  const gradientMap = {
+    emerald: "from-emerald-600 to-teal-600",
+    blue: "from-blue-600 to-cyan-600",
+  };
+
+  const btnMap = {
+    emerald: "from-emerald-600 to-teal-600",
+    blue: "from-blue-600 to-cyan-600",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-visible"
+      >
+        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
+          <div className="flex items-center gap-3">
+            <SlidersHorizontal className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">Filtrlar</h3>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 min-h-[200px]">
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+              Kategoriya
+            </label>
+            <CustomSelect
+              value={localCategory || ""}
+              onChange={(val) => setLocalCategory(val)}
+              placeholder="Barcha kategoriyalar"
+              color={color === "emerald" ? "green" : "blue"}
+              options={[
+                { value: "", label: "Barcha kategoriyalar" },
+                ...categories.map((cat) => ({
+                  value: cat,
+                  label: cat,
+                })),
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => onApply(localCategory)}
+            className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${btnMap[color]} px-4 py-2 text-sm font-semibold text-white shadow-lg`}
+          >
+            <Check className="w-4 h-4" />
+            Qo'llash
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -842,7 +842,8 @@
       "loading": "Yuklanmoqda...",
       "searching": "Qidirilmoqda...",
       "unknown": "Noma’lum",
-      "qty": "soni"
+      "qty": "soni",
+      "product": "Mahsulot"
     },
 
     "newRequest": {
@@ -857,7 +858,22 @@
       "emptyCartText": "Qidirib mahsulot qo‘shing va so‘rov yuboring",
       "from": "Qayerdan",
       "sendRequest": "So‘rov yuborish",
-      "sending": "Yuborilmoqda..."
+      "sending": "Yuborilmoqda...",
+      "modeSearch": "Qidirish",
+      "modeIncoming": "Kelgan tovarlardan",
+      "selectOrigin": "Kelib chiqishni tanlang",
+      "chinese": "Xitoy",
+      "uzbek": "O'zbekiston",
+      "batchDate": "Partiya: {{date}}",
+      "noBatchFound": "Bu kelib chiqish uchun so'nggi partiya topilmadi",
+      "selectItems": "So'rash uchun tovarlarni tanlang",
+      "addSelectedToCart": "{{count}} ta tanlanganni savatga qo'shish",
+      "loadingBatch": "Partiya yuklanmoqda...",
+      "itemsCount": "{{count}} ta mahsulot",
+      "arrived": "Kelgan",
+      "addToCart": "Savatga qo'shish",
+      "noStock": "Hech qaysi omborxonada mavjud emas",
+      "addedToCartBulk": "{{count}} ta mahsulot savatga qo'shildi"
     },
 
     "outgoing": {

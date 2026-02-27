@@ -844,7 +844,8 @@
       "loading": "Loading...",
       "searching": "Searching...",
       "unknown": "Unknown",
-      "qty": "qty"
+      "qty": "qty",
+      "product": "Product"
     },
 
     "newRequest": {
@@ -859,7 +860,22 @@
       "emptyCartText": "Search and add products to send a request",
       "from": "From",
       "sendRequest": "Send Request",
-      "sending": "Sending..."
+      "sending": "Sending...",
+      "modeSearch": "Search",
+      "modeIncoming": "From Incoming",
+      "selectOrigin": "Select origin",
+      "chinese": "Chinese",
+      "uzbek": "Uzbek",
+      "batchDate": "Batch: {{date}}",
+      "noBatchFound": "No recent incoming batch found for this origin",
+      "selectItems": "Select items to request",
+      "addSelectedToCart": "Add {{count}} selected to cart",
+      "loadingBatch": "Loading batch...",
+      "itemsCount": "{{count}} items",
+      "arrived": "Arrived",
+      "addToCart": "Add to Cart",
+      "noStock": "No stock available in any warehouse",
+      "addedToCartBulk": "{{count}} items added to cart"
     },
 
     "outgoing": {

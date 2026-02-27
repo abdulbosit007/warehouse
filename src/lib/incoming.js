@@ -264,7 +264,7 @@ export async function approveItem(itemId, warehouseUserId, locationId = null) {
 export async function rejectItemWithCode(
   itemId,
   warehouseUserId,
-  { reasonCode, fixQuantity }
+  { reasonCode, fixQuantity, locationId = null }
 ) {
   if (reasonCode === "qty_mismatch") {
     const fixed = Number(fixQuantity);
@@ -285,6 +285,8 @@ export async function rejectItemWithCode(
       rejection_code: reasonCode,
       corrected_quantity:
         reasonCode === "qty_mismatch" ? Number(fixQuantity) : null,
+      approved_location_id:
+        reasonCode === "qty_mismatch" && locationId ? locationId : null,
     })
     .eq("id", itemId)
     .eq("status", "sent")
@@ -302,10 +304,13 @@ export async function ownerAcceptWarehouseDecision(item) {
     Number(item.corrected_quantity) > 0;
 
   if (isQtyFix) {
-    return supabase
+    const finalQty = Number(item.corrected_quantity);
+
+    // 1. Update the item status + quantity
+    const { data: updated, error: updateErr } = await supabase
       .from("incoming_batch_items")
       .update({
-        quantity: Number(item.corrected_quantity),
+        quantity: finalQty,
         status: "approved",
         rejection_code: null,
         corrected_quantity: null,
@@ -314,6 +319,75 @@ export async function ownerAcceptWarehouseDecision(item) {
       .eq("status", "rejected")
       .select()
       .single();
+
+    if (updateErr) {
+      console.error("[ownerAcceptFix] Update error:", updateErr);
+      return { data: null, error: updateErr };
+    }
+
+    // 2. Add to products / product_list (same logic as approveItem)
+    const locationId = updated?.approved_location_id || item.approved_location_id;
+    if (locationId && updated) {
+      let productId = null;
+
+      if (updated.sku) {
+        const { data: existing } = await supabase
+          .from("products")
+          .select("id")
+          .eq("sku", updated.sku)
+          .maybeSingle();
+
+        if (existing) {
+          productId = existing.id;
+        } else {
+          const { data: newProd, error: prodErr } = await supabase
+            .from("products")
+            .insert({
+              id: newId(),
+              name: updated.product_name,
+              sku: updated.sku,
+              category_id: updated.category_id,
+              price: updated.price > 0 ? updated.price : 1,
+            })
+            .select()
+            .single();
+
+          if (prodErr) console.error("[ownerAcceptFix] Create product error:", prodErr);
+          else if (newProd) productId = newProd.id;
+        }
+      }
+
+      if (productId) {
+        const { data: existingEntry } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", productId)
+          .eq("location_id", locationId)
+          .maybeSingle();
+
+        if (existingEntry) {
+          const newQty = (existingEntry.quantity || 0) + finalQty;
+          const { error: upErr } = await supabase
+            .from("product_list")
+            .update({ quantity: newQty, status: "available" })
+            .eq("id", existingEntry.id);
+          if (upErr) console.error("[ownerAcceptFix] Update product_list error:", upErr);
+        } else {
+          const { error: insErr } = await supabase
+            .from("product_list")
+            .insert({
+              id: newId(),
+              product_id: productId,
+              location_id: locationId,
+              quantity: finalQty,
+              status: "available",
+            });
+          if (insErr) console.error("[ownerAcceptFix] Insert product_list error:", insErr);
+        }
+      }
+    }
+
+    return { data: updated, error: null };
   }
 
   return supabase
@@ -479,4 +553,35 @@ export async function addDraftFromProduct({
   });
 }
 
+/**
+ * Get the latest closed batch + its approved items for a given origin.
+ * Used by branch "Request from Incoming" feature.
+ */
+export async function getLatestClosedBatchItems(origin) {
+  const norm = normalizeOrigin(origin);
+  if (!norm) return { batch: null, items: [], error: null };
 
+  // Find the most recent batch for this origin (open or closed)
+  const { data: batch, error: batchErr } = await supabase
+    .from("incoming_batches")
+    .select("id, origin, status, created_at")
+    .eq("origin", norm)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (batchErr) return { batch: null, items: [], error: batchErr };
+  if (!batch) return { batch: null, items: [], error: null };
+
+  // Fetch approved items from this batch
+  const { data: items, error: itemsErr } = await supabase
+    .from("incoming_batch_items")
+    .select("id, product_name, sku, quantity, category_id, price")
+    .eq("batch_id", batch.id)
+    .eq("status", "approved")
+    .order("product_name", { ascending: true });
+
+  if (itemsErr) return { batch, items: [], error: itemsErr };
+
+  return { batch, items: items || [], error: null };
+}

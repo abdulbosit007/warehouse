@@ -207,9 +207,6 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
 function DraftRow({ row, onDelete, categories }) {
   const { t } = useTranslation();
 
-  // If product has name AND category already filled, it came from an existing product - lock those fields
-  const isExistingProduct = !!(row.product_name && row.category_id);
-
   const [form, setForm] = useState({
     product_name: row.product_name ?? "",
     sku: row.sku ?? "",
@@ -230,73 +227,57 @@ function DraftRow({ row, onDelete, categories }) {
     () => {
       const qty = form.quantity === "" || form.quantity == null ? null : Math.max(1, Number(form.quantity) || 1);
 
-      // Only send editable fields
-      const payload = isExistingProduct
-        ? { quantity: qty } // Existing product - only quantity can change
-        : {
-            product_name: form.product_name?.trim() || null,
-            sku: form.sku?.trim() || null,
-            category_id: form.category_id || null,
-            quantity: qty,
-          };
+      const payload = {
+        product_name: form.product_name?.trim() || null,
+        sku: form.sku?.trim() || null,
+        category_id: form.category_id || null,
+        quantity: qty,
+      };
 
       updateDraftItem(row.id, payload).catch((e) =>
         console.error("updateDraftItem error", { itemId: row.id, error: e })
       );
     },
-    [form, isExistingProduct],
+    [form],
     300
   );
 
-  const lockedClass = "w-full rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-600";
   const editableClass =
     "w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
   return (
-    <tr className={`hover:bg-neutral-50 transition-colors ${isExistingProduct ? "bg-indigo-50/30" : ""}`}>
+    <tr className="hover:bg-neutral-50 transition-colors">
       <td className="px-4 py-3">
-        {isExistingProduct ? (
-          <div className={lockedClass}>{form.product_name}</div>
-        ) : (
-          <input
-            value={form.product_name}
-            onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
-            className={editableClass}
-            placeholder={t("ownerBatchDetail.placeholders.productName")}
-          />
-        )}
+        <input
+          value={form.product_name}
+          onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
+          className={editableClass}
+          placeholder={t("ownerBatchDetail.placeholders.productName")}
+        />
       </td>
 
       <td className="px-4 py-3">
-        {isExistingProduct ? (
-          <div className={`${lockedClass} font-mono`}>{form.sku}</div>
-        ) : (
-          <input
-            value={form.sku}
-            onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            className={`${editableClass} font-mono`}
-            placeholder={t("ownerBatchDetail.placeholders.sku")}
-          />
-        )}
+        <input
+          value={form.sku}
+          onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+          className={`${editableClass} font-mono`}
+          placeholder={t("ownerBatchDetail.placeholders.sku")}
+        />
       </td>
 
       <td className="px-4 py-3">
-        {isExistingProduct ? (
-          <div className={lockedClass}>{categories.find((c) => c.id === form.category_id)?.name || "—"}</div>
-        ) : (
-          <select
-            value={form.category_id}
-            onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || "" }))}
-            className={`${editableClass} ${!form.category_id ? "border-red-300 bg-red-50" : ""}`}
-          >
-            <option value="">{t("ownerBatchDetail.placeholders.selectCategory")}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        )}
+        <select
+          value={form.category_id}
+          onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || "" }))}
+          className={`${editableClass} ${!form.category_id ? "border-red-300 bg-red-50" : ""}`}
+        >
+          <option value="">{t("ownerBatchDetail.placeholders.selectCategory")}</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </td>
 
       <td className="px-4 py-3">

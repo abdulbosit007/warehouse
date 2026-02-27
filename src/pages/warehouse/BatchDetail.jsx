@@ -147,16 +147,18 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    REJECT SHEET
 ───────────────────────────────────────────────────────────────────────────── */
-function RejectSheet({ open, onClose, onSubmit, currentQty = null }) {
+function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [] }) {
   const { t } = useTranslation();
-  const [code, setCode] = useState("qty_mismatch");
+  const [code, setCode] = useState("");
   const [qty, setQty] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
   const [err, setErr] = useState("");
 
   useEffect(() => {
     if (!open) {
-      setCode("qty_mismatch");
+      setCode("");
       setQty("");
+      setSelectedLocation("");
       setErr("");
     }
   }, [open]);
@@ -165,7 +167,8 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null }) {
 
   const qtyNum = qty === "" ? null : Number(qty);
   const canSubmit =
-    code === "no_such_product" || (Number.isFinite(qtyNum) && qtyNum > 0 && qtyNum !== Number(currentQty));
+    code === "no_such_product" ||
+    (code === "qty_mismatch" && Number.isFinite(qtyNum) && qtyNum > 0 && qtyNum !== Number(currentQty) && selectedLocation);
 
   const submit = () => {
     if (code === "qty_mismatch") {
@@ -177,85 +180,147 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null }) {
         setErr(t("warehouseBatchDetail.reject.errors.mustBeDifferent"));
         return;
       }
+      if (!selectedLocation) {
+        setErr(t("warehouseBatchDetail.reject.errors.selectLocation", { defaultValue: "Please select a warehouse location." }));
+        return;
+      }
     }
-    onSubmit({ reasonCode: code, fixQuantity: code === "qty_mismatch" ? qtyNum : null });
+    onSubmit({
+      reasonCode: code,
+      fixQuantity: code === "qty_mismatch" ? qtyNum : null,
+      locationId: code === "qty_mismatch" ? selectedLocation : null,
+    });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <X className="w-5 h-5 text-white" />
-            <h3 className="text-lg font-semibold text-white">{t("warehouseBatchDetail.reject.title")}</h3>
+            <AlertCircle className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">
+              {t("warehouseBatchDetail.reject.title", { defaultValue: "Report Issue" })}
+            </h3>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white" aria-label={t("warehouseBatchDetail.actions.close")}>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors" aria-label={t("warehouseBatchDetail.actions.close")}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
+          {/* Reason: Qty Mismatch */}
           <label
-            className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors hover:bg-neutral-50"
-            style={{ borderColor: code === "qty_mismatch" ? "#10b981" : "#e5e7eb" }}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              code === "qty_mismatch"
+                ? "border-amber-400 bg-amber-50/50 shadow-sm"
+                : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+            }`}
           >
             <input
               type="radio"
               checked={code === "qty_mismatch"}
-              onChange={() => {
-                setErr("");
-                setCode("qty_mismatch");
-              }}
-              className="w-4 h-4 text-emerald-600"
+              onChange={() => { setErr(""); setCode("qty_mismatch"); }}
+              className="w-4 h-4 text-amber-600 focus:ring-amber-500"
             />
-            <span className="text-sm font-medium">{t("warehouseBatchDetail.reject.reasons.qtyMismatch")}</span>
+            <span className="text-sm font-medium text-neutral-800">
+              {t("warehouseBatchDetail.reject.reasons.qtyMismatch", { defaultValue: "Quantity mismatch" })}
+            </span>
           </label>
 
+          {/* Qty Mismatch fields */}
           {code === "qty_mismatch" && (
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => {
-                setErr("");
-                setQty(e.target.value);
-              }}
-              placeholder={t("warehouseBatchDetail.reject.placeholders.correctQty")}
-              className="w-full rounded-xl border-2 border-neutral-200 px-4 py-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            />
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+                  {t("warehouseBatchDetail.reject.placeholders.correctQty", { defaultValue: "Correct quantity" })}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={(e) => { setErr(""); setQty(e.target.value); }}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-shadow"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {t("warehouseBatchDetail.approveModal.selectLocationLabel", { defaultValue: "Warehouse location" })}
+                  </span>
+                </label>
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => { setErr(""); setSelectedLocation(e.target.value); }}
+                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-shadow"
+                >
+                  <option value="">{t("warehouseBatchDetail.approveModal.chooseLocation", { defaultValue: "Choose location..." })}</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.location_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
 
+          {/* Reason: No Such Product */}
           <label
-            className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors hover:bg-neutral-50"
-            style={{ borderColor: code === "no_such_product" ? "#10b981" : "#e5e7eb" }}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              code === "no_such_product"
+                ? "border-red-400 bg-red-50/50 shadow-sm"
+                : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+            }`}
           >
             <input
               type="radio"
               checked={code === "no_such_product"}
-              onChange={() => {
-                setErr("");
-                setCode("no_such_product");
-              }}
-              className="w-4 h-4 text-emerald-600"
+              onChange={() => { setErr(""); setCode("no_such_product"); }}
+              className="w-4 h-4 text-red-600 focus:ring-red-500"
             />
-            <span className="text-sm font-medium">{t("warehouseBatchDetail.reject.reasons.noSuchItem")}</span>
+            <span className="text-sm font-medium text-neutral-800">
+              {t("warehouseBatchDetail.reject.reasons.noSuchItem", { defaultValue: "No such product" })}
+            </span>
           </label>
 
-          {err && <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">{err}</div>}
+          {/* Error */}
+          {err && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {err}
+            </div>
+          )}
 
+          {/* Actions */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button
               onClick={onClose}
-              className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
-              {t("warehouseBatchDetail.actions.cancel")}
+              {t("warehouseBatchDetail.actions.cancel", { defaultValue: "Cancel" })}
             </button>
             <button
               disabled={!canSubmit}
               onClick={submit}
-              className="rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+                code === "qty_mismatch"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                  : "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
+              }`}
             >
-              {t("warehouseBatchDetail.actions.reject")}
+              {code === "qty_mismatch" ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  {t("warehouseBatchDetail.actions.sendCorrection", { defaultValue: "Send Correction" })}
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4" />
+                  {t("warehouseBatchDetail.actions.confirmReject", { defaultValue: "Reject Item" })}
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -414,6 +479,7 @@ export default function WarehouseBatchDetail() {
       reviewed_at: new Date().toISOString(),
       rejection_code: payload.reasonCode,
       corrected_quantity: payload.reasonCode === "qty_mismatch" ? payload.fixQuantity : null,
+      approved_location_id: payload.reasonCode === "qty_mismatch" ? payload.locationId : null,
     };
     patchLocal(row.id, optimistic);
 
@@ -624,6 +690,7 @@ export default function WarehouseBatchDetail() {
         open={!!rejectRow}
         onClose={() => setRejectRow(null)}
         currentQty={rejectRow?.quantity ?? null}
+        locations={locations}
         onSubmit={(payload) => rejectRow && doReject(rejectRow, payload)}
       />
 
