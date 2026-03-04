@@ -383,7 +383,7 @@ function NewRequestTab({ location, showToast }) {
       setProducts([]);
       return;
     }
-    if (selectedProduct && searchQuery.trim() === selectedProduct.name) {
+    if (selectedProduct && (searchQuery.trim() === selectedProduct.sku || searchQuery.trim() === selectedProduct.name)) {
       return;
     }
     const debounce = setTimeout(async () => {
@@ -902,8 +902,23 @@ function NewRequestTab({ location, showToast }) {
               placeholder={t("branchRequests.newRequest.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedProduct(null);
+                  setProducts([]);
+                  setProductStock({});
+                  setLocationQtys({});
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-neutral-200 hover:bg-neutral-300 text-neutral-500 hover:text-neutral-700 transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {products.length > 0 && (
             <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
@@ -913,7 +928,7 @@ function NewRequestTab({ location, showToast }) {
                   onClick={() => {
                     setSelectedProduct(product);
                     setProducts([]);
-                    setSearchQuery(product.name);
+                    setSearchQuery(product.sku);
                     // Pre-fill location qtys from cart if product is already there
                     setLocationQtys(getCartQtysForProduct(product.id));
                   }}
@@ -1039,7 +1054,7 @@ function NewRequestTab({ location, showToast }) {
                   <button
                     onClick={() => {
                       setSelectedProduct({ id: group.productId, name: group.productName, sku: group.sku });
-                      setSearchQuery(group.productName);
+                      setSearchQuery(group.sku);
                       setProducts([]);
                       setLocationQtys(getCartQtysForProduct(group.productId));
                     }}
@@ -1047,7 +1062,7 @@ function NewRequestTab({ location, showToast }) {
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-neutral-900 text-sm truncate">{group.productName}</p>
-                      <p className="text-xs text-neutral-400">{group.sku}</p>
+                      <p className="text-sm font-semibold text-purple-600 tracking-wide">{group.sku}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
                   </button>
