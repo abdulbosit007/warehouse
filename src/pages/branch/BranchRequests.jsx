@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 // src/pages/branch/BranchRequests.jsx
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
@@ -312,6 +312,9 @@ function NewRequestTab({ location, showToast }) {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
+  // Ref for auto-scrolling to search results
+  const searchResultsRef = useRef(null);
+
   /**
    * Auto-allocate requested qty across warehouses.
    * Priority: try WH1 alone → WH2 alone → WH1+WH2 → WH3 → WH2+WH3 → WH1+WH2+WH3 → …
@@ -403,6 +406,18 @@ function NewRequestTab({ location, showToast }) {
     }, 300);
     return () => clearTimeout(debounce);
   }, [searchQuery, selectedProduct, mode, selectedCategory]);
+
+  // Auto-scroll to search results when they appear
+  useEffect(() => {
+    if (products.length > 0 && searchResultsRef.current) {
+      setTimeout(() => {
+        const rect = searchResultsRef.current?.getBoundingClientRect();
+        if (rect && rect.bottom > window.innerHeight) {
+          window.scrollBy({ top: rect.bottom - window.innerHeight + 40, behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [products]);
 
   // Load stock for selected product across all locations (search mode)
   useEffect(() => {
@@ -698,7 +713,6 @@ function NewRequestTab({ location, showToast }) {
                   : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:shadow-sm"
               }`}
             >
-              <span className="text-base">{origin === "chinese" ? "🇨🇳" : "🇺🇿"}</span>
               {t(`branchRequests.newRequest.${origin}`)}
             </button>
           ))}
@@ -921,7 +935,7 @@ function NewRequestTab({ location, showToast }) {
             )}
           </div>
           {products.length > 0 && (
-            <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
+            <div ref={searchResultsRef} className="mt-3 max-h-[290px] overflow-y-auto space-y-2">
               {products.map((product) => (
                 <button
                   key={product.id}
@@ -1062,7 +1076,7 @@ function NewRequestTab({ location, showToast }) {
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-neutral-900 text-sm truncate">{group.productName}</p>
-                      <p className="text-sm font-semibold text-purple-600 tracking-wide">{group.sku}</p>
+                      <p className="text-sm font-semibold text-violet-600 tracking-wide">{group.sku}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
                   </button>
