@@ -307,6 +307,12 @@ function NewRequestTab({ location, showToast }) {
 
   const [cart, setCart] = useState([]);
 
+  // Only warehouse locations — used for incoming mode allocation
+  const warehouseLocations = useMemo(
+    () => allLocations.filter((loc) => loc.kind === "warehouse"),
+    [allLocations]
+  );
+
   // Category filter state
   const [allCategories, setAllCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -472,11 +478,13 @@ function NewRequestTab({ location, showToast }) {
         // Get stock for all found product IDs
         const prodIds = Object.values(skuToId);
         if (prodIds.length > 0) {
+          // Only count stock at warehouse locations
+          const whIds = warehouseLocations.map((loc) => loc.id);
           const { data: stockRows } = await supabase
             .from("product_list")
             .select("product_id, location_id, quantity")
             .in("product_id", prodIds)
-            .neq("location_id", location.id);
+            .in("location_id", whIds);
 
           const stockBySku = {};
           skus.forEach((sku) => {
@@ -492,7 +500,7 @@ function NewRequestTab({ location, showToast }) {
 
       setBatchLoading(false);
     })();
-  }, [mode, selectedOrigin]);
+  }, [mode, selectedOrigin, warehouseLocations]);
 
   // Build locationQtys from existing cart entries for a product
   function getCartQtysForProduct(productId) {
@@ -557,12 +565,14 @@ function NewRequestTab({ location, showToast }) {
       // For each item, fetch per-location stock and allocate
       const allAllocated = []; // { productId, sourceLocationId, qty }
       for (const ci of itemsToSubmit) {
+        // Only allocate from warehouse locations
+        const whIds = warehouseLocations.map((loc) => loc.id);
         const { data: stockRows } = await supabase
           .from("product_list")
           .select("location_id, quantity")
           .eq("product_id", ci.productId)
-          .neq("location_id", location.id);
-        const warehouseStocks = allLocations
+          .in("location_id", whIds);
+        const warehouseStocks = warehouseLocations
           .map((loc) => ({
             id: loc.id,
             name: loc.location_name || loc.name,
