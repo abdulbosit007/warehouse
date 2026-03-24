@@ -185,7 +185,8 @@
       "actions": "Actions",
       "systemQty": "System Qty",
       "actualQty": "Actual Qty",
-      "difference": "Difference"
+      "difference": "Difference",
+      "locationComment": "Location comment"
     },
 
     "modals": {

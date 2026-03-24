@@ -175,8 +175,11 @@ export default function BranchRequests() {
   // Loading/Error states
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
+        </div>
       </div>
     );
   }
@@ -193,8 +196,11 @@ export default function BranchRequests() {
 
   if (!location) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <p className="text-sm text-neutral-500">{t("common.loading")}</p>
+        </div>
       </div>
     );
   }
@@ -208,21 +214,15 @@ export default function BranchRequests() {
 
   return (
     <div className="space-y-6">
-      {/* Clean Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
-        <div className="relative flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
-            <ArrowRightLeft className="w-5 h-5 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">
-              {t("branchRequests.title")}
-            </h1>
-            <p className="text-slate-400 text-sm">
-              {t("branchRequests.subtitle")}
-            </p>
-          </div>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+            {t("branchRequests.title")}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {t("branchRequests.subtitle")}
+          </p>
         </div>
       </div>
 

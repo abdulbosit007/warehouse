@@ -1,5 +1,5 @@
 // src/pages/owner/InventoryBatchDetail.jsx
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
@@ -19,6 +19,7 @@ import {
   RefreshCw,
   AlertCircle,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 
 const BRAND = "#4f46e5";
@@ -406,12 +407,17 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
   const { t, i18n } = useTranslation();
   const { userRow } = useCurrentUser();
   const [processing, setProcessing] = useState(null);
+  const [expandedComments, setExpandedComments] = useState({});
 
   const [year, m] = month.split("-");
   const monthName = formatDate(new Date(Number(year), Number(m) - 1, 1), i18n.language, {
     month: "long",
     year: "numeric",
   });
+
+  function toggleComment(id) {
+    setExpandedComments((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
 
   async function handleDecision(id, decision, currentStatus) {
     if (processing || currentStatus !== "pending") return;
@@ -487,7 +493,8 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
             </thead>
             <tbody>
               {corrections.map((c) => (
-                <tr key={c.id} className="border-t hover:bg-neutral-50">
+                <React.Fragment key={c.id}>
+                <tr className="border-t hover:bg-neutral-50">
                   <td className="px-3 py-2 text-xs">
                     {formatDate(c.requested_at, i18n.language, { year: "numeric", month: "2-digit", day: "2-digit" })}
                   </td>
@@ -513,26 +520,57 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
                   </td>
 
                   <td className="px-3 py-2 text-right">
-                    {c.status === "pending" && (
-                      <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-2">
+                      {c.owner_comment && (
                         <button
-                          onClick={() => handleDecision(c.id, "rejected", c.status)}
-                          disabled={processing === c.id}
-                          className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded border border-red-200 disabled:opacity-50"
+                          onClick={() => toggleComment(c.id)}
+                          className={`p-1.5 rounded-lg border text-xs transition-all ${
+                            expandedComments[c.id]
+                              ? "bg-amber-100 border-amber-300 text-amber-700"
+                              : "bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100"
+                          }`}
+                          title={t("ownerInventoryBatchDetail.table.locationComment")}
                         >
-                          {t("ownerInventoryBatchDetail.actions.rejected")}
+                          <MessageSquare className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleDecision(c.id, "approved", c.status)}
-                          disabled={processing === c.id}
-                          className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 disabled:opacity-50"
-                        >
-                          {t("ownerInventoryBatchDetail.actions.approved")}
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      {c.status === "pending" && (
+                        <>
+                          <button
+                            onClick={() => handleDecision(c.id, "rejected", c.status)}
+                            disabled={processing === c.id}
+                            className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded border border-red-200 disabled:opacity-50"
+                          >
+                            {t("ownerInventoryBatchDetail.actions.rejected")}
+                          </button>
+                          <button
+                            onClick={() => handleDecision(c.id, "approved", c.status)}
+                            disabled={processing === c.id}
+                            className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 disabled:opacity-50"
+                          >
+                            {t("ownerInventoryBatchDetail.actions.approved")}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
+                {c.owner_comment && expandedComments[c.id] && (
+                  <tr className="bg-amber-50/60">
+                    <td colSpan={7} className="px-3 py-2">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">
+                            {t("ownerInventoryBatchDetail.table.locationComment")}
+                          </span>
+                          <p className="text-xs text-amber-800 mt-0.5">{c.owner_comment}</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
