@@ -10,7 +10,7 @@ export default function BranchLayout({ user }) {
   const params = useParams();
   const routeId = params.id ?? null;
 
-  const { loading, roleBase } = useCurrentUser();
+  const { loading, roleBase, locationName } = useCurrentUser();
 
   const roleName = user?.user_role?.name || user?.roleName || "";
   const myBranchId = useMemo(() => getBranchIdFromRole(roleName), [roleName]);
@@ -52,7 +52,7 @@ export default function BranchLayout({ user }) {
         links={branchLinks(effectiveId)} // ✅ pass branchId-aware links
         brand={{
           code: effectiveId ? `B-${effectiveId}` : "B",
-          title: effectiveId ? `Branch ${effectiveId}` : "Branch",
+          title: locationName || (effectiveId ? `Branch ${effectiveId}` : "Branch"),
         }}
         theme="emerald"
       />

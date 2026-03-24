@@ -364,8 +364,7 @@ export default function BranchHome() {
             {t("branch1.home.title")}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {(locationName || t("branch1.home.yourBranch"))} •{" "}
-            {t("branch1.home.productsCount", { count: productsWithStock.length })}
+            {locationName || t("branch1.home.yourBranch")}
           </p>
         </div>
         <button
@@ -587,7 +586,7 @@ export default function BranchHome() {
                       <td className="px-4 py-3 text-sm font-medium text-neutral-900">
                         {product.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-xs font-mono text-neutral-500">
+                      <td className="px-4 py-3 text-sm font-semibold font-mono text-neutral-700">
                         {product.sku || "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600">

@@ -1336,7 +1336,14 @@ export default function BranchOperations() {
   }
 
   /* --------------------------------- GUARD ------------------------------- */
-  if (uLoading) return <div className="p-6">{t("branchOperations.common.loading")}</div>;
+  if (uLoading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-sm text-neutral-500">{t("common.loading")}</p>
+      </div>
+    </div>
+  );
   if (uErr) return <Blocked title={t("branchOperations.guard.errorTitle")} message={uErr} />;
 
   if (!isBranch) {
@@ -1351,21 +1358,15 @@ export default function BranchOperations() {
 /* ----------------------- TABLET+DESKTOP PREMIUM UI WRAPPER -------------------- */
 return (
   <div className="space-y-6">
-    {/* Clean Header */}
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 to-slate-900 p-6 shadow-lg">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]" />
-      <div className="relative flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
-          <Package className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">
-            {t("branchOperations.header.title")}
-          </h1>
-          <p className="text-slate-400 text-sm">
-            {t("branchOperations.header.subtitle")}
-          </p>
-        </div>
+    {/* Header */}
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+          {t("branchOperations.header.title")}
+        </h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          {t("branchOperations.header.subtitle")}
+        </p>
       </div>
     </div>
 
