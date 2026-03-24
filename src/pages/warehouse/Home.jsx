@@ -1,6 +1,6 @@
 // src/pages/warehouse/Home.jsx
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
@@ -250,15 +250,19 @@ export default function WarehouseHome() {
       }
 
       const [productsRes, listRes, categoriesRes] = await Promise.all([
-        supabase
-          .from("products")
-          .select("id, name, sku, category_id, categories:category_id(id, name)")
-          .order("name", { ascending: true }),
-        supabase
-          .from("product_list")
-          .select("id, product_id, location_id, quantity, status")
-          .eq("status", "available")
-          .in("location_id", warehouseIds),
+        fetchAll(() =>
+          supabase
+            .from("products")
+            .select("id, name, sku, category_id, categories:category_id(id, name)")
+            .order("name", { ascending: true })
+        ),
+        fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select("id, product_id, location_id, quantity, status")
+            .eq("status", "available")
+            .in("location_id", warehouseIds)
+        ),
         supabase
           .from("categories")
           .select("id, name")

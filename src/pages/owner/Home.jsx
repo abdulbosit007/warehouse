@@ -1,6 +1,6 @@
 // src/pages/owner/Home.jsx
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import {
@@ -488,15 +488,19 @@ export default function OwnerHome() {
 
     try {
       const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes] = await Promise.all([
-        supabase
-          .from("products")
-          .select("id, name, sku, price, sale_price, category_id, categories:category_id(id, name)")
-          .order("name", { ascending: true }),
+        fetchAll(() =>
+          supabase
+            .from("products")
+            .select("id, name, sku, price, sale_price, category_id, categories:category_id(id, name)")
+            .order("name", { ascending: true })
+        ),
 
-        supabase
-          .from("product_list")
-          .select("id, product_id, location_id, quantity, status")
-          .eq("status", "available"),
+        fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select("id, product_id, location_id, quantity, status")
+            .eq("status", "available")
+        ),
 
         supabase
           .from("locations")

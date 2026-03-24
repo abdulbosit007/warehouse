@@ -1,6 +1,6 @@
 // src/pages/branch/Home.jsx
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
@@ -207,20 +207,26 @@ export default function BranchHome() {
 
     try {
       const [productsRes, listRes, allListRes, categoriesRes] = await Promise.all([
-        supabase
-          .from("products")
-          .select("id, name, sku, sale_price, category_id, categories:category_id(id, name)")
-          .order("name", { ascending: true }),
-        supabase
-          .from("product_list")
-          .select("id, product_id, location_id, quantity, status")
-          .eq("status", "available")
-          .eq("location_id", locationId),
-        supabase
-          .from("product_list")
-          .select("product_id, location_id, quantity, status")
-          .eq("status", "available")
-          .gt("quantity", 0), // Products with stock in ANY location
+        fetchAll(() =>
+          supabase
+            .from("products")
+            .select("id, name, sku, sale_price, category_id, categories:category_id(id, name)")
+            .order("name", { ascending: true })
+        ),
+        fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select("id, product_id, location_id, quantity, status")
+            .eq("status", "available")
+            .eq("location_id", locationId)
+        ),
+        fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select("product_id, location_id, quantity, status")
+            .eq("status", "available")
+            .gt("quantity", 0) // Products with stock in ANY location
+        ),
         supabase
           .from("categories")
           .select("id, name")
