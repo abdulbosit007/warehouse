@@ -217,40 +217,24 @@ export default function BranchOperations() {
 
         const { data: pl, error: plErr } = await supabase
           .from("product_list")
-          .select("id, product_id, quantity, status")
+          .select(`id, product_id, quantity, status,
+            product:products (id, name, sku, category_id, sale_price, price,
+              category:categories (id, name)
+            )`)
           .eq("location_id", loc.id)
           .eq("status", "available")
           .gt("quantity", 0)
           .order("id", { ascending: true });
         if (plErr) throw plErr;
 
-        const pids = [...new Set((pl || []).map((r) => r.product_id))];
-        const { data: products, error: pErr } = await supabase
-          .from("products")
-          .select("id, name, sku, category_id, sale_price, price")
-          .in("id", pids.length ? pids : ["00000000-0000-0000-0000-000000000000"]);
-        if (pErr) throw pErr;
-
-        const catIds = [
-          ...new Set((products || []).map((p) => p.category_id).filter(Boolean)),
-        ];
-        const { data: cats, error: cErr } = await supabase
-          .from("categories")
-          .select("id, name")
-          .in("id", catIds.length ? catIds : ["00000000-0000-0000-0000-000000000000"]);
-        if (cErr) throw cErr;
-
-        const pMap = new Map((products || []).map((p) => [p.id, p]));
-        const cMap = new Map((cats || []).map((c) => [c.id, c.name]));
-
         const rows = (pl || []).map((r) => {
-          const p = pMap.get(r.product_id) || {};
+          const p = r.product || {};
           return {
             row_id: r.id,
             product_id: r.product_id,
             name: p.name || "",
             sku: p.sku || "",
-            category: p.category_id ? cMap.get(p.category_id) || "" : "",
+            category: p.category?.name || "",
             available: r.quantity ?? 0,
             display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
           };

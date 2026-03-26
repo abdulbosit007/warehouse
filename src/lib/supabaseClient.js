@@ -40,13 +40,11 @@ export async function fetchAll(queryFn) {
 
   while (true) {
     const { data, error } = await queryFn().range(from, from + PAGE - 1);
-    console.log(`[fetchAll] batch ${from}-${from + PAGE - 1}: got ${data?.length ?? 0} rows, error:`, error);
     if (error) return { data: null, error };
     allData = allData.concat(data || []);
     if (!data || data.length < PAGE) break;
     from += PAGE;
   }
 
-  console.log(`[fetchAll] TOTAL: ${allData.length} rows`);
   return { data: allData, error: null };
 }
