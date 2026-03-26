@@ -2,7 +2,7 @@
 // Branch Operations (Tablet-optimized): Sale • Loan • Return • History
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -215,16 +215,18 @@ export default function BranchOperations() {
       try {
         const loc = await getBranchLocation();
 
-        const { data: pl, error: plErr } = await supabase
-          .from("product_list")
-          .select(`id, product_id, quantity, status,
-            product:products (id, name, sku, category_id, sale_price, price,
-              category:categories (id, name)
-            )`)
-          .eq("location_id", loc.id)
-          .eq("status", "available")
-          .gt("quantity", 0)
-          .order("id", { ascending: true });
+        const { data: pl, error: plErr } = await fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select(`id, product_id, quantity, status,
+              product:products (id, name, sku, category_id, sale_price, price,
+                category:categories (id, name)
+              )`)
+            .eq("location_id", loc.id)
+            .eq("status", "available")
+            .gt("quantity", 0)
+            .order("id", { ascending: true })
+        );
         if (plErr) throw plErr;
 
         const rows = (pl || []).map((r) => {
