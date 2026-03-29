@@ -81,7 +81,22 @@ export default function BranchOperations() {
   // search + cart
   const [q, setQ] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(""); // "" = all
-  const [cart, setCart] = useState([]); // [{product_id,name,sku,maxQty,qty}]
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("branch_ops_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  }); // [{product_id,name,sku,maxQty,qty}]
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("branch_ops_cart", JSON.stringify(cart));
+    } catch (e) {
+      console.error("Failed to save ops cart to localStorage", e);
+    }
+  }, [cart]);
   const [note, setNote] = useState("");
 
   // loan fields
