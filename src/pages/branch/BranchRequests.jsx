@@ -305,7 +305,22 @@ function NewRequestTab({ location, showToast }) {
   // Qty per batch item id
   const [incomingQtys, setIncomingQtys] = useState({});
 
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("branch_req_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("branch_req_cart", JSON.stringify(cart));
+    } catch (e) {
+      console.error("Failed to save cart to localStorage", e);
+    }
+  }, [cart]);
 
   // Only warehouse locations — used for incoming mode allocation
   const warehouseLocations = useMemo(
