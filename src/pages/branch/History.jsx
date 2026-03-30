@@ -1,7 +1,7 @@
 // src/pages/branch/Operations.jsx
 // Branch Operations (Tablet-optimized): Sale • Loan • Return • History
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { Package } from "lucide-react";
@@ -217,62 +217,143 @@ export default function BranchOperations() {
   }
 
   /* ----------------------- LOAD CATALOG (AVAILABLE ONLY) ------------------ */
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setErr("");
-      setOk("");
-      if (!isBranch || !locationName) {
-        setLoading(false);
-        return;
+  // Reusable function to fetch catalog — called on mount, after commits, and by Realtime/polling
+  const refreshCatalog = useCallback(async (opts = {}) => {
+    const { silent = false } = opts; // silent = don't set loading spinner
+    if (!isBranch || !locationName) return;
+    if (!silent) setLoading(true);
+    try {
+      const loc = await getBranchLocation();
+
+      const { data: pl, error: plErr } = await fetchAll(() =>
+        supabase
+          .from("product_list")
+          .select(`id, product_id, quantity, status,
+            product:products (id, name, sku, category_id, sale_price, price,
+              category:categories (id, name)
+            )`)
+          .eq("location_id", loc.id)
+          .eq("status", "available")
+          .gt("quantity", 0)
+          .order("id", { ascending: true })
+      );
+      if (plErr) throw plErr;
+
+      const rows = (pl || []).map((r) => {
+        const p = r.product || {};
+        return {
+          row_id: r.id,
+          product_id: r.product_id,
+          name: p.name || "",
+          sku: p.sku || "",
+          category: p.category?.name || "",
+          available: r.quantity ?? 0,
+          display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
+        };
+      });
+
+      setCatalog(rows);
+
+      // Sync localStorage cart maxQty with fresh data (Solution 5)
+      const stockMap = new Map(rows.map((r) => [r.product_id, r.available]));
+      setCart((prev) => {
+        if (prev.length === 0) return prev;
+        return prev
+          .map((item) => {
+            const available = stockMap.get(item.product_id);
+            if (available === undefined || available <= 0) return null; // product no longer available
+            return {
+              ...item,
+              maxQty: available,
+              qty: Math.min(item.qty, available),
+            };
+          })
+          .filter(Boolean);
+      });
+    } catch (e) {
+      log("catalog error", e.message || String(e));
+      if (!silent) {
+        setErr(e.message || String(e));
+        setCatalog([]);
       }
-      setLoading(true);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBranch, locationName]);
+
+  // Initial catalog load
+  useEffect(() => {
+    setErr("");
+    setOk("");
+    refreshCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshCatalog]);
+
+  /* -------------------- REALTIME SUBSCRIPTION + POLLING ------------------- */
+  useEffect(() => {
+    if (!isBranch || !locationName) return;
+
+    let channel;
+    let pollingInterval;
+    let realtimeActive = false;
+
+    (async () => {
       try {
         const loc = await getBranchLocation();
 
-        const { data: pl, error: plErr } = await fetchAll(() =>
-          supabase
-            .from("product_list")
-            .select(`id, product_id, quantity, status,
-              product:products (id, name, sku, category_id, sale_price, price,
-                category:categories (id, name)
-              )`)
-            .eq("location_id", loc.id)
-            .eq("status", "available")
-            .gt("quantity", 0)
-            .order("id", { ascending: true })
-        );
-        if (plErr) throw plErr;
+        // Try Supabase Realtime subscription on product_list
+        channel = supabase
+          .channel(`product-list-${loc.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*", // INSERT, UPDATE, DELETE
+              schema: "public",
+              table: "product_list",
+              filter: `location_id=eq.${loc.id}`,
+            },
+            (_payload) => {
+              // Any change → silently refresh catalog
+              log("realtime product_list change", _payload.eventType);
+              refreshCatalog({ silent: true });
+            }
+          )
+          .subscribe((status) => {
+            log("realtime status", status);
+            if (status === "SUBSCRIBED") {
+              realtimeActive = true;
+              // If Realtime works, clear polling fallback
+              if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+              }
+            }
+          });
 
-        const rows = (pl || []).map((r) => {
-          const p = r.product || {};
-          return {
-            row_id: r.id,
-            product_id: r.product_id,
-            name: p.name || "",
-            sku: p.sku || "",
-            category: p.category?.name || "",
-            available: r.quantity ?? 0,
-            display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
-          };
-        });
-
-        if (!alive) return;
-        setCatalog(rows);
+        // Polling fallback: refresh every 30s in case Realtime isn't enabled
+        pollingInterval = setInterval(() => {
+          if (!realtimeActive) {
+            refreshCatalog({ silent: true });
+          }
+        }, 30_000);
       } catch (e) {
-        if (!alive) return;
-        log("catalog error", e.message || String(e));
-        setErr(e.message || String(e));
-        setCatalog([]);
-      } finally {
-        if (alive) setLoading(false);
+        log("realtime setup error", e.message || String(e));
+        // If Realtime setup fails, ensure polling is running
+        if (!pollingInterval) {
+          pollingInterval = setInterval(() => {
+            refreshCatalog({ silent: true });
+          }, 30_000);
+        }
       }
     })();
+
     return () => {
-      alive = false;
+      if (channel) supabase.removeChannel(channel);
+      if (pollingInterval) clearInterval(pollingInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBranch, locationName, roleBase]);
+  }, [isBranch, locationName, refreshCatalog]);
 
   /* -------- fetch returned sums for parent transactions (for caps/badges) --- */
   // Map parent_tx_id -> Map product_id -> { total, returned, sold }
@@ -578,6 +659,38 @@ export default function BranchOperations() {
   async function commitSale() {
     try {
       if (!cartValid) throw new Error(t("branchOperations.errors.checkQuantities"));
+
+      // Pre-commit stock validation (Solution 2)
+      const loc = await getBranchLocation();
+      const productIds = cart.map((l) => l.product_id);
+      const { data: freshStock, error: stockErr } = await supabase
+        .from("product_list")
+        .select("product_id, quantity")
+        .eq("location_id", loc.id)
+        .eq("status", "available")
+        .in("product_id", productIds);
+      if (stockErr) throw stockErr;
+
+      const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
+      const issues = [];
+      for (const item of cart) {
+        const available = stockMap.get(item.product_id) ?? 0;
+        if (item.qty > available) {
+          issues.push(`${item.name}: only ${available} available (requested ${item.qty})`);
+        }
+      }
+      if (issues.length > 0) {
+        // Auto-correct cart with fresh data
+        setCart((prev) =>
+          prev.map((item) => ({
+            ...item,
+            maxQty: stockMap.get(item.product_id) ?? 0,
+            qty: Math.min(item.qty, stockMap.get(item.product_id) ?? 0),
+          }))
+        );
+        throw new Error("Stock changed since you loaded the page:\n" + issues.join("\n"));
+      }
+
       const payload = {
         note,
         items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
@@ -587,8 +700,8 @@ export default function BranchOperations() {
       showOk(`Sale committed. TX: ${data}`);
       setCart([]);
       setNote("");
-      setLoading(true);
-      setTimeout(() => setLoading(false), 150);
+      // Refresh catalog with fresh quantities after commit (Solution 6)
+      await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
     }
@@ -597,6 +710,37 @@ export default function BranchOperations() {
   async function commitLoan() {
     try {
       if (!loanValid) throw new Error(t("branchOperations.errors.borrowerAndQtyRequired"));
+
+      // Pre-commit stock validation (Solution 2)
+      const loc = await getBranchLocation();
+      const productIds = cart.map((l) => l.product_id);
+      const { data: freshStock, error: stockErr } = await supabase
+        .from("product_list")
+        .select("product_id, quantity")
+        .eq("location_id", loc.id)
+        .eq("status", "available")
+        .in("product_id", productIds);
+      if (stockErr) throw stockErr;
+
+      const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
+      const issues = [];
+      for (const item of cart) {
+        const available = stockMap.get(item.product_id) ?? 0;
+        if (item.qty > available) {
+          issues.push(`${item.name}: only ${available} available (requested ${item.qty})`);
+        }
+      }
+      if (issues.length > 0) {
+        setCart((prev) =>
+          prev.map((item) => ({
+            ...item,
+            maxQty: stockMap.get(item.product_id) ?? 0,
+            qty: Math.min(item.qty, stockMap.get(item.product_id) ?? 0),
+          }))
+        );
+        throw new Error("Stock changed since you loaded the page:\n" + issues.join("\n"));
+      }
+
       const payload = {
         note,
         borrower_name: borrower.borrower_name,
@@ -616,8 +760,8 @@ export default function BranchOperations() {
         borrower_store_no: "",
         due_date: todayPlus(3),
       });
-      setLoading(true);
-      setTimeout(() => setLoading(false), 150);
+      // Refresh catalog with fresh quantities after commit (Solution 6)
+      await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
     }
