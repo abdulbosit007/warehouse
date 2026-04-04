@@ -1,0 +1,58 @@
+# Add Global Operation History and Branch Requests for Owner
+
+Currently, the owner role lacks visibility into day-to-day operations (Sale, Loan, Returns) and location-to-location branch requests. The goal is to provide the owner with a centralized view of these events across all branches and warehouses.
+
+## proposed Changes
+
+### 1. Navigation & Routing
+We need to expose the new view to the owner in the sidebar navigation.
+
+#### [MODIFY] src/data/navLinks.jsx
+- Add `Branch Requests` (using the `GitBranch` icon) and `History / Operations` (using the `Clock` or `History` icon) to the `ownerLinks` array.
+
+#### [MODIFY] src/routes/AllRouters.jsx
+- Add a new route for `/owner/branch-requests` pointing to the new `OwnerBranchRequests` component.
+
+---
+
+### 2. Owner Operation History
+The `OwnerHistory` page is currently an empty placeholder. We will implement it as a robust, globally-aware history dashboard.
+
+#### [MODIFY] src/pages/owner/History.jsx
+- **Global Overview:** Unlike branch history (which is restricted to a single location), the owner history will display transactions across *all* locations.
+- **Filtering System:** Implement a location dropdown (to filter by a specific branch/warehouse or view 'All Locations') and date range pickers.
+- **Data Table:** Fetch from the `transactions` table (filtering by `status = 'committed'`) and display `type` (Sale, Loan, Return), `location_name`, `created_at`, and the list of `transaction_items` (products, quantities).
+- **Search:** Allow searching for specific transactions by SKU or product name to trace movement globally.
+
+---
+
+### 3. Owner Branch Requests View
+Branch requests (stock movement between warehouses and branches) need to be visible to the owner.
+
+#### [NEW] src/pages/owner/BranchRequests.jsx
+- **Shared Architecture:** We will duplicate and adapt the logic from `WarehouseBranchRequests.jsx` or `BranchRequests.jsx`.
+- **Global Tracking:** While a warehouse only sees incoming/outgoing requests for *itself*, the owner must see *all* branch requests moving between any source and destination locations.
+- **Tabbed Interface:** We can organize the view into `All Active Requests` and `History (Completed/Rejected)`.
+- **Read-Only vs Actionable:** By default, we should make this a global "tracker" (read-only view of what branches are requesting), but if the owner needs the power to approve/reject requests directly, we can enable those actions.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Action Permissions**
+> Does the owner simply need a **read-only** bird's-eye view of Branch Requests to monitor what's happening, or does the owner also need buttons to manually **Approve / Reject** these requests on behalf of the warehouse?  ONLY VIEW
+
+> [!WARNING]
+> **History Volume**
+> The operation history across all branches could become very large. To ensure good performance, I will implement pagination or limit the history to a specific date range (e.g., "Last 7 Days" by default) that the owner can adjust. Is this acceptable?
+
+## Verification Plan
+
+### Automated Tests
+- Ensure no compilation breaking changes in React.
+- Ensure Supabase queries execute without RLS (Row Level Security) preventing the owner from reading `transactions` and `branch_requests`. 
+
+### Manual Verification
+- Log in as the Owner.
+- Ensure two new tabs appear in the sidebar: "Branch Requests" and "Operations".
+- Navigate to "Operations" and verify that transactions from different locations are multiplexed into a single view.
+- Navigate to "Branch Requests" and ensure requests from the previous tests (e.g., from warehouse to branch) are fully exposed.

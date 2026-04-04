@@ -18,6 +18,7 @@ import WarehouseInventoryManagement from "../pages/warehouse/InventoryManagement
 
 import OwnerIncomingProducts from "../pages/owner/IncomingProducts";
 import OwnerHistory from "../pages/owner/History";
+import OwnerBranchRequests from "../pages/owner/BranchRequests";
 import OwnerInventoryBatches from "../pages/owner/InventoryBatches";
 import OwnerInventoryBatchDetail from "../pages/owner/InventoryBatchDetail";
 import OwnerAuditDetail from "../pages/owner/AuditDetail";
@@ -67,6 +68,7 @@ export default function AllRouters({ user }) {
           <Route path="home" element={<OwnerHome />} />
           <Route path="incoming-product" element={<OwnerIncomingProducts />} />
           <Route path="history" element={<OwnerHistory />} />
+          <Route path="branch-requests" element={<OwnerBranchRequests />} />
           <Route path="inventory-batches" element={<OwnerInventoryBatches />} />
           <Route path="inventory-batches/:locationId" element={<OwnerInventoryBatchDetail />} />
           <Route path="audit/:id" element={<OwnerAuditDetail />} />
