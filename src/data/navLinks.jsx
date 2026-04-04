@@ -11,6 +11,7 @@ import {
   Wrench,
   AlertTriangle,
   Settings,
+  Activity,
 } from "lucide-react";
 
 /* -----------------------------
@@ -52,6 +53,16 @@ export const ownerLinks = [
     to: "/owner/home",
     label: "nav.home",
     icon: <Home className="w-4 h-4" />,
+  },
+  {
+    to: "/owner/history",
+    label: "Analytics & Logs",
+    icon: <Activity className="w-4 h-4" />,
+  },
+  {
+    to: "/owner/branch-requests",
+    label: "nav.branchRequests",
+    icon: <GitBranch className="w-4 h-4" />,
   },
   {
     to: "/owner/inventory-batches",

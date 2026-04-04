@@ -1427,6 +1427,65 @@ function IncomingTab({ t, location, showToast }) {
     }
   }
 
+  // Undo Approval of a single item
+  async function handleUndoApprovalItem(request, item) {
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
+    try {
+      // 1. Fetch product and restore quantity
+      const { data: product } = await supabase
+        .from("product_list")
+        .select("id, quantity")
+        .eq("product_id", item.product.id)
+        .eq("location_id", location.id)
+        .single();
+
+      if (product) {
+        await supabase
+          .from("product_list")
+          .update({
+            quantity: product.quantity + (item.approved_qty || item.requested_qty),
+          })
+          .eq("id", product.id);
+      }
+
+      // 2. Set item back to requested
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "requested", approved_qty: null })
+        .eq("id", item.id);
+
+      // 3. Mark request as sent if there are no more finalized items
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .neq("status", "requested");
+
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from("branch_requests")
+          .update({
+            status: "sent",
+            warehouse_decided_at: null,
+          })
+          .eq("id", request.id);
+      }
+
+      showToast(t("warehouseRequests.toast.undoOk") || "Approval Cancelled", "success");
+      updateItemLocally(request.id, item.id, "requested", { approved_qty: null });
+    } catch (err) {
+      console.error(err);
+      showToast(t("warehouseRequests.toast.undoFail") || "Failed to cancel approval", "error");
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
 
 
   if (loading) {
@@ -1651,6 +1710,15 @@ function IncomingTab({ t, location, showToast }) {
                                   </>
                                 )}
                               </>
+                            )}
+                            {isItemApproved && (
+                              <button
+                                onClick={() => handleUndoApprovalItem(req, item)}
+                                disabled={processingIds.has(item.id)}
+                                className="px-2 py-1 mr-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50"
+                              >
+                                {t("warehouseRequests.actions.cancel") || "Cancel"}
+                              </button>
                             )}
                             {isItemApproved && <span className="text-xs text-amber-600 font-medium">{t("warehouseRequests.status.awaitingReceipt") || "Awaiting receipt"}</span>}
                             {item.status === "completed" && <span className="text-xs text-emerald-600 font-medium">{t("warehouseRequests.status.received") || "Received"}</span>}
