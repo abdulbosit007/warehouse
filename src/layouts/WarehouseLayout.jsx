@@ -2,9 +2,11 @@ import { Outlet, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { warehouseLinks } from "../data/navLinks.jsx";
 import useCurrentUser from "../hooks/useCurrentUser";
+import useNavBadges from "../hooks/useNavBadges";
 
 export default function WarehouseLayout({ user }) {
-  const { loading, roleBase, locationName } = useCurrentUser();
+  const { loading, roleBase, locationName, locationId, isSuperWarehouse } = useCurrentUser();
+  const badges = useNavBadges({ roleBase, locationId, isSuperWarehouse });
 
   // While loading, show nothing to prevent flash
   if (loading) {
@@ -37,6 +39,7 @@ export default function WarehouseLayout({ user }) {
         links={warehouseLinks}
         brand={{ code: "W", title: locationName || "Warehouse" }}
         theme="blue"
+        badges={badges}
       />
       <main className="mx-auto max-w-7xl p-3 md:p-6">
         <Outlet />

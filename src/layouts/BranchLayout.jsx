@@ -4,13 +4,15 @@ import Navbar from "../components/Navbar";
 import { getBranchIdFromRole, isOwner, isWarehouse } from "../utils/roleUtils";
 import { useMemo, useEffect } from "react";
 import useCurrentUser from "../hooks/useCurrentUser";
+import useNavBadges from "../hooks/useNavBadges";
 
 export default function BranchLayout({ user }) {
   const navigate = useNavigate();
   const params = useParams();
   const routeId = params.id ?? null;
 
-  const { loading, roleBase, locationName } = useCurrentUser();
+  const { loading, roleBase, locationName, locationId } = useCurrentUser();
+  const badges = useNavBadges({ roleBase, locationId });
 
   const roleName = user?.user_role?.name || user?.roleName || "";
   const myBranchId = useMemo(() => getBranchIdFromRole(roleName), [roleName]);
@@ -55,6 +57,7 @@ export default function BranchLayout({ user }) {
           title: locationName || (effectiveId ? `Branch ${effectiveId}` : "Branch"),
         }}
         theme="emerald"
+        badges={badges}
       />
       <main className="mx-auto max-w-7xl p-3 md:p-6">
         <Outlet context={{ branchId: effectiveId }} />

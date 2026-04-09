@@ -2,9 +2,11 @@ import Navbar from "../components/Navbar";
 import { ownerLinks } from "../data/navLinks";
 import { Outlet, Navigate } from "react-router-dom";
 import useCurrentUser from "../hooks/useCurrentUser";
+import useNavBadges from "../hooks/useNavBadges";
 
 export default function OwnerLayout({ user }) {
   const { loading, roleBase } = useCurrentUser();
+  const badges = useNavBadges({ roleBase });
 
   // While loading, show nothing to prevent flash
   if (loading) {
@@ -33,6 +35,7 @@ export default function OwnerLayout({ user }) {
         user={user}
         links={ownerLinks}
         brand={{ code: "O", title: "Owner" }}
+        badges={badges}
       />
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-7xl p-3 md:p-6">

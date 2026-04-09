@@ -27,11 +27,13 @@ export const warehouseLinks = [
     to: "/warehouse/branch-requests",
     label: "nav.branchRequests",
     icon: <GitBranch className="w-4 h-4" />,
+    badgeKey: "branchRequests",
   },
   {
     to: "/warehouse/owner-requests",
     label: "nav.incomingBatches",
     icon: <ClipboardList className="w-4 h-4" />,
+    badgeKey: "incomingBatches",
   },
   {
     to: "/warehouse/inventory-management",
@@ -68,6 +70,7 @@ export const ownerLinks = [
     to: "/owner/inventory-batches",
     label: "nav.inventoryBatches",
     icon: <ClipboardList className="w-4 h-4" />,
+    badgeKey: "inventoryBatches",
   },
   {
     to: "/owner/incoming-product",
@@ -109,6 +112,7 @@ export const branchLinks = (branchId) => {
       to: `${base}/branch-requests`,
       label: "nav.branchRequests",
       icon: <GitBranch className="w-4 h-4" />,
+      badgeKey: "branchRequests",
     },
     {
       to: `${base}/history`,

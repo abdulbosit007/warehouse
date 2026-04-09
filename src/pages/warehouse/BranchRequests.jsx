@@ -129,6 +129,8 @@ export default function BranchRequests() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [activeTab, setActiveTab] = useState("new");
   const [toast, setToast] = useState(null);
+  const [tabBadges, setTabBadges] = useState({ outgoing: 0, incoming: 0, history: 0 });
+  const [locationBadges, setLocationBadges] = useState({}); // { locationId: true/false }
 
   // Load warehouse locations for this user
   useEffect(() => {
@@ -157,6 +159,177 @@ export default function BranchRequests() {
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
   }, []);
+
+  // Fetch per-location badges for the warehouse selector buttons
+  const fetchLocationBadges = useCallback(async () => {
+    console.log("[LocationBadges] locations count:", locations.length);
+    if (locations.length <= 1) return;
+    try {
+      const badges = {};
+      for (const loc of locations) {
+        // Check outgoing: requests targeting this warehouse
+        const { count: outCount } = await supabase
+          .from("branch_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("to_location_id", loc.id)
+          .in("status", ["sent", "approved"]);
+
+        // Check incoming: items sourced from this warehouse with pending status
+        // AND whose parent request is also in sent/approved status
+        let hasIncoming = false;
+        const { data: pendingItems } = await supabase
+          .from("branch_request_items")
+          .select("request_id")
+          .eq("source_location_id", loc.id)
+          .eq("status", "requested");
+
+        if (pendingItems && pendingItems.length > 0) {
+          const reqIds = [...new Set(pendingItems.map((r) => r.request_id))];
+          const { count } = await supabase
+            .from("branch_requests")
+            .select("id", { count: "exact", head: true })
+            .in("id", reqIds)
+            .in("status", ["sent", "approved"]);
+          hasIncoming = (count || 0) > 0;
+        }
+
+        console.log(`[LocationBadges] ${loc.location_name}: outgoing=${outCount}, hasIncoming=${hasIncoming}`);
+        badges[loc.id] = (outCount || 0) > 0 || hasIncoming;
+      }
+      console.log("[LocationBadges] result:", badges);
+      setLocationBadges(badges);
+    } catch (err) {
+      console.error("[BranchRequests] location badges error:", err);
+    }
+  }, [locations]);
+
+  useEffect(() => {
+    if (locations.length <= 1) return;
+    fetchLocationBadges();
+
+    const channel = supabase
+      .channel("wh-location-badges")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_requests" },
+        () => fetchLocationBadges()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_request_items" },
+        () => fetchLocationBadges()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [locations, fetchLocationBadges]);
+
+  // Fetch lightweight tab badge counts
+  const fetchTabBadges = useCallback(async () => {
+    if (!selectedLocation) return;
+    try {
+      // Outgoing: requests where to_location_id = this warehouse, status sent/approved
+      const { count: outCount } = await supabase
+        .from("branch_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("to_location_id", selectedLocation.id)
+        .in("status", ["sent", "approved"]);
+
+      // Incoming: only count requests that have items with status "requested"
+      // (items the user still needs to approve/reject)
+      const { data: pendingItems } = await supabase
+        .from("branch_request_items")
+        .select("request_id")
+        .eq("source_location_id", selectedLocation.id)
+        .eq("status", "requested");
+
+      let inCount = 0;
+      if (pendingItems && pendingItems.length > 0) {
+        const reqIds = [...new Set(pendingItems.map((r) => r.request_id))];
+        const { count } = await supabase
+          .from("branch_requests")
+          .select("id", { count: "exact", head: true })
+          .in("id", reqIds)
+          .in("status", ["sent", "approved"]);
+        inCount = count || 0;
+      }
+
+      // History: count finished requests not yet seen
+      const storageKey = `wh_req_history_seen_${selectedLocation.id}`;
+      let seenIds = [];
+      try {
+        seenIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      } catch { seenIds = []; }
+
+      const { data: finishedReqs } = await supabase
+        .from("branch_requests")
+        .select("id, to_location_id, items:branch_request_items(source_location_id)")
+        .in("status", ["completed", "cancelled", "rejected"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const relevantFinished = (finishedReqs || []).filter((req) => {
+        const isOutgoing = req.to_location_id === selectedLocation.id;
+        const isIncoming = req.items?.some((it) => it.source_location_id === selectedLocation.id);
+        return isOutgoing || isIncoming;
+      });
+      const unseenCount = relevantFinished.filter((r) => !seenIds.includes(r.id)).length;
+
+      console.log(`[TabBadges] loc=${selectedLocation.location_name} (${selectedLocation.id}): outgoing=${outCount}, incoming=${inCount}, pendingItems=${pendingItems?.length}, history=${unseenCount}, seenIds=${seenIds.length}`);
+      setTabBadges({ outgoing: outCount || 0, incoming: inCount, history: unseenCount });
+    } catch (err) {
+      console.error("[WarehouseBranchRequests] tab badge fetch error:", err);
+    }
+  }, [selectedLocation]);
+
+  // Mark history as seen when user clicks History tab
+  const markHistorySeen = useCallback(async () => {
+    if (!selectedLocation) return;
+    try {
+      const { data: finishedReqs } = await supabase
+        .from("branch_requests")
+        .select("id, to_location_id, items:branch_request_items(source_location_id)")
+        .in("status", ["completed", "cancelled", "rejected"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const relevantIds = (finishedReqs || [])
+        .filter((req) => {
+          const isOutgoing = req.to_location_id === selectedLocation.id;
+          const isIncoming = req.items?.some((it) => it.source_location_id === selectedLocation.id);
+          return isOutgoing || isIncoming;
+        })
+        .map((r) => r.id);
+
+      const storageKey = `wh_req_history_seen_${selectedLocation.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(relevantIds));
+      setTabBadges((prev) => ({ ...prev, history: 0 }));
+      window.dispatchEvent(new Event("nav-badges-refresh"));
+    } catch (err) {
+      console.error("[WarehouseBranchRequests] mark history seen error:", err);
+    }
+  }, [selectedLocation]);
+
+  useEffect(() => {
+    if (!selectedLocation) return;
+    fetchTabBadges();
+
+    const channel = supabase
+      .channel("warehouse-tab-badges")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_requests" },
+        () => fetchTabBadges()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_request_items" },
+        () => fetchTabBadges()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedLocation, fetchTabBadges]);
 
   // Loading/Error states
   if (authLoading) {
@@ -202,10 +375,10 @@ export default function BranchRequests() {
   }
 
   const tabs = [
-    { key: "new", label: t("warehouseRequests.tabs.new"), icon: Plus },
-    { key: "outgoing", label: t("warehouseRequests.tabs.outgoing"), icon: Send },
-    { key: "incoming", label: t("warehouseRequests.tabs.incoming"), icon: Inbox },
-    { key: "history", label: t("warehouseRequests.tabs.history"), icon: History },
+    { key: "new", label: t("warehouseRequests.tabs.new"), icon: Plus, badge: 0 },
+    { key: "outgoing", label: t("warehouseRequests.tabs.outgoing"), icon: Send, badge: tabBadges.outgoing },
+    { key: "incoming", label: t("warehouseRequests.tabs.incoming"), icon: Inbox, badge: tabBadges.incoming },
+    { key: "history", label: t("warehouseRequests.tabs.history"), icon: History, badge: tabBadges.history },
   ];
 
   return (
@@ -235,13 +408,16 @@ export default function BranchRequests() {
                 <button
                   key={loc.id}
                   onClick={() => setSelectedLocation(loc)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     selectedLocation?.id === loc.id
                       ? "bg-white text-blue-900 shadow-lg"
                       : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/20"
                   }`}
                 >
                   {loc.location_name || loc.name}
+                  {locationBadges[loc.id] && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-slate-800 animate-pulse" />
+                  )}
                 </button>
               ))}
             </div>
@@ -257,7 +433,10 @@ export default function BranchRequests() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === "history") markHistorySeen();
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 isActive
                   ? "bg-white text-neutral-900 shadow-sm"
@@ -266,6 +445,11 @@ export default function BranchRequests() {
             >
               <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : ""}`} />
               {tab.label}
+              {tab.badge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                  {tab.badge > 99 ? "99+" : tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
