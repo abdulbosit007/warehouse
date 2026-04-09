@@ -46,6 +46,7 @@ export default function Navbar({
   role, // can be string, array, or a function that returns links
   branchId,
   theme = "indigo", // "indigo" | "emerald" | "blue"
+  badges = {}, // { badgeKey: count }
 }) {
   const themeConfig = THEMES[theme] || THEMES.indigo;
   const [open, setOpen] = useState(false);
@@ -130,22 +131,30 @@ export default function Navbar({
           {/* Right: desktop nav + language */}
           <div className="items-center hidden gap-3 lg:flex">
             <nav className="flex items-center gap-1">
-              {computedLinks.map((l) => (
-                <NavLink
-                  key={l.to}
-                  to={l.to}
-                  className={({ isActive }) =>
-                    [
-                      "flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
-                      isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
-                    ].join(" ")
-                  }
-                >
-                  {l.icon ?? null}
-                  {/* ✅ label key -> translate */}
-                  <span>{t(l.label)}</span>
-                </NavLink>
-              ))}
+              {computedLinks.map((l) => {
+                const badgeCount = l.badgeKey ? (badges[l.badgeKey] || 0) : 0;
+                return (
+                  <NavLink
+                    key={l.to}
+                    to={l.to}
+                    className={({ isActive }) =>
+                      [
+                        "relative flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
+                        isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
+                      ].join(" ")
+                    }
+                  >
+                    {l.icon ?? null}
+                    {/* ✅ label key -> translate */}
+                    <span>{t(l.label)}</span>
+                    {badgeCount > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </nav>
 
             {/* Language selector (desktop / lg+) - Custom Dropdown */}
@@ -279,22 +288,30 @@ export default function Navbar({
         {/* Drawer content */}
         <nav className="flex h-[calc(100%-56px)] flex-col pb-[calc(env(safe-area-inset-bottom)+14px)]">
           <div className="px-3 py-2">
-            {computedLinks.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  [
-                    "flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors",
-                    isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
-                  ].join(" ")
-                }
-              >
-                {l.icon ?? <span className="h-2.5 w-2.5 rounded-full bg-neutral-400" />}
-                <span>{t(l.label)}</span>
-              </NavLink>
-            ))}
+            {computedLinks.map((l) => {
+              const badgeCount = l.badgeKey ? (badges[l.badgeKey] || 0) : 0;
+              return (
+                <NavLink
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    [
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-[16px] transition-colors",
+                      isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
+                    ].join(" ")
+                  }
+                >
+                  {l.icon ?? <span className="h-2.5 w-2.5 rounded-full bg-neutral-400" />}
+                  <span className="flex-1">{t(l.label)}</span>
+                  {badgeCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-[11px] font-bold text-white leading-none shadow-sm">
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         </nav>
       </aside>

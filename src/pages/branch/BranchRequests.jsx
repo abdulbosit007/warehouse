@@ -146,6 +146,7 @@ export default function BranchRequests() {
   const [locationError, setLocationError] = useState(null);
   const [activeTab, setActiveTab] = useState("new"); // new, outgoing, incoming, history
   const [toast, setToast] = useState(null);
+  const [tabBadges, setTabBadges] = useState({ outgoing: 0, incoming: 0, history: 0 });
 
   // Load current location
   useEffect(() => {
@@ -171,6 +172,113 @@ export default function BranchRequests() {
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type });
   }, []);
+
+  // Fetch lightweight tab badge counts
+  const fetchTabBadges = useCallback(async () => {
+    if (!location) return;
+    try {
+      // Outgoing: requests where to_location_id = my location, status sent/approved
+      const { count: outCount } = await supabase
+        .from("branch_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("to_location_id", location.id)
+        .in("status", ["sent", "approved"]);
+
+      // Incoming: only count requests that have items with status "requested"
+      // (items the user still needs to approve/reject — not already acted on)
+      const { data: pendingItems } = await supabase
+        .from("branch_request_items")
+        .select("request_id")
+        .eq("source_location_id", location.id)
+        .eq("status", "requested");
+
+      let inCount = 0;
+      if (pendingItems && pendingItems.length > 0) {
+        const reqIds = [...new Set(pendingItems.map((r) => r.request_id))];
+        const { count } = await supabase
+          .from("branch_requests")
+          .select("id", { count: "exact", head: true })
+          .in("id", reqIds)
+          .in("status", ["sent", "approved"]);
+        inCount = count || 0;
+      }
+
+      // History: count finished requests not yet seen
+      const storageKey = `branch_req_history_seen_${location.id}`;
+      let seenIds = [];
+      try {
+        seenIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      } catch { seenIds = []; }
+
+      // Get recent finished requests (both outgoing and incoming)
+      const { data: finishedReqs } = await supabase
+        .from("branch_requests")
+        .select("id, to_location_id, items:branch_request_items(source_location_id)")
+        .in("status", ["completed", "cancelled", "rejected"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const relevantFinished = (finishedReqs || []).filter((req) => {
+        const isOutgoing = req.to_location_id === location.id;
+        const isIncoming = req.items?.some((it) => it.source_location_id === location.id);
+        return isOutgoing || isIncoming;
+      });
+      const unseenCount = relevantFinished.filter((r) => !seenIds.includes(r.id)).length;
+
+      setTabBadges({ outgoing: outCount || 0, incoming: inCount, history: unseenCount });
+    } catch (err) {
+      console.error("[BranchRequests] tab badge fetch error:", err);
+    }
+  }, [location]);
+
+  // Mark history as seen when user clicks History tab
+  const markHistorySeen = useCallback(async () => {
+    if (!location) return;
+    try {
+      const { data: finishedReqs } = await supabase
+        .from("branch_requests")
+        .select("id, to_location_id, items:branch_request_items(source_location_id)")
+        .in("status", ["completed", "cancelled", "rejected"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const relevantIds = (finishedReqs || [])
+        .filter((req) => {
+          const isOutgoing = req.to_location_id === location.id;
+          const isIncoming = req.items?.some((it) => it.source_location_id === location.id);
+          return isOutgoing || isIncoming;
+        })
+        .map((r) => r.id);
+
+      const storageKey = `branch_req_history_seen_${location.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(relevantIds));
+      setTabBadges((prev) => ({ ...prev, history: 0 }));
+      window.dispatchEvent(new Event("nav-badges-refresh"));
+    } catch (err) {
+      console.error("[BranchRequests] mark history seen error:", err);
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (!location) return;
+    fetchTabBadges();
+
+    const channel = supabase
+      .channel("branch-tab-badges")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_requests" },
+        () => fetchTabBadges()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "branch_request_items" },
+        () => fetchTabBadges()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [location, fetchTabBadges]);
 
   // Loading/Error states
   if (authLoading) {
@@ -206,10 +314,10 @@ export default function BranchRequests() {
   }
 
   const tabs = [
-    { key: "new", label: t("branchRequests.tabs.new"), icon: Plus },
-    { key: "outgoing", label: t("branchRequests.tabs.outgoing"), icon: Send },
-    { key: "incoming", label: t("branchRequests.tabs.incoming"), icon: Inbox },
-    { key: "history", label: t("branchRequests.tabs.history"), icon: History },
+    { key: "new", label: t("branchRequests.tabs.new"), icon: Plus, badge: 0 },
+    { key: "outgoing", label: t("branchRequests.tabs.outgoing"), icon: Send, badge: tabBadges.outgoing },
+    { key: "incoming", label: t("branchRequests.tabs.incoming"), icon: Inbox, badge: tabBadges.incoming },
+    { key: "history", label: t("branchRequests.tabs.history"), icon: History, badge: tabBadges.history },
   ];
 
   return (
@@ -234,7 +342,10 @@ export default function BranchRequests() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === "history") markHistorySeen();
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 isActive
                   ? "bg-white text-neutral-900 shadow-sm"
@@ -243,6 +354,11 @@ export default function BranchRequests() {
             >
               <Icon className={`w-4 h-4 ${isActive ? "text-emerald-600" : ""}`} />
               {tab.label}
+              {tab.badge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                  {tab.badge > 99 ? "99+" : tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
