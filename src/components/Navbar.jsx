@@ -108,12 +108,15 @@ export default function Navbar({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOpen(true)}
-              className="p-2 rounded-lg hover:bg-neutral-100 lg:hidden"
+              className="relative p-2 rounded-lg hover:bg-neutral-100 lg:hidden"
               aria-label="Open menu"
             >
               <svg className="w-6 h-6" viewBox="0 0 24 24" stroke="currentColor" fill="none">
                 <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+              {computedLinks.some((l) => l.badgeKey && (badges[l.badgeKey] || 0) > 0) && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+              )}
             </button>
 
             <button

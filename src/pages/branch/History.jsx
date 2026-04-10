@@ -618,6 +618,219 @@ export default function BranchOperations() {
     }
   };
 
+  /* ----------------------- SALE HISTORY: search helpers -------------------- */
+  async function searchSaleProducts(term) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function getFirstSaleYear(productId) {
+    try {
+      const loc = await getBranchLocation();
+      const { data, error } = await supabase
+        .from("transaction_items")
+        .select("tx:transactions ( created_at, location_id, status, type )")
+        .eq("product_id", productId)
+        .eq("tx.type", "sale")
+        .eq("tx.status", "committed")
+        .eq("tx.location_id", loc.id)
+        .order("created_at", { ascending: true, foreignTable: "transactions" })
+        .limit(1);
+      if (error) throw error;
+      const first = (data || []).find((r) => r.tx);
+      if (first && first.tx?.created_at) {
+        return new Date(first.tx.created_at).getFullYear();
+      }
+      return new Date().getFullYear();
+    } catch {
+      return new Date().getFullYear();
+    }
+  }
+
+  async function searchSaleProductHistory(productId, year) {
+    try {
+      const loc = await getBranchLocation();
+      const yr = year || new Date().getFullYear();
+      const sinceISO = `${yr}-01-01T00:00:00.000Z`;
+      const untilISO = `${yr + 1}-01-01T00:00:00.000Z`;
+
+      const { data: rows, error } = await supabase
+        .from("transaction_items")
+        .select(
+          `id, product_id, qty,
+           tx:transactions ( id, type, status, created_at, note, location_id )`
+        )
+        .eq("product_id", productId)
+        .in("tx.type", ["sale", "sale_return"])
+        .eq("tx.status", "committed")
+        .eq("tx.location_id", loc.id)
+        .gte("tx.created_at", sinceISO)
+        .lt("tx.created_at", untilISO)
+        .order("created_at", { ascending: false, foreignTable: "transactions" })
+        .limit(1000);
+      if (error) throw error;
+
+      return (rows || [])
+        .filter((r) => r.tx)
+        .map((r) => ({
+          id: r.id,
+          day: ymd(r.tx.created_at),
+          type: r.tx.type,
+          qty: r.qty,
+          note: r.tx.note || "",
+        }))
+        .sort((a, b) => (a.day < b.day ? 1 : -1));
+    } catch (e) {
+      log("searchSaleProductHistory error", e.message || String(e));
+      return [];
+    }
+  }
+
+  /* ----------------------- LOAN HISTORY: search helpers -------------------- */
+  async function searchLoanProducts(term) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function getFirstLoanYear(productId) {
+    try {
+      const loc = await getBranchLocation();
+      const { data, error } = await supabase
+        .from("transaction_items")
+        .select("tx:transactions ( created_at, location_id, status, type )")
+        .eq("product_id", productId)
+        .eq("tx.type", "loan")
+        .eq("tx.status", "committed")
+        .eq("tx.location_id", loc.id)
+        .order("created_at", { ascending: true, foreignTable: "transactions" })
+        .limit(1);
+      if (error) throw error;
+      const first = (data || []).find((r) => r.tx);
+      if (first && first.tx?.created_at) {
+        return new Date(first.tx.created_at).getFullYear();
+      }
+      return new Date().getFullYear();
+    } catch {
+      return new Date().getFullYear();
+    }
+  }
+
+  async function searchLoanProductHistory(productId, year) {
+    try {
+      const loc = await getBranchLocation();
+      const yr = year || new Date().getFullYear();
+      const sinceISO = `${yr}-01-01T00:00:00.000Z`;
+      const untilISO = `${yr + 1}-01-01T00:00:00.000Z`;
+
+      const { data: rows, error } = await supabase
+        .from("transaction_items")
+        .select(
+          `id, product_id, qty,
+           tx:transactions ( id, type, status, created_at, note, borrower_name, parent_tx_id, location_id )`
+        )
+        .eq("product_id", productId)
+        .in("tx.type", ["loan", "loan_return"])
+        .eq("tx.status", "committed")
+        .eq("tx.location_id", loc.id)
+        .gte("tx.created_at", sinceISO)
+        .lt("tx.created_at", untilISO)
+        .order("created_at", { ascending: false, foreignTable: "transactions" })
+        .limit(1000);
+      if (error) throw error;
+
+      const filtered = (rows || []).filter((r) => r.tx);
+
+      // Collect loan tx IDs to fetch return info
+      const loanTxIds = filtered
+        .filter((r) => r.tx.type === "loan")
+        .map((r) => r.tx.id);
+
+      // Fetch return transactions for these loans
+      let returnMap = new Map(); // loanTxId -> { totalReturned, lastReturnDate }
+      if (loanTxIds.length > 0) {
+        const { data: returns } = await supabase
+          .from("transactions")
+          .select(
+            `id, parent_tx_id, created_at, note,
+             items:transaction_items ( product_id, qty )`
+          )
+          .eq("type", "loan_return")
+          .eq("status", "committed")
+          .in("parent_tx_id", [...new Set(loanTxIds)])
+          .limit(2000);
+
+        for (const ret of (returns || [])) {
+          const pid = ret.parent_tx_id;
+          if (!pid) continue;
+          for (const it of (ret.items || [])) {
+            if (it.product_id !== productId) continue;
+            const existing = returnMap.get(pid) || { totalReturned: 0, lastReturnDate: null };
+            existing.totalReturned += (it.qty || 0);
+            const retDate = ret.created_at;
+            if (!existing.lastReturnDate || retDate > existing.lastReturnDate) {
+              existing.lastReturnDate = retDate;
+            }
+            returnMap.set(pid, existing);
+          }
+        }
+      }
+
+      return filtered
+        .map((r) => {
+          const isLoan = r.tx.type === "loan";
+          const retInfo = isLoan ? (returnMap.get(r.tx.id) || { totalReturned: 0, lastReturnDate: null }) : null;
+          let status = null;
+          let returnDate = null;
+
+          if (isLoan) {
+            const returned = retInfo.totalReturned;
+            if (returned >= r.qty) {
+              status = "closed";
+              returnDate = retInfo.lastReturnDate ? ymd(retInfo.lastReturnDate) : null;
+            } else if (returned > 0) {
+              status = "partial";
+              returnDate = retInfo.lastReturnDate ? ymd(retInfo.lastReturnDate) : null;
+            } else {
+              status = "active";
+            }
+          }
+
+          return {
+            id: r.id,
+            day: ymd(r.tx.created_at),
+            type: r.tx.type,
+            qty: r.qty,
+            borrower_name: r.tx.borrower_name || "",
+            status,
+            returnDate,
+            returned: retInfo ? retInfo.totalReturned : 0,
+          };
+        })
+        .sort((a, b) => (a.day < b.day ? 1 : -1));
+    } catch (e) {
+      log("searchLoanProductHistory error", e.message || String(e));
+      return [];
+    }
+  }
+
   /* --------------------------- CART / UI LOGIC --------------------------- */
   function addToCart(row) {
     setCart((curr) => {
@@ -1596,6 +1809,10 @@ return (
             saleHistoryLoading={saleHistoryLoading}
             loadSaleHistory={loadSaleHistory}
             commitSaleReturn={commitSaleReturn}
+            // Product search props
+            searchProducts={searchSaleProducts}
+            searchProductHistory={searchSaleProductHistory}
+            getFirstSaleYear={getFirstSaleYear}
           />
         </div>
       )}
@@ -1639,6 +1856,10 @@ return (
             loanHistory={loanHistory}
             loanHistoryLoading={loanHistoryLoading}
             loadLoanHistory={loadLoanHistory}
+            // Product search props
+            searchProducts={searchLoanProducts}
+            searchProductHistory={searchLoanProductHistory}
+            getFirstLoanYear={getFirstLoanYear}
           />
         </div>
       )}
