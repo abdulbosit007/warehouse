@@ -43,6 +43,10 @@ export default function LoanSection({
   loanHistory = [],
   loanHistoryLoading = false,
   loadLoanHistory,
+  // Product search props
+  searchProducts,
+  searchProductHistory,
+  getFirstLoanYear,
 }) {
   const [mode, setMode] = useState("new"); // "new" | "active" | "history"
   const [showFilters, setShowFilters] = useState(false);
@@ -189,6 +193,9 @@ export default function LoanSection({
           loanHistory={loanHistory}
           loading={loanHistoryLoading}
           loadLoanHistory={loadLoanHistory}
+          searchProducts={searchProducts}
+          searchProductHistory={searchProductHistory}
+          getFirstLoanYear={getFirstLoanYear}
         />
       )}
 

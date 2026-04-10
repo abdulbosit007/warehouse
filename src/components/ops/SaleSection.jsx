@@ -31,6 +31,10 @@ export default function SaleSection({
   saleHistoryLoading = false,
   loadSaleHistory,
   commitSaleReturn,
+  // Product search props
+  searchProducts,
+  searchProductHistory,
+  getFirstSaleYear,
 }) {
   const [mode, setMode] = useState("new"); // "new" | "history"
   const [showFilters, setShowFilters] = useState(false);
@@ -161,6 +165,9 @@ export default function SaleSection({
           loading={saleHistoryLoading}
           loadSaleHistory={loadSaleHistory}
           commitSaleReturn={commitSaleReturn}
+          searchProducts={searchProducts}
+          searchProductHistory={searchProductHistory}
+          getFirstSaleYear={getFirstSaleYear}
         />
       )}
 

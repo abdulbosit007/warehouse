@@ -162,7 +162,6 @@ export default function BranchRequests() {
 
   // Fetch per-location badges for the warehouse selector buttons
   const fetchLocationBadges = useCallback(async () => {
-    console.log("[LocationBadges] locations count:", locations.length);
     if (locations.length <= 1) return;
     try {
       const badges = {};
@@ -193,10 +192,8 @@ export default function BranchRequests() {
           hasIncoming = (count || 0) > 0;
         }
 
-        console.log(`[LocationBadges] ${loc.location_name}: outgoing=${outCount}, hasIncoming=${hasIncoming}`);
         badges[loc.id] = (outCount || 0) > 0 || hasIncoming;
       }
-      console.log("[LocationBadges] result:", badges);
       setLocationBadges(badges);
     } catch (err) {
       console.error("[BranchRequests] location badges error:", err);
@@ -275,7 +272,6 @@ export default function BranchRequests() {
       });
       const unseenCount = relevantFinished.filter((r) => !seenIds.includes(r.id)).length;
 
-      console.log(`[TabBadges] loc=${selectedLocation.location_name} (${selectedLocation.id}): outgoing=${outCount}, incoming=${inCount}, pendingItems=${pendingItems?.length}, history=${unseenCount}, seenIds=${seenIds.length}`);
       setTabBadges({ outgoing: outCount || 0, incoming: inCount, history: unseenCount });
     } catch (err) {
       console.error("[WarehouseBranchRequests] tab badge fetch error:", err);
