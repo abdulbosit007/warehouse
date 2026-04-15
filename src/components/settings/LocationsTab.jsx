@@ -2,7 +2,7 @@
 // Locations Management Tab Component for Settings page
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import { useTranslation } from "react-i18next";
 import {
   MapPin,
@@ -100,23 +100,26 @@ export default function LocationsTab() {
     setError("");
 
     try {
-      const [locRes, productListRes] = await Promise.all([
-        supabase
-          .from("locations")
-          .select("id, name, location_name, kind, code, role_id, roles:role_id(id, name, actual_name)")
-          .order("location_name", { ascending: true }),
+      const locRes = await supabase
+        .from("locations")
+        .select("id, name, location_name, kind, code, role_id, roles:role_id(id, name, actual_name)")
+        .order("location_name", { ascending: true });
+
+      if (locRes.error) throw locRes.error;
+
+      // Use fetchAll to overcome the 1000 row limit
+      const { data: allProducts, error: prodErr } = await fetchAll(() => 
         supabase
           .from("product_list")
           .select("id, location_id")
-          .eq("status", "available"),
-      ]);
+          .eq("status", "available")
+      );
 
-      if (locRes.error) throw locRes.error;
-      if (productListRes.error) throw productListRes.error;
+      if (prodErr) throw prodErr;
 
       // Count products per location
       const counts = {};
-      for (const p of productListRes.data || []) {
+      for (const p of allProducts || []) {
         if (p.location_id) {
           counts[p.location_id] = (counts[p.location_id] || 0) + 1;
         }
