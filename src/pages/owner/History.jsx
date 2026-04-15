@@ -32,6 +32,7 @@ import {
   CornerDownLeft,
 } from "lucide-react";
 import { ymd } from "../../utils/dateHelpers";
+import SmartRestock from "../../components/SmartRestock";
 
 const COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#3B82F6"];
 
@@ -240,6 +241,14 @@ export default function OwnerHistory() {
           }`}
         >
           <HistoryIcon className="w-4 h-4" /> Activity Logs
+        </button>
+        <button
+          onClick={() => setActiveTab("restock")}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "restock" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
+          }`}
+        >
+          <PackageSearch className="w-4 h-4" /> Smart Restock
         </button>
       </div>
 
@@ -462,6 +471,13 @@ export default function OwnerHistory() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Smart Restock Tab */}
+      {activeTab === "restock" && (
+        <div className="mt-6">
+          <SmartRestock locationId={selectedLocation} />
         </div>
       )}
     </div>

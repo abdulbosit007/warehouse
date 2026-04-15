@@ -106,7 +106,7 @@
       "failedUpdate": "Mahsulotni yangilab bo‘lmadi"
     }
   },
-   "ownerInventoryBatches": {
+  "ownerInventoryBatches": {
     "title": "Inventar partiyalari",
     "subtitle": "Lokatsiyalar bo‘yicha inventar sessiyalari va tuzatishlarni kuzating",
     "locationsTitle": "Lokatsiyalar",
@@ -138,17 +138,20 @@
       "failedCreateAudit": "Audit sessiyasini yaratib bo‘lmadi"
     }
   },
-   "ownerInventoryBatchDetail": {
+  "ownerInventoryBatchDetail": {
     "subtitle": "Inventar sessiyalari va foydalanuvchi tuzatishlari",
-    "kinds": { "warehouse": "Ombor", "branch": "Filial" },
-
-    "tabs": { "ownerAudits": "Owner auditlari", "userDetected": "Foydalanuvchi aniqlagan" },
-
+    "kinds": {
+      "warehouse": "Ombor",
+      "branch": "Filial"
+    },
+    "tabs": {
+      "ownerAudits": "Owner auditlari",
+      "userDetected": "Foydalanuvchi aniqlagan"
+    },
     "empty": {
       "noUserCorrections": "Bu lokatsiya uchun foydalanuvchi tuzatishlari yo‘q",
       "noOwnerAudits": "Bu lokatsiya uchun owner auditlari yo‘q"
     },
-
     "status": {
       "pending": "Kutilmoqda",
       "approved": "Tasdiqlandi",
@@ -157,13 +160,11 @@
       "closed": "Yopiq",
       "confirmed": "Tasdiqlangan"
     },
-
     "itemsCount": "{{count}} ta item",
     "correctionsCount": "{{count}} ta tuzatish",
     "pendingCount": "{{count}} ta kutilmoqda",
     "approvedCount": "{{count}} ta tasdiqlandi",
     "rejectedCount": "{{count}} ta rad etildi",
-
     "audit": {
       "titleWithDate": "Audit — {{date}}",
       "inProgress": "Jarayonda",
@@ -171,9 +172,9 @@
       "submitted": "Yuborilgan",
       "notSubmitted": "Yuborilmagan"
     },
-
-    "buttons": { "viewDetails": "Tafsilotlar" },
-
+    "buttons": {
+      "viewDetails": "Tafsilotlar"
+    },
     "table": {
       "date": "Sana",
       "product": "Mahsulot",
@@ -187,7 +188,6 @@
       "actualQty": "Haqiqiy miqdor",
       "difference": "Farq"
     },
-
     "modals": {
       "sessionDetails": {
         "title": "Sessiya tafsilotlari",
@@ -200,44 +200,47 @@
         "empty": "Bu auditda tuzatish yo‘q"
       }
     },
-
-    "actions": { "approved": "Tasdiqlash", "rejected": "Rad etish" },
-
+    "actions": {
+      "approved": "Tasdiqlash",
+      "rejected": "Rad etish"
+    },
     "confirm": {
       "decideCorrection": "Rostan ham bu tuzatishni {{decision}} qilmoqchimisiz?"
     },
-
-    "errors": { "errorPrefix": "Xatolik: " },
-
+    "errors": {
+      "errorPrefix": "Xatolik: "
+    },
     "locationNotFound": "Lokatsiya topilmadi",
     "unknown": "Noma’lum"
   },
   "ownerIncomingBatches": {
     "title": "Kiruvchi partiyalar",
     "totalBatches": "Jami partiyalar: {{count}}",
-
-    "stats": { "open": "Ochiq", "closed": "Yopiq" },
-
-    "origins": { "chinese": "Xitoy", "uzbek": "O‘zbekiston" },
+    "stats": {
+      "open": "Ochiq",
+      "closed": "Yopiq"
+    },
+    "origins": {
+      "chinese": "Xitoy",
+      "uzbek": "O‘zbekiston"
+    },
     "unknown": "Noma’lum",
-
-    "status": { "open": "Ochiq", "closed": "Yopiq" },
-
+    "status": {
+      "open": "Ochiq",
+      "closed": "Yopiq"
+    },
     "buttons": {
       "createBatch": "Partiya yaratish",
       "delete": "Partiyani o‘chirish"
     },
-
     "originModal": {
       "title": "Partiya manbasini tanlang",
       "openBatchExists": "(Ochiq partiya mavjud)"
     },
-
     "empty": {
       "title": "Hali partiyalar yo‘q",
       "subtitle": "Boshlash uchun birinchi partiyani yarating"
     },
-
     "table": {
       "date": "Sana",
       "origin": "Manba",
@@ -248,11 +251,9 @@
       "rejected": "Rad etilgan",
       "actions": "Amallar"
     },
-
     "confirm": {
       "deleteBatch": "Bu partiya o‘chirilsinmi? Bu amalni ortga qaytarib bo‘lmaydi."
     },
-
     "errors": {
       "cannotCreateNew": "Yangi {{origin}} partiyasini yaratib bo‘lmaydi. Allaqachon ochiq {{origin}} partiyasi bor."
     }
@@ -261,26 +262,22 @@
     "title": "Partiya tafsilotlari",
     "totalItems": "Jami pozitsiyalar: {{count}}",
     "created": "Yaratilgan",
-
     "status": {
       "draft": "Qoralama",
       "sent": "Yuborilgan",
       "approved": "Tasdiqlangan",
       "rejected": "Rad etilgan"
     },
-
     "stats": {
       "draft": "Qoralama",
       "sent": "Yuborilgan",
       "approved": "Tasdiqlangan",
       "rejected": "Rad etilgan"
     },
-
     "sections": {
       "draftItems": "Qoralama pozitsiyalar",
       "otherItems": "Yuborilgan / Tasdiqlangan / Rad etilgan"
     },
-
     "table": {
       "product": "Mahsulot",
       "sku": "SKU",
@@ -288,14 +285,12 @@
       "qty": "Soni",
       "status": "Holat"
     },
-
     "placeholders": {
       "productName": "Mahsulot nomi",
       "sku": "SKU",
       "selectCategory": "Kategoriya tanlang…",
       "qty": "Soni"
     },
-
     "actions": {
       "delete": "O‘chirish",
       "sendAll": "Hammasini yuborish ({{count}})",
@@ -303,7 +298,6 @@
       "approveRemoval": "O‘chirishni tasdiqlash",
       "resend": "Omborga qayta yuborish"
     },
-
     "fields": {
       "product": "Mahsulot",
       "sku": "SKU",
@@ -311,28 +305,22 @@
       "rejectionReason": "Rad etish sababi",
       "correctedQty": "Tuzatilgan son"
     },
-
     "rejectionCodes": {
       "qty_mismatch": "Miqdor mos kelmadi",
       "no_such_product": "Bunday mahsulot yo‘q"
     },
-
     "reviewModal": {
       "title": "Ombor javobi"
     },
-
     "empty": {
       "title": "Bu partiyada hali pozitsiyalar yo‘q",
       "subtitle": "Yuqoridagi qidiruv orqali mahsulot qo‘shing"
     },
-
     "missing": "yo‘q",
-
     "validation": {
       "category": "kategoriya",
       "quantity": "son"
     },
-
     "errors": {
       "fetchDraftFailed": "Qoralama pozitsiyalarni olishda xatolik.",
       "fixBeforeSending": "Yuborishdan oldin quyidagi qatorlarni to‘g‘rilang:"
@@ -342,42 +330,34 @@
     "title": "Inventar auditi",
     "started": "Boshlangan",
     "notFound": "Audit sessiyasi topilmadi",
-
     "kinds": {
       "warehouse": "Ombor",
       "branch": "Filial"
     },
-
     "badges": {
       "submitted": "Yuborildi",
       "pending": "Kutilmoqda"
     },
-
     "locationStats": {
       "confirmed": "{{count}} tasdiqlandi",
       "corrections": "{{count}} tuzatish",
       "toReview": "Ko‘rib chiqish uchun {{count}} ta mahsulot"
     },
-
     "banner": {
       "inProgress": "Audit jarayonda",
       "completed": "Audit yakunlandi",
       "submittedOf": "{{submitted}} / {{total}} lokatsiya yubordi"
     },
-
     "actions": {
       "closeAudit": "Auditni yopish"
     },
-
     "confirm": {
       "close": "Ushbu audit sessiyasini yopasizmi? Buni ortga qaytarib bo‘lmaydi."
     },
-
     "errors": {
       "loadFailed": "Auditni yuklab bo‘lmadi",
       "closeFailed": "Auditni yopib bo‘lmadi"
     },
-
     "modal": {
       "title": "Audit natijalari",
       "confirmed": "Tasdiqlangan",
@@ -393,25 +373,21 @@
   "userManagement": {
     "title": "Foydalanuvchilar boshqaruvi",
     "subtitle": "Foydalanuvchi akkauntlari va ruxsatlarni boshqaring",
-
     "stats": {
       "all": "Barcha foydalanuvchilar",
       "approved": "Tasdiqlangan",
       "pending": "Kutilmoqda"
     },
-
     "roles": {
       "owner": "Ega",
       "warehouse": "Ombor",
       "branch": "Filial",
       "allLocations": "Barcha lokatsiyalar"
     },
-
     "status": {
       "approved": "Tasdiqlangan",
       "pending": "Kutilmoqda"
     },
-
     "table": {
       "user": "Foydalanuvchi",
       "email": "Email",
@@ -420,7 +396,6 @@
       "status": "Holat",
       "actions": "Amallar"
     },
-
     "actions": {
       "addUser": "Qo‘shish",
       "approve": "Tasdiqlash",
@@ -428,21 +403,17 @@
       "adding": "Qo'shilmoqda...",
       "editRole": "Rolni tahrirlash"
     },
-
     "empty": "Foydalanuvchi topilmadi",
-
     "modal": {
       "title": "Yangi foydalanuvchi qo‘shish",
       "subtitle": "Yangi akkaunt yarating"
     },
-
     "editRole": {
       "title": "Rolni o'zgartirish",
       "currentRole": "Joriy rol",
       "selectRole": "Yangi rolni tanlang",
       "save": "Saqlash"
     },
-
     "form": {
       "emailLabel": "Email (Google akkaunt)",
       "emailPlaceholder": "user@example.com",
@@ -457,13 +428,11 @@
         "branches": "Filiallar"
       }
     },
-
     "errors": {
       "requiredFields": "Email, ism va rol majburiy.",
       "invalidEmail": "To‘g‘ri email kiriting.",
       "noLocationForBranch": "Ushbu filial roli uchun lokatsiya bog‘lanmagan."
     },
-
     "success": {
       "added": "Foydalanuvchi qo‘shildi.",
       "addedLinked": "Foydalanuvchi qo‘shildi va bog‘landi!",
@@ -808,14 +777,12 @@
   "branchRequests": {
     "title": "Mahsulot so‘rovlari",
     "subtitle": "Kiruvchi va chiquvchi mahsulot ko‘chirmalarini boshqaring",
-
     "tabs": {
       "new": "Yangi so‘rov",
       "outgoing": "Mening so‘rovlarim",
       "incoming": "Kiruvchi",
       "history": "Tarix"
     },
-
     "status": {
       "sent": "Ko‘rib chiqish kutilmoqda",
       "approved": "Yo‘lda",
@@ -825,7 +792,6 @@
       "awaitingReceipt": "Qabul kutilmoqda",
       "received": "Qabul qilindi"
     },
-
     "toast": {
       "requestSentSuccess": "So‘rov muvaffaqiyatli yuborildi!",
       "requestSentFail": "So‘rovni yuborib bo‘lmadi",
@@ -837,7 +803,6 @@
       "confirmReceiptSuccess": "Mahsulot qabul qilindi! Zaxira yangilandi.",
       "confirmReceiptFail": "Qabul qilishni tasdiqlab bo‘lmadi"
     },
-
     "common": {
       "loading": "Yuklanmoqda...",
       "searching": "Qidirilmoqda...",
@@ -845,7 +810,6 @@
       "qty": "soni",
       "product": "Mahsulot"
     },
-
     "newRequest": {
       "searchTitle": "Mahsulot qidirish",
       "searchPlaceholder": "Nomi yoki SKU bo‘yicha qidiring...",
@@ -875,12 +839,10 @@
       "noStock": "Hech qaysi omborxonada mavjud emas",
       "addedToCartBulk": "{{count}} ta mahsulot savatga qo'shildi"
     },
-
     "outgoing": {
       "emptyTitle": "Faol so‘rovlar yo‘q",
       "emptyText": "Boshlash uchun yangi so‘rov yarating",
       "summary": "ta faol so‘rov",
-
       "columns": {
         "products": "Mahsulotlar",
         "source": "Manba",
@@ -889,18 +851,15 @@
         "date": "Sana",
         "actions": "Amallar"
       },
-
       "pending": "Kutilmoqda",
       "approved": "Tasdiqlangan",
       "cancelBtn": "Bekor qilish",
       "receivedBtn": "Qabul qilindi"
     },
-
     "incoming": {
       "emptyTitle": "Kiruvchi so‘rovlar yo‘q",
       "emptyText": "Bu yerda boshqa joylardan kelgan so‘rovlar ko‘rinadi",
       "summary": "ta so‘rov sizdan qaror kutmoqda",
-
       "columns": {
         "products": "Mahsulotlar",
         "requester": "So‘rovchi",
@@ -908,29 +867,23 @@
         "date": "Sana",
         "actions": "Amallar"
       },
-
       "rejectBtn": "Rad etish",
       "approveBtn": "Tasdiqlash"
     },
-
     "history": {
       "direction": {
         "outgoing": "Chiquvchi",
         "incoming": "Kiruvchi"
       },
-
       "searchPlaceholder": "Mahsulot yoki SKU qidirish...",
-
       "statusPills": {
         "all": "Barchasi",
         "completed": "Yakunlangan",
         "cancelled": "Bekor qilingan",
         "rejected": "Rad etilgan"
       },
-
       "noResultsTitle": "Natija topilmadi",
       "noResultsText": "Filtrlarga mos so‘rovlar yo‘q",
-
       "columns": {
         "products": "Mahsulotlar",
         "from": "Qayerdan",
@@ -939,7 +892,6 @@
         "status": "Holat",
         "date": "Sana"
       },
-
       "showing": "{{filtered}} / {{all}} ta so‘rov ko‘rsatilmoqda",
       "loadMore": "Yana yuklash (hozir: {{count}})"
     }
@@ -1464,6 +1416,35 @@
       "owner": "Owner",
       "warehouse": "Warehouse",
       "branch": "Branch"
+    }
+  },
+  "ownerBranchRequests": {
+    "title": "Global filiallarlararo so'rovlar",
+    "subtitle": "Omborlar va filiallar o'rtasidagi barcha zaxira so'rovlarining ko'rinishi.",
+    "filters": {
+      "search": "Filial yoki mahsulotni qidirish...",
+      "allStatuses": "Barcha holatlar",
+      "anySource": "Har qanday manba",
+      "anyDest": "Har qanday manzil"
+    },
+    "loading": "Global so'rovlar yuklanmoqda...",
+    "empty": "So'rovlar topilmadi.",
+    "transferTo": "{{name}} ga o'tkazish",
+    "id": "ID",
+    "from": "Dan",
+    "table": {
+      "product": "Mahsulot",
+      "requested": "So'ralgan",
+      "approved": "Tasdiqlangan",
+      "status": "Holati"
+    },
+    "status": {
+      "pending": "Kutilmoqda",
+      "approved": "Tasdiqlangan",
+      "rejected": "Rad etilgan",
+      "completed": "Tugallangan",
+      "cancelled": "Bekor qilingan",
+      "requestedItem": "So'ralgan mahsulot"
     }
   }
 }

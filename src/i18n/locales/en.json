@@ -140,15 +140,18 @@
   },
   "ownerInventoryBatchDetail": {
     "subtitle": "Inventory sessions and user corrections",
-    "kinds": { "warehouse": "Warehouse", "branch": "Branch" },
-
-    "tabs": { "ownerAudits": "Owner Audits", "userDetected": "User-detected" },
-
+    "kinds": {
+      "warehouse": "Warehouse",
+      "branch": "Branch"
+    },
+    "tabs": {
+      "ownerAudits": "Owner Audits",
+      "userDetected": "User-detected"
+    },
     "empty": {
       "noUserCorrections": "No user corrections for this location",
       "noOwnerAudits": "No owner audits for this location"
     },
-
     "status": {
       "pending": "Pending",
       "approved": "Approved",
@@ -157,13 +160,11 @@
       "closed": "Closed",
       "confirmed": "Confirmed"
     },
-
     "itemsCount": "{{count}} items",
     "correctionsCount": "{{count}} correction{{count !== 1 ? \"s\" : \"\"}}",
     "pendingCount": "{{count}} pending",
     "approvedCount": "{{count}} approved",
     "rejectedCount": "{{count}} rejected",
-
     "audit": {
       "titleWithDate": "Audit - {{date}}",
       "inProgress": "In Progress",
@@ -171,9 +172,9 @@
       "submitted": "Submitted",
       "notSubmitted": "Not Submitted"
     },
-
-    "buttons": { "viewDetails": "View Details" },
-
+    "buttons": {
+      "viewDetails": "View Details"
+    },
     "table": {
       "date": "Date",
       "product": "Product",
@@ -188,7 +189,6 @@
       "difference": "Difference",
       "locationComment": "Location comment"
     },
-
     "modals": {
       "sessionDetails": {
         "title": "Session Details",
@@ -201,45 +201,47 @@
         "empty": "No corrections in this audit"
       }
     },
-
-    "actions": { "approved": "Approve", "rejected": "Reject" },
-
+    "actions": {
+      "approved": "Approve",
+      "rejected": "Reject"
+    },
     "confirm": {
       "decideCorrection": "Are you sure you want to {{decision}} this correction?"
     },
-
-    "errors": { "errorPrefix": "Error: " },
-
+    "errors": {
+      "errorPrefix": "Error: "
+    },
     "locationNotFound": "Location not found",
     "unknown": "Unknown"
   },
-
   "ownerIncomingBatches": {
     "title": "Incoming Batches",
     "totalBatches": "{{count}} total batches",
-
-    "stats": { "open": "Open", "closed": "Closed" },
-
-    "origins": { "chinese": "Chinese", "uzbek": "Uzbek" },
+    "stats": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "origins": {
+      "chinese": "Chinese",
+      "uzbek": "Uzbek"
+    },
     "unknown": "Unknown",
-
-    "status": { "open": "Open", "closed": "Closed" },
-
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
     "buttons": {
       "createBatch": "Create Batch",
       "delete": "Delete batch"
     },
-
     "originModal": {
       "title": "Select Batch Origin",
       "openBatchExists": "(Open batch exists)"
     },
-
     "empty": {
       "title": "No batches yet",
       "subtitle": "Create your first batch to get started"
     },
-
     "table": {
       "date": "Date",
       "origin": "Origin",
@@ -250,11 +252,9 @@
       "rejected": "Rejected",
       "actions": "Actions"
     },
-
     "confirm": {
       "deleteBatch": "Delete this batch? This action cannot be undone."
     },
-
     "errors": {
       "cannotCreateNew": "Cannot create new {{origin}} batch. There is already an open {{origin}} batch."
     }
@@ -263,26 +263,22 @@
     "title": "Batch Details",
     "totalItems": "{{count}} total items",
     "created": "Created",
-
     "status": {
       "draft": "Draft",
       "sent": "Sent",
       "approved": "Approved",
       "rejected": "Rejected"
     },
-
     "stats": {
       "draft": "Draft",
       "sent": "Sent",
       "approved": "Approved",
       "rejected": "Rejected"
     },
-
     "sections": {
       "draftItems": "Draft Items",
       "otherItems": "Sent / Approved / Rejected"
     },
-
     "table": {
       "product": "Product",
       "sku": "SKU",
@@ -290,14 +286,12 @@
       "qty": "Qty",
       "status": "Status"
     },
-
     "placeholders": {
       "productName": "Product name",
       "sku": "SKU",
       "selectCategory": "Select category…",
       "qty": "Qty"
     },
-
     "actions": {
       "delete": "Delete",
       "sendAll": "Send All ({{count}})",
@@ -305,7 +299,6 @@
       "approveRemoval": "Approve Removal",
       "resend": "Resend to Warehouse"
     },
-
     "fields": {
       "product": "Product",
       "sku": "SKU",
@@ -313,28 +306,22 @@
       "rejectionReason": "Rejection Reason",
       "correctedQty": "Corrected Qty"
     },
-
     "rejectionCodes": {
       "qty_mismatch": "Quantity mismatch",
       "no_such_product": "No such product"
     },
-
     "reviewModal": {
       "title": "Warehouse Response"
     },
-
     "empty": {
       "title": "No items in this batch yet",
       "subtitle": "Use the search above to add products"
     },
-
     "missing": "missing",
-
     "validation": {
       "category": "category",
       "quantity": "quantity"
     },
-
     "errors": {
       "fetchDraftFailed": "Failed to fetch draft items.",
       "fixBeforeSending": "Fix these draft row(s) before sending:"
@@ -344,42 +331,34 @@
     "title": "Inventory Audit",
     "started": "Started",
     "notFound": "Audit session not found",
-
     "kinds": {
       "warehouse": "Warehouse",
       "branch": "Branch"
     },
-
     "badges": {
       "submitted": "Submitted",
       "pending": "Pending"
     },
-
     "locationStats": {
       "confirmed": "{{count}} confirmed",
       "corrections": "{{count}} corrections",
       "toReview": "{{count}} products to review"
     },
-
     "banner": {
       "inProgress": "Audit in Progress",
       "completed": "Audit Completed",
       "submittedOf": "{{submitted}} of {{total}} locations submitted"
     },
-
     "actions": {
       "closeAudit": "Close Audit"
     },
-
     "confirm": {
       "close": "Close this audit session? This cannot be undone."
     },
-
     "errors": {
       "loadFailed": "Failed to load audit",
       "closeFailed": "Failed to close audit session"
     },
-
     "modal": {
       "title": "Audit Results",
       "confirmed": "Confirmed",
@@ -395,25 +374,21 @@
   "userManagement": {
     "title": "User Management",
     "subtitle": "Manage user accounts and permissions",
-
     "stats": {
       "all": "All Users",
       "approved": "Approved",
       "pending": "Pending"
     },
-
     "roles": {
       "owner": "Owner",
       "warehouse": "Warehouse",
       "branch": "Branch",
       "allLocations": "All Locations"
     },
-
     "status": {
       "approved": "Approved",
       "pending": "Pending"
     },
-
     "table": {
       "user": "User",
       "email": "Email",
@@ -422,7 +397,6 @@
       "status": "Status",
       "actions": "Actions"
     },
-
     "actions": {
       "addUser": "Add User",
       "approve": "Approve",
@@ -430,21 +404,17 @@
       "adding": "Adding...",
       "editRole": "Edit Role"
     },
-
     "empty": "No users found",
-
     "modal": {
       "title": "Add New User",
       "subtitle": "Create a new user account"
     },
-
     "editRole": {
       "title": "Edit Role",
       "currentRole": "Current Role",
       "selectRole": "Select New Role",
       "save": "Save Role"
     },
-
     "form": {
       "emailLabel": "Email (Google Account)",
       "emailPlaceholder": "user@example.com",
@@ -459,14 +429,12 @@
         "branches": "Branches"
       }
     },
-
     "errors": {
       "requiredFields": "Email, Name and Role are required.",
       "invalidEmail": "Enter a valid email address.",
       "noLocationForBranch": "No location is linked to this branch role.",
       "updateFailed": "Failed to update role."
     },
-
     "success": {
       "added": "User added.",
       "addedLinked": "User added and linked!",
@@ -718,7 +686,7 @@
       }
     }
   },
-   "branchAudit": {
+  "branchAudit": {
     "title": "Inventory Audit",
     "subtitle": "{{branch}}",
     "status": {
@@ -811,14 +779,12 @@
   "branchRequests": {
     "title": "Product Requests",
     "subtitle": "Manage incoming and outgoing product transfers",
-
     "tabs": {
       "new": "New Request",
       "outgoing": "My Requests",
       "incoming": "Incoming",
       "history": "History"
     },
-
     "status": {
       "sent": "Pending Review",
       "approved": "In Transit",
@@ -828,7 +794,6 @@
       "awaitingReceipt": "Awaiting receipt",
       "received": "Received"
     },
-
     "toast": {
       "requestSentSuccess": "Request sent successfully!",
       "requestSentFail": "Failed to send request",
@@ -840,7 +805,6 @@
       "confirmReceiptSuccess": "Items received! Inventory updated.",
       "confirmReceiptFail": "Failed to confirm receipt"
     },
-
     "common": {
       "loading": "Loading...",
       "searching": "Searching...",
@@ -848,7 +812,6 @@
       "qty": "qty",
       "product": "Product"
     },
-
     "newRequest": {
       "searchTitle": "Search Products",
       "searchPlaceholder": "Search by name or SKU...",
@@ -878,12 +841,10 @@
       "noStock": "No stock available in any warehouse",
       "addedToCartBulk": "{{count}} items added to cart"
     },
-
     "outgoing": {
       "emptyTitle": "No Active Requests",
       "emptyText": "Create a new request to get started",
       "summary": "active requests",
-
       "columns": {
         "products": "Products",
         "source": "Source",
@@ -892,18 +853,15 @@
         "date": "Date",
         "actions": "Actions"
       },
-
       "pending": "Pending",
       "approved": "Approved",
       "cancelBtn": "Cancel",
       "receivedBtn": "Received"
     },
-
     "incoming": {
       "emptyTitle": "No Incoming Requests",
       "emptyText": "You'll see requests from other locations here",
       "summary": "requests need your decision",
-
       "columns": {
         "products": "Products",
         "requester": "Requester",
@@ -911,29 +869,23 @@
         "date": "Date",
         "actions": "Actions"
       },
-
       "rejectBtn": "Reject",
       "approveBtn": "Approve"
     },
-
     "history": {
       "direction": {
         "outgoing": "Outgoing",
         "incoming": "Incoming"
       },
-
       "searchPlaceholder": "Search product or SKU...",
-
       "statusPills": {
         "all": "All",
         "completed": "Completed",
         "cancelled": "Cancelled",
         "rejected": "Rejected"
       },
-
       "noResultsTitle": "No Results",
       "noResultsText": "No requests match your filters",
-
       "columns": {
         "products": "Products",
         "from": "From",
@@ -942,7 +894,6 @@
         "status": "Status",
         "date": "Date"
       },
-
       "showing": "Showing {{filtered}} of {{all}} requests",
       "loadMore": "Load More (showing {{count}})"
     }
@@ -1467,6 +1418,35 @@
       "owner": "Owner",
       "warehouse": "Warehouse",
       "branch": "Branch"
+    }
+  },
+  "ownerBranchRequests": {
+    "title": "Global Inter-Branch Requests",
+    "subtitle": "Read-only overview of all stock requests moving between warehouses and branches.",
+    "filters": {
+      "search": "Search branch or product...",
+      "allStatuses": "All Statuses",
+      "anySource": "Any Source",
+      "anyDest": "Any Destination"
+    },
+    "loading": "Loading global requests...",
+    "empty": "No branch requests found matching the criteria.",
+    "transferTo": "Transfer to {{name}}",
+    "id": "ID",
+    "from": "From",
+    "table": {
+      "product": "Product",
+      "requested": "Requested",
+      "approved": "Approved",
+      "status": "Status"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "requestedItem": "Requested Item"
     }
   }
 }

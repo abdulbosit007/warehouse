@@ -14,7 +14,8 @@ import {
   PackageCheck,
   Truck,
   X,
-  ChevronDown
+  ChevronDown,
+  MapPin
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -22,44 +23,45 @@ import {
 /* -------------------------------------------------------------------------- */
 const STATUS_CONFIG = {
   sent: {
-    labelKey: "Pending",
+    labelKey: "ownerBranchRequests.status.pending",
     color: "bg-amber-100 text-amber-700 border-amber-200",
     icon: Clock,
   },
   approved: {
-    labelKey: "Approved",
+    labelKey: "ownerBranchRequests.status.approved",
     color: "bg-blue-100 text-blue-700 border-blue-200",
     icon: Truck,
   },
   rejected: {
-    labelKey: "Rejected",
+    labelKey: "ownerBranchRequests.status.rejected",
     color: "bg-red-100 text-red-700 border-red-200",
     icon: XCircle,
   },
   completed: {
-    labelKey: "Completed",
+    labelKey: "ownerBranchRequests.status.completed",
     color: "bg-emerald-100 text-emerald-700 border-emerald-200",
     icon: PackageCheck,
   },
   cancelled: {
-    labelKey: "Cancelled",
+    labelKey: "ownerBranchRequests.status.cancelled",
     color: "bg-neutral-100 text-neutral-600 border-neutral-200",
     icon: X,
   },
   requested: {
-      labelKey: "Requested Item",
+      labelKey: "ownerBranchRequests.status.requestedItem",
       color: "bg-neutral-100 text-neutral-600 border-neutral-200",
       icon: Clock,
   }
 };
 
 function StatusBadge({ status }) {
+  const { t } = useTranslation();
   const config = STATUS_CONFIG[status] || {
     labelKey: status,
     color: "bg-neutral-100 text-neutral-700",
   };
   const Icon = config.icon || Clock;
-  const label = config.labelKey;
+  const label = config.labelKey ? t(config.labelKey) : status;
 
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${config.color}`}>
@@ -74,18 +76,27 @@ export default function OwnerBranchRequests() {
   const { t } = useTranslation();
 
   const [requests, setRequests] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [destFilter, setDestFilter] = useState("");
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadRequests();
+    loadLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
+
+  async function loadLocations() {
+    const { data } = await supabase.from("locations").select("id, name, location_name").order("location_name");
+    if (data) setLocations(data);
+  }
 
   async function loadRequests() {
     setLoading(true);
@@ -150,8 +161,16 @@ export default function OwnerBranchRequests() {
       );
     }
 
+    if (sourceFilter) {
+      result = result.filter(r => r.items?.some(it => it.source_location?.id === sourceFilter));
+    }
+
+    if (destFilter) {
+      result = result.filter(r => r.to_location?.id === destFilter);
+    }
+
     return result;
-  }, [requests, search, statusFilter]);
+  }, [requests, search, statusFilter, sourceFilter, destFilter]);
 
 
   if (authLoading) return <div className="p-10 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-indigo-600" /></div>;
@@ -159,21 +178,26 @@ export default function OwnerBranchRequests() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-neutral-200">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Global Inter-Branch Requests</h1>
-          <p className="text-sm text-neutral-500 mt-1">Read-only overview of all stock requests moving between warehouses and branches.</p>
+      <div className="flex flex-col gap-5 bg-white p-5 rounded-2xl shadow-sm border border-neutral-200">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">{t("ownerBranchRequests.title")}</h1>
+            <p className="text-sm text-neutral-500 mt-1">{t("ownerBranchRequests.subtitle")}</p>
+          </div>
+          <button onClick={loadRequests} className="shrink-0 p-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 flex items-center justify-center transition-colors">
+            <RefreshCw className={`w-5 h-5 text-neutral-600 ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
               type="text"
-              placeholder="Search branch or product..."
+              placeholder={t("ownerBranchRequests.filters.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-[200px] pl-9 pr-4 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 bg-neutral-50"
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 bg-neutral-50"
             />
           </div>
 
@@ -182,20 +206,46 @@ export default function OwnerBranchRequests() {
              <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-9 pr-8 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 appearance-none bg-neutral-50"
+              className="w-full pl-9 pr-8 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 appearance-none bg-neutral-50"
              >
-               <option value="">All Statuses</option>
-               <option value="sent">Pending</option>
-               <option value="approved">Approved</option>
-               <option value="completed">Completed</option>
-               <option value="rejected">Rejected</option>
+               <option value="">{t("ownerBranchRequests.filters.allStatuses")}</option>
+               <option value="sent">{t("ownerBranchRequests.status.pending")}</option>
+               <option value="approved">{t("ownerBranchRequests.status.approved")}</option>
+               <option value="completed">{t("ownerBranchRequests.status.completed")}</option>
+               <option value="rejected">{t("ownerBranchRequests.status.rejected")}</option>
              </select>
              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
           </div>
 
-          <button onClick={loadRequests} className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-50 flex items-center justify-center">
-            <RefreshCw className={`w-5 h-5 text-neutral-600 ${loading ? "animate-spin" : ""}`} />
-          </button>
+          <div className="relative">
+             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400" />
+             <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 appearance-none bg-neutral-50"
+             >
+               <option value="">{t("ownerBranchRequests.filters.anySource")}</option>
+               {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.location_name || loc.name}</option>
+               ))}
+             </select>
+             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
+             <select
+              value={destFilter}
+              onChange={(e) => setDestFilter(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl border border-neutral-200 text-sm focus:ring-2 focus:ring-indigo-500 appearance-none bg-neutral-50"
+             >
+               <option value="">{t("ownerBranchRequests.filters.anyDest")}</option>
+               {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.location_name || loc.name}</option>
+               ))}
+             </select>
+             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -208,12 +258,12 @@ export default function OwnerBranchRequests() {
       {loading && requests.length === 0 ? (
           <div className="text-center py-20 text-neutral-500">
              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-400" />
-             <p>Loading global requests...</p>
+             <p>{t("ownerBranchRequests.loading")}</p>
           </div>
       ) : filteredRequests.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-neutral-200 shadow-sm">
             <GitBranch className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-            <p className="text-neutral-500 font-medium">No branch requests found matching the criteria.</p>
+            <p className="text-neutral-500 font-medium">{t("ownerBranchRequests.empty")}</p>
           </div>
       ) : (
         <div className="space-y-4">
@@ -241,13 +291,21 @@ export default function OwnerBranchRequests() {
                             <GitBranch className="w-5 h-5 text-indigo-600" />
                          </div>
                          <div>
-                            <div className="flex items-center gap-2">
-                               <p className="font-bold text-neutral-900 text-lg">Request #{req.id}</p>
-                               <StatusBadge status={req.status} />
-                            </div>
-                            <p className="text-sm text-neutral-500 mt-1">
-                               {new Date(req.created_at).toLocaleString()} • Destined for <span className="font-semibold text-neutral-700">{destinationName}</span>
-                            </p>
+                             <div className="flex items-center gap-2">
+                                <p className="font-bold text-neutral-900 text-lg">{t("ownerBranchRequests.transferTo", { name: destinationName })}</p>
+                                <StatusBadge status={req.status} />
+                             </div>
+                             <p className="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-2">
+                                <span>{new Date(req.created_at).toLocaleString()}</span>
+                                <span>•</span>
+                                <span className="font-mono text-xs bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-600">{t("ownerBranchRequests.id")}: {req.id.substring(0,8).toUpperCase()}</span>
+                                {Object.keys(bySource).length > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{t("ownerBranchRequests.from")}: {Object.keys(bySource).join(', ')}</span>
+                                  </>
+                                )}
+                             </p>
                          </div>
                       </div>
                       <ChevronDown className={`w-5 h-5 text-neutral-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
@@ -270,10 +328,10 @@ export default function OwnerBranchRequests() {
                                     <table className="w-full text-left text-sm whitespace-nowrap">
                                         <thead className="text-xs text-neutral-500 bg-neutral-50 uppercase tracking-wider">
                                             <tr>
-                                                <th className="px-4 py-2 rounded-l-lg">Product</th>
-                                                <th className="px-4 py-2">Requested</th>
-                                                <th className="px-4 py-2">Approved</th>
-                                                <th className="px-4 py-2 rounded-r-lg text-right">Status</th>
+                                                <th className="px-4 py-2 rounded-l-lg">{t("ownerBranchRequests.table.product")}</th>
+                                                <th className="px-4 py-2">{t("ownerBranchRequests.table.requested")}</th>
+                                                <th className="px-4 py-2">{t("ownerBranchRequests.table.approved")}</th>
+                                                <th className="px-4 py-2 rounded-r-lg text-right">{t("ownerBranchRequests.table.status")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-neutral-100">

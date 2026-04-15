@@ -140,15 +140,18 @@
   },
   "ownerInventoryBatchDetail": {
     "subtitle": "Сессии инвентаризации и пользовательские корректировки",
-    "kinds": { "warehouse": "Склад", "branch": "Филиал" },
-
-    "tabs": { "ownerAudits": "Аудиты владельца", "userDetected": "Пользовательские" },
-
+    "kinds": {
+      "warehouse": "Склад",
+      "branch": "Филиал"
+    },
+    "tabs": {
+      "ownerAudits": "Аудиты владельца",
+      "userDetected": "Пользовательские"
+    },
     "empty": {
       "noUserCorrections": "Нет пользовательских корректировок для этой локации",
       "noOwnerAudits": "Нет аудитов владельца для этой локации"
     },
-
     "status": {
       "pending": "Ожидает",
       "approved": "Принято",
@@ -157,13 +160,11 @@
       "closed": "Закрыто",
       "confirmed": "Подтверждено"
     },
-
     "itemsCount": "{{count}} поз.",
     "correctionsCount": "{{count}} корректировок",
     "pendingCount": "{{count}} в ожидании",
     "approvedCount": "{{count}} принято",
     "rejectedCount": "{{count}} отклонено",
-
     "audit": {
       "titleWithDate": "Аудит — {{date}}",
       "inProgress": "В процессе",
@@ -171,9 +172,9 @@
       "submitted": "Отправлено",
       "notSubmitted": "Не отправлено"
     },
-
-    "buttons": { "viewDetails": "Подробнее" },
-
+    "buttons": {
+      "viewDetails": "Подробнее"
+    },
     "table": {
       "date": "Дата",
       "product": "Товар",
@@ -187,7 +188,6 @@
       "actualQty": "Кол-во (факт.)",
       "difference": "Разница"
     },
-
     "modals": {
       "sessionDetails": {
         "title": "Детали сессии",
@@ -200,44 +200,47 @@
         "empty": "Нет исправлений в этом аудите"
       }
     },
-
-    "actions": { "approved": "Принять", "rejected": "Отклонить" },
-
+    "actions": {
+      "approved": "Принять",
+      "rejected": "Отклонить"
+    },
     "confirm": {
       "decideCorrection": "Вы уверены, что хотите: {{decision}} эту корректировку?"
     },
-
-    "errors": { "errorPrefix": "Ошибка: " },
-
+    "errors": {
+      "errorPrefix": "Ошибка: "
+    },
     "locationNotFound": "Локация не найдена",
     "unknown": "Неизвестно"
   },
   "ownerIncomingBatches": {
     "title": "Поступающие партии",
     "totalBatches": "Всего партий: {{count}}",
-
-    "stats": { "open": "Открытые", "closed": "Закрытые" },
-
-    "origins": { "chinese": "Китай", "uzbek": "Узбекистан" },
+    "stats": {
+      "open": "Открытые",
+      "closed": "Закрытые"
+    },
+    "origins": {
+      "chinese": "Китай",
+      "uzbek": "Узбекистан"
+    },
     "unknown": "Неизвестно",
-
-    "status": { "open": "Открыта", "closed": "Закрыта" },
-
+    "status": {
+      "open": "Открыта",
+      "closed": "Закрыта"
+    },
     "buttons": {
       "createBatch": "Создать партию",
       "delete": "Удалить партию"
     },
-
     "originModal": {
       "title": "Выберите источник партии",
       "openBatchExists": "(Есть открытая партия)"
     },
-
     "empty": {
       "title": "Пока нет партий",
       "subtitle": "Создайте первую партию, чтобы начать"
     },
-
     "table": {
       "date": "Дата",
       "origin": "Источник",
@@ -248,39 +251,33 @@
       "rejected": "Отклонено",
       "actions": "Действия"
     },
-
     "confirm": {
       "deleteBatch": "Удалить эту партию? Действие нельзя отменить."
     },
-
     "errors": {
       "cannotCreateNew": "Нельзя создать новую партию ({{origin}}). Уже есть открытая партия ({{origin}})."
     }
   },
-   "ownerBatchDetail": {
+  "ownerBatchDetail": {
     "title": "Детали партии",
     "totalItems": "Всего позиций: {{count}}",
     "created": "Создано",
-
     "status": {
       "draft": "Черновик",
       "sent": "Отправлено",
       "approved": "Одобрено",
       "rejected": "Отклонено"
     },
-
     "stats": {
       "draft": "Черновик",
       "sent": "Отправлено",
       "approved": "Одобрено",
       "rejected": "Отклонено"
     },
-
     "sections": {
       "draftItems": "Черновики",
       "otherItems": "Отправлено / Одобрено / Отклонено"
     },
-
     "table": {
       "product": "Товар",
       "sku": "SKU",
@@ -288,14 +285,12 @@
       "qty": "Кол-во",
       "status": "Статус"
     },
-
     "placeholders": {
       "productName": "Название товара",
       "sku": "SKU",
       "selectCategory": "Выберите категорию…",
       "qty": "Кол-во"
     },
-
     "actions": {
       "delete": "Удалить",
       "sendAll": "Отправить все ({{count}})",
@@ -303,7 +298,6 @@
       "approveRemoval": "Подтвердить удаление",
       "resend": "Отправить снова на склад"
     },
-
     "fields": {
       "product": "Товар",
       "sku": "SKU",
@@ -311,28 +305,22 @@
       "rejectionReason": "Причина отклонения",
       "correctedQty": "Исправленное кол-во"
     },
-
     "rejectionCodes": {
       "qty_mismatch": "Несовпадение количества",
       "no_such_product": "Такого товара нет"
     },
-
     "reviewModal": {
       "title": "Ответ склада"
     },
-
     "empty": {
       "title": "В этой партии пока нет позиций",
       "subtitle": "Используйте поиск выше, чтобы добавить товары"
     },
-
     "missing": "не указано",
-
     "validation": {
       "category": "категория",
       "quantity": "количество"
     },
-
     "errors": {
       "fetchDraftFailed": "Не удалось получить черновики.",
       "fixBeforeSending": "Исправьте эти строки перед отправкой:"
@@ -342,42 +330,34 @@
     "title": "Инвентаризационный аудит",
     "started": "Начат",
     "notFound": "Сессия аудита не найдена",
-
     "kinds": {
       "warehouse": "Склад",
       "branch": "Филиал"
     },
-
     "badges": {
       "submitted": "Отправлено",
       "pending": "Ожидается"
     },
-
     "locationStats": {
       "confirmed": "{{count}} подтверждено",
       "corrections": "{{count}} исправлений",
       "toReview": "К проверке: {{count}} товаров"
     },
-
     "banner": {
       "inProgress": "Аудит в процессе",
       "completed": "Аудит завершён",
       "submittedOf": "{{submitted}} из {{total}} локаций отправили"
     },
-
     "actions": {
       "closeAudit": "Закрыть аудит"
     },
-
     "confirm": {
       "close": "Закрыть эту сессию аудита? Это действие нельзя отменить."
     },
-
     "errors": {
       "loadFailed": "Не удалось загрузить аудит",
       "closeFailed": "Не удалось закрыть аудит"
     },
-
     "modal": {
       "title": "Результаты аудита",
       "confirmed": "Подтверждено",
@@ -393,25 +373,21 @@
   "userManagement": {
     "title": "Управление пользователями",
     "subtitle": "Управляйте аккаунтами и правами доступа",
-
     "stats": {
       "all": "Все пользователи",
       "approved": "Одобрены",
       "pending": "Ожидают"
     },
-
     "roles": {
       "owner": "Владелец",
       "warehouse": "Склад",
       "branch": "Филиал",
       "allLocations": "Все локации"
     },
-
     "status": {
       "approved": "Одобрено",
       "pending": "Ожидает"
     },
-
     "table": {
       "user": "Пользователь",
       "email": "Эл. почта",
@@ -420,7 +396,6 @@
       "status": "Статус",
       "actions": "Действия"
     },
-
     "actions": {
       "addUser": "Добавить",
       "approve": "Одобрить",
@@ -428,21 +403,17 @@
       "adding": "Добавляем...",
       "editRole": "Изменить роль"
     },
-
     "empty": "Пользователи не найдены",
-
     "modal": {
       "title": "Добавить пользователя",
       "subtitle": "Создайте новый аккаунт"
     },
-
     "editRole": {
       "title": "Изменить роль",
       "currentRole": "Текущая роль",
       "selectRole": "Выберите новую роль",
       "save": "Сохранить"
     },
-
     "form": {
       "emailLabel": "Email (Google аккаунт)",
       "emailPlaceholder": "user@example.com",
@@ -457,14 +428,12 @@
         "branches": "Филиалы"
       }
     },
-
     "errors": {
       "requiredFields": "Email, имя и роль обязательны.",
       "invalidEmail": "Введите корректный email адрес.",
       "noLocationForBranch": "К этой роли филиала не привязана локация.",
       "updateFailed": "Не удалось обновить роль."
     },
-
     "success": {
       "added": "Пользователь добавлен.",
       "addedLinked": "Пользователь добавлен и привязан!",
@@ -809,14 +778,12 @@
   "branchRequests": {
     "title": "Запросы на товары",
     "subtitle": "Управляйте входящими и исходящими перемещениями товаров",
-
     "tabs": {
       "new": "Новый запрос",
       "outgoing": "Мои запросы",
       "incoming": "Входящие",
       "history": "История"
     },
-
     "status": {
       "sent": "Ожидает проверки",
       "approved": "В пути",
@@ -826,7 +793,6 @@
       "awaitingReceipt": "Ожидает получения",
       "received": "Получено"
     },
-
     "toast": {
       "requestSentSuccess": "Запрос успешно отправлен!",
       "requestSentFail": "Не удалось отправить запрос",
@@ -838,7 +804,6 @@
       "confirmReceiptSuccess": "Товар получен! Остатки обновлены.",
       "confirmReceiptFail": "Не удалось подтвердить получение"
     },
-
     "common": {
       "loading": "Загрузка...",
       "searching": "Поиск...",
@@ -846,7 +811,6 @@
       "qty": "кол-во",
       "product": "Товар"
     },
-
     "newRequest": {
       "searchTitle": "Поиск товаров",
       "searchPlaceholder": "Поиск по названию или SKU...",
@@ -876,12 +840,10 @@
       "noStock": "Нет в наличии ни на одном складе",
       "addedToCartBulk": "{{count}} товаров добавлено в корзину"
     },
-
     "outgoing": {
       "emptyTitle": "Нет активных запросов",
       "emptyText": "Создайте новый запрос, чтобы начать",
       "summary": "активных запросов",
-
       "columns": {
         "products": "Товары",
         "source": "Источник",
@@ -890,18 +852,15 @@
         "date": "Дата",
         "actions": "Действия"
       },
-
       "pending": "Ожидает",
       "approved": "Одобрено",
       "cancelBtn": "Отменить",
       "receivedBtn": "Получено"
     },
-
     "incoming": {
       "emptyTitle": "Нет входящих запросов",
       "emptyText": "Здесь будут отображаться запросы от других локаций",
       "summary": "запросов ожидают решения",
-
       "columns": {
         "products": "Товары",
         "requester": "Запросивший",
@@ -909,29 +868,23 @@
         "date": "Дата",
         "actions": "Действия"
       },
-
       "rejectBtn": "Отклонить",
       "approveBtn": "Одобрить"
     },
-
     "history": {
       "direction": {
         "outgoing": "Исходящие",
         "incoming": "Входящие"
       },
-
       "searchPlaceholder": "Поиск товара или SKU...",
-
       "statusPills": {
         "all": "Все",
         "completed": "Завершено",
         "cancelled": "Отменено",
         "rejected": "Отклонено"
       },
-
       "noResultsTitle": "Нет результатов",
       "noResultsText": "Нет запросов, подходящих под фильтры",
-
       "columns": {
         "products": "Товары",
         "from": "Откуда",
@@ -940,7 +893,6 @@
         "status": "Статус",
         "date": "Дата"
       },
-
       "showing": "Показано {{filtered}} из {{all}} запросов",
       "loadMore": "Загрузить ещё (сейчас: {{count}})"
     }
@@ -1353,7 +1305,7 @@
       "rejected": "Отклонено"
     }
   },
-   "warehouseStockCorrections": {
+  "warehouseStockCorrections": {
     "page": {
       "title": "Коррекции склада",
       "subtitle": "Сообщайте и отслеживайте расхождения между фактом и системой"
@@ -1465,6 +1417,35 @@
       "owner": "Owner",
       "warehouse": "Warehouse",
       "branch": "Branch"
+    }
+  },
+  "ownerBranchRequests": {
+    "title": "Глобальные межфилиальные запросы",
+    "subtitle": "Обзор всех запросов на перемещение запасов между складами и филиалами.",
+    "filters": {
+      "search": "Поиск филиала или продукта...",
+      "allStatuses": "Все статусы",
+      "anySource": "Любой источник",
+      "anyDest": "Любой пункт назначения"
+    },
+    "loading": "Загрузка глобальных запросов...",
+    "empty": "Запросы филиалов, соответствующие критериям, не найдены.",
+    "transferTo": "Перемещение в {{name}}",
+    "id": "ID",
+    "from": "Из",
+    "table": {
+      "product": "Продукт",
+      "requested": "Запрошено",
+      "approved": "Одобрено",
+      "status": "Статус"
+    },
+    "status": {
+      "pending": "В ожидании",
+      "approved": "Одобрено",
+      "rejected": "Отклонено",
+      "completed": "Завершено",
+      "cancelled": "Отменено",
+      "requestedItem": "Запрошенный товар"
     }
   }
 }
