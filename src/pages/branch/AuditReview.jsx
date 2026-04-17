@@ -1,6 +1,6 @@
 // src/pages/branch/AuditReview.jsx
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
@@ -491,9 +491,9 @@ export default function BranchAuditReview({ asTab = false }) {
             .select("*")
             .eq("location_id", locationId);
 
-          const { data: productsData } = await supabase
-            .from("products")
-            .select("id, name, sku");
+          const { data: productsData } = await fetchAll(() =>
+            supabase.from("products").select("id, name, sku")
+          );
 
           if (productsData) setProducts(productsData);
 
@@ -530,8 +530,8 @@ export default function BranchAuditReview({ asTab = false }) {
       }
 
       const [productsRes, plRes] = await Promise.all([
-        supabase.from("products").select("id, name, sku, category_id"),
-        supabase.from("product_list").select("product_id, location_id, quantity"),
+        fetchAll(() => supabase.from("products").select("id, name, sku, category_id")),
+        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity")),
       ]);
 
       if (productsRes.error) throw productsRes.error;

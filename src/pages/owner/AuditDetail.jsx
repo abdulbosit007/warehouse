@@ -1,7 +1,7 @@
 // src/pages/owner/AuditDetail.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import {
@@ -161,8 +161,8 @@ export default function OwnerAuditDetail() {
       const [sessRes, locRes, respRes, productsRes] = await Promise.all([
         supabase.from("inventory_audit_sessions").select("*").eq("id", sessionId).single(),
         supabase.from("locations").select("id, name, location_name, kind, code"),
-        supabase.from("inventory_audit_responses").select("*").eq("session_id", sessionId),
-        supabase.from("products").select("id, name, sku, category_id"),
+        fetchAll(() => supabase.from("inventory_audit_responses").select("*").eq("session_id", sessionId)),
+        fetchAll(() => supabase.from("products").select("id, name, sku, category_id")),
       ]);
 
       if (sessRes.error) throw sessRes.error;

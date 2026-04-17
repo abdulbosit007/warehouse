@@ -1,7 +1,7 @@
 // src/pages/warehouse/AuditReview.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import CustomSelect from "../../components/CustomSelect";
 import {
@@ -447,9 +447,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
             .select("*")
             .eq("location_id", warehouseLocation.id);
 
-          const { data: productsData, error: productsError } = await supabase
-            .from("products")
-            .select("id, name, sku");
+          const { data: productsData, error: productsError } = await fetchAll(() =>
+            supabase.from("products").select("id, name, sku")
+          );
           if (!productsError && productsData) setProducts(productsData);
 
           if (allSessions && pastData) {
@@ -485,8 +485,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
       }
 
       const [productsRes, plRes] = await Promise.all([
-        supabase.from("products").select("id, name, sku, category_id"),
-        supabase.from("product_list").select("product_id, location_id, quantity"),
+        fetchAll(() => supabase.from("products").select("id, name, sku, category_id")),
+        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity")),
       ]);
 
       if (productsRes.error) throw productsRes.error;
