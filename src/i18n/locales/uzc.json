@@ -367,7 +367,9 @@
       "unknownProduct": "Номаълум маҳсулот",
       "system": "Тизим",
       "actual": "Амалдаги",
-      "noCorrections": "Тузатиш керак эмас — ҳамма миқдор мос!"
+      "noCorrections": "Тузатиш керак эмас — ҳамма миқдор мос!",
+      "branchQty": "Филиал",
+      "smallWarehouseQty": "Кичик омбор"
     }
   },
   "userManagement": {
@@ -716,7 +718,10 @@
       "enterActualQty": "Ҳақиқий миқдорни киритинг",
       "correct": "Тўғри",
       "wrong": "Нотўғри",
-      "invalidQty": "Илтимос, тўғри миқдор киритинг"
+      "invalidQty": "Илтимос, тўғри миқдор киритинг",
+      "branchQty": "Филиалдаги сони",
+      "smallWarehouseQty": "Кичик омбордаги сони",
+      "total": "Жами"
     },
     "progress": {
       "title": "Текширув жараёни",

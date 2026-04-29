@@ -368,7 +368,9 @@
       "unknownProduct": "Unknown Product",
       "system": "System",
       "actual": "Actual",
-      "noCorrections": "No corrections needed - all quantities match!"
+      "noCorrections": "No corrections needed - all quantities match!",
+      "branchQty": "Branch",
+      "smallWarehouseQty": "Small WH"
     }
   },
   "userManagement": {
@@ -719,7 +721,10 @@
       "enterActualQty": "Enter Actual Quantity",
       "correct": "Correct",
       "wrong": "Wrong",
-      "invalidQty": "Please enter a valid quantity"
+      "invalidQty": "Please enter a valid quantity",
+      "branchQty": "Branch Qty",
+      "smallWarehouseQty": "Small Warehouse Qty",
+      "total": "Total"
     },
     "progress": {
       "title": "Review Progress",
