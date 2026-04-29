@@ -16,7 +16,7 @@ import {
   Package,
 } from "lucide-react";
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ───────────────────────────────────────────────────────────────────────────
    Locale helpers
 ───────────────────────────────────────────────────────────────────────────── */
 function getLocale(lang) {
@@ -475,7 +475,7 @@ export default function OwnerAuditDetail() {
                   const diff = resp.reported_qty - resp.system_qty_at_submit;
 
                   return (
-                    <div key={resp.id} className="rounded-xl border border-red-200 bg-red-50 p-4">
+                    <div key={resp.id} className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <h5 className="font-medium text-neutral-900 truncate">
@@ -499,6 +499,13 @@ export default function OwnerAuditDetail() {
                           </div>
                         </div>
                       </div>
+                      {resp.metadata && (
+                        <div className="flex items-center gap-3 text-xs text-neutral-500 pt-2 border-t border-red-200">
+                          <span>{t("ownerAuditDetail.modal.branchQty")}: <b>{resp.metadata.branch_qty}</b></span>
+                          <span className="text-neutral-300">|</span>
+                          <span>{t("ownerAuditDetail.modal.smallWarehouseQty")}: <b>{resp.metadata.small_warehouse_qty}</b></span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

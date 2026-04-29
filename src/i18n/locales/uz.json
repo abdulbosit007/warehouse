@@ -364,10 +364,12 @@
       "corrections": "Tuzatishlar",
       "totalProducts": "Jami mahsulotlar",
       "correctionsWithCount": "Tuzatishlar ({{count}})",
-      "unknownProduct": "Noma’lum mahsulot",
+      "unknownProduct": "Noma'lum mahsulot",
       "system": "Tizim",
       "actual": "Amaldagi",
-      "noCorrections": "Tuzatish kerak emas — hamma miqdor mos!"
+      "noCorrections": "Tuzatish kerak emas — hamma miqdor mos!",
+      "branchQty": "Filial",
+      "smallWarehouseQty": "Kichik ombor"
     }
   },
   "userManagement": {
@@ -711,13 +713,16 @@
     },
     "product": {
       "systemQty": "Sistemadagi son",
-      "verifiedCorrect": "Tekshirildi: to‘g‘ri",
+      "verifiedCorrect": "Tekshirildi: to'g'ri",
       "discrepancyFound": "Farq aniqlandi",
       "actual": "Haqiqiy",
       "enterActualQty": "Haqiqiy miqdorni kiriting",
-      "correct": "To‘g‘ri",
-      "wrong": "Noto‘g‘ri",
-      "invalidQty": "Iltimos, to‘g‘ri miqdor kiriting"
+      "correct": "To'g'ri",
+      "wrong": "Noto'g'ri",
+      "invalidQty": "Iltimos, to'g'ri miqdor kiriting",
+      "branchQty": "Filialdagi soni",
+      "smallWarehouseQty": "Kichik ombordagi soni",
+      "total": "Jami"
     },
     "progress": {
       "title": "Tekshiruv jarayoni",

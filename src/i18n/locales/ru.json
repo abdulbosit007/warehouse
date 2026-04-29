@@ -367,7 +367,9 @@
       "unknownProduct": "Неизвестный товар",
       "system": "Система",
       "actual": "Факт",
-      "noCorrections": "Исправления не нужны — все количества совпадают!"
+      "noCorrections": "Исправления не нужны — все количества совпадают!",
+      "branchQty": "Филиал",
+      "smallWarehouseQty": "Мини-склад"
     }
   },
   "userManagement": {
@@ -718,7 +720,10 @@
       "enterActualQty": "Введите фактическое количество",
       "correct": "Верно",
       "wrong": "Неверно",
-      "invalidQty": "Введите корректное количество"
+      "invalidQty": "Введите корректное количество",
+      "branchQty": "Кол-во в филиале",
+      "smallWarehouseQty": "Кол-во на складе",
+      "total": "Итого"
     },
     "progress": {
       "title": "Прогресс проверки",
