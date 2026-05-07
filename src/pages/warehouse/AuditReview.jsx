@@ -577,8 +577,15 @@ export default function WarehouseAuditReview({ asTab = false }) {
     });
   };
 
+  // Products with non-zero qty at this location (the main audit list)
+  const nonZeroProducts = useMemo(() => {
+    return products.filter((p) => getQtyAt(p.id) > 0);
+  }, [products, productList, warehouseLocation]);
+
   const filteredProducts = useMemo(() => {
-    let result = [...products];
+    const isSearching = searchQuery.trim().length > 0;
+    // Start with all products when searching, otherwise only non-zero
+    let result = isSearching ? [...products] : [...nonZeroProducts];
 
     if (statusFilter === "pending") result = result.filter((p) => !reviews[p.id]);
     else if (statusFilter === "confirmed") result = result.filter((p) => reviews[p.id]?.status === "confirmed");
@@ -586,7 +593,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
     if (categoryFilter) result = result.filter((p) => p.category_id === categoryFilter);
 
-    if (searchQuery.trim()) {
+    if (isSearching) {
       const q = searchQuery.toLowerCase();
       result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     }
@@ -595,9 +602,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
     else if (sortOrder === "qty_desc") result.sort((a, b) => getQtyAt(b.id) - getQtyAt(a.id));
 
     return result;
-  }, [products, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation]);
+  }, [products, nonZeroProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation]);
 
-  const pendingProducts = useMemo(() => products.filter((p) => !reviews[p.id]), [products, reviews]);
+  const pendingProducts = useMemo(() => nonZeroProducts.filter((p) => !reviews[p.id]), [nonZeroProducts, reviews]);
   const currentPendingId = pendingProducts[currentPendingIndex]?.id || null;
 
   useEffect(() => {
@@ -620,16 +627,20 @@ export default function WarehouseAuditReview({ asTab = false }) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  const allReviewed = products.length > 0 && Object.keys(reviews).length === products.length;
+  // Allow submission when all non-zero qty products are reviewed
+  const allReviewed = nonZeroProducts.length > 0 && nonZeroProducts.every((p) => reviews[p.id]);
 
   async function handleSubmitAll() {
     if (!allReviewed || !openSession || !warehouseLocation) return;
+
+    // Only submit products that have been reviewed (non-zero products + any searched 0-qty that were reviewed)
+    const reviewedProducts = products.filter((p) => reviews[p.id]);
 
     setSubmitting(true);
     setError(null);
 
     try {
-      const responses = products.map((p) => ({
+      const responses = reviewedProducts.map((p) => ({
         session_id: openSession.id,
         location_id: warehouseLocation.id,
         product_id: p.id,
@@ -962,7 +973,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
                     {t("warehouseAudit.labels.pending")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
-                    {products.length - Object.keys(reviews).length}
+                    {nonZeroProducts.length - nonZeroProducts.filter((p) => reviews[p.id]).length}
                   </p>
                 </div>
                 <div className="p-2 rounded-xl text-neutral-500 bg-white/50">
@@ -976,9 +987,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-neutral-800">{t("warehouseAudit.progress.title")}</span>
               <span className="text-sm font-bold text-blue-600">
-                {Object.keys(reviews).length} / {products.length}
+                {nonZeroProducts.filter((p) => reviews[p.id]).length} / {nonZeroProducts.length}
                 <span className="ml-2 text-neutral-400">
-                  ({products.length > 0 ? Math.round((Object.keys(reviews).length / products.length) * 100) : 0}%)
+                  ({nonZeroProducts.length > 0 ? Math.round((nonZeroProducts.filter((p) => reviews[p.id]).length / nonZeroProducts.length) * 100) : 0}%)
                 </span>
               </span>
             </div>
@@ -986,7 +997,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
               <div
                 className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300"
                 style={{
-                  width: `${products.length > 0 ? (Object.keys(reviews).length / products.length) * 100 : 0}%`,
+                  width: `${nonZeroProducts.length > 0 ? (nonZeroProducts.filter((p) => reviews[p.id]).length / nonZeroProducts.length) * 100 : 0}%`,
                 }}
               />
             </div>
@@ -1006,7 +1017,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
             <div className="flex flex-wrap gap-2">
               {[
-                { key: "all", label: t("warehouseAudit.tabs.all"), count: products.length },
+                { key: "all", label: t("warehouseAudit.tabs.all"), count: searchQuery.trim() ? filteredProducts.length : nonZeroProducts.length },
                 { key: "pending", label: t("warehouseAudit.tabs.pending"), count: pendingProducts.length },
                 {
                   key: "confirmed",
