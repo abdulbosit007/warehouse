@@ -639,15 +639,47 @@ export default function BranchAuditReview({ asTab = false }) {
 
   const qtyKey = activeLocationTab === "branch" ? "branchQty" : "smallWarehouseQty";
 
+  // Products with non-zero qty at this location (the main audit list)
+  const nonZeroProducts = useMemo(() => {
+    return products.filter((p) => getQtyAt(p.id) > 0);
+  }, [products, productList, locationId]);
+
+  // Check if the OTHER tab already covers the full system qty (0 remaining for current tab)
+  const hasZeroRemaining = (productId) => {
+    const systemQty = getQtyAt(productId);
+    const otherKey = activeLocationTab === "branch" ? "smallWarehouseQty" : "branchQty";
+    const otherVal = reviews[productId]?.[otherKey];
+    return otherVal != null && otherVal >= systemQty;
+  };
+
+  // Check if a product is fully done: both tabs filled, OR one tab covers full system qty
+  const isProductFullyReviewed = (productId) => {
+    const r = reviews[productId];
+    if (!r) return false;
+    if (r.branchQty != null && r.smallWarehouseQty != null) return true;
+    const systemQty = getQtyAt(productId);
+    if (r.branchQty != null && r.branchQty >= systemQty) return true;
+    if (r.smallWarehouseQty != null && r.smallWarehouseQty >= systemQty) return true;
+    return false;
+  };
+
   const filteredProducts = useMemo(() => {
-    let result = [...products];
+    const isSearching = searchQuery.trim().length > 0;
+    let result;
+
+    if (isSearching) {
+      // When searching, show all products (including 0-qty and 0-remaining)
+      result = [...products];
+    } else {
+      // Hide products with 0 system qty AND products where other tab already covers full qty
+      result = nonZeroProducts.filter((p) => !hasZeroRemaining(p.id));
+    }
 
     if (statusFilter === "pending") {
       result = result.filter((p) => reviews[p.id]?.[qtyKey] == null);
     } else if (statusFilter === "confirmed") {
       result = result.filter((p) => reviews[p.id]?.[qtyKey] != null);
     } else if (statusFilter === "rejected") {
-      // Show products with discrepancy (both tabs done, total != system)
       result = result.filter((p) => reviews[p.id]?.status === "rejected");
     }
 
@@ -655,7 +687,7 @@ export default function BranchAuditReview({ asTab = false }) {
       result = result.filter((p) => p.category_id === categoryFilter);
     }
 
-    if (searchQuery.trim()) {
+    if (isSearching) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (p) =>
@@ -671,23 +703,25 @@ export default function BranchAuditReview({ asTab = false }) {
     }
 
     return result;
-  }, [products, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey]);
+  }, [products, nonZeroProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey, activeLocationTab]);
 
+  // Pending: non-zero products that need input on this tab AND aren't auto-covered by the other tab
   const pendingProducts = useMemo(() => {
-    return products.filter((p) => reviews[p.id]?.[qtyKey] == null);
-  }, [products, reviews, qtyKey]);
+    return nonZeroProducts.filter((p) => reviews[p.id]?.[qtyKey] == null && !hasZeroRemaining(p.id));
+  }, [nonZeroProducts, reviews, qtyKey, activeLocationTab]);
 
+  // Count of products entered or auto-covered on this tab
   const tabEnteredCount = useMemo(() => {
-    return products.filter((p) => reviews[p.id]?.[qtyKey] != null).length;
-  }, [products, reviews, qtyKey]);
+    return nonZeroProducts.filter((p) => reviews[p.id]?.[qtyKey] != null || hasZeroRemaining(p.id)).length;
+  }, [nonZeroProducts, reviews, qtyKey, activeLocationTab]);
 
   const branchDoneCount = useMemo(() => {
-    return products.filter((p) => reviews[p.id]?.branchQty != null).length;
-  }, [products, reviews]);
+    return nonZeroProducts.filter((p) => reviews[p.id]?.branchQty != null || (reviews[p.id]?.smallWarehouseQty != null && reviews[p.id]?.smallWarehouseQty >= getQtyAt(p.id))).length;
+  }, [nonZeroProducts, reviews, productList, locationId]);
 
   const swDoneCount = useMemo(() => {
-    return products.filter((p) => reviews[p.id]?.smallWarehouseQty != null).length;
-  }, [products, reviews]);
+    return nonZeroProducts.filter((p) => reviews[p.id]?.smallWarehouseQty != null || (reviews[p.id]?.branchQty != null && reviews[p.id]?.branchQty >= getQtyAt(p.id))).length;
+  }, [nonZeroProducts, reviews, productList, locationId]);
 
   const currentPendingId = pendingProducts[currentPendingIndex]?.id || null;
 
@@ -716,29 +750,43 @@ export default function BranchAuditReview({ asTab = false }) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  // Allow submission when all non-zero qty products are fully reviewed
+  // (both tabs filled, OR one tab covers the full system qty)
   const allReviewed =
-    products.length > 0 &&
-    products.every((p) => reviews[p.id]?.branchQty != null && reviews[p.id]?.smallWarehouseQty != null);
+    nonZeroProducts.length > 0 &&
+    nonZeroProducts.every((p) => isProductFullyReviewed(p.id));
 
   async function handleSubmitAll() {
     if (!allReviewed || !openSession || !locationId) return;
+
+    // Collect all products that are fully reviewed (including auto-covered ones)
+    // For products where one tab covers the full qty, auto-fill 0 for the missing tab
+    const reviewedProducts = products.filter((p) => isProductFullyReviewed(p.id));
 
     setSubmitting(true);
     setError(null);
 
     try {
-      const responses = products.map((p) => ({
-        session_id: openSession.id,
-        location_id: locationId,
-        product_id: p.id,
-        status: reviews[p.id].status,
-        reported_qty: reviews[p.id].reportedQty ?? null,
-        system_qty_at_submit: getQtyAt(p.id),
-        submitted_by: userRow?.user_id ?? null,
-        metadata: reviews[p.id].branchQty != null
-          ? { branch_qty: reviews[p.id].branchQty, small_warehouse_qty: reviews[p.id].smallWarehouseQty }
-          : null,
-      }));
+      const responses = reviewedProducts.map((p) => {
+        const r = reviews[p.id] || {};
+        const systemQty = getQtyAt(p.id);
+        // Auto-fill 0 for the missing tab when one tab covers the full qty
+        const branchQty = r.branchQty ?? 0;
+        const swQty = r.smallWarehouseQty ?? 0;
+        const total = branchQty + swQty;
+        const status = total === systemQty ? "confirmed" : "rejected";
+
+        return {
+          session_id: openSession.id,
+          location_id: locationId,
+          product_id: p.id,
+          status,
+          reported_qty: status === "rejected" ? total : null,
+          system_qty_at_submit: systemQty,
+          submitted_by: userRow?.user_id ?? null,
+          metadata: { branch_qty: branchQty, small_warehouse_qty: swQty },
+        };
+      });
 
       const { error: insertErr } = await supabase
         .from("inventory_audit_responses")
@@ -810,7 +858,7 @@ export default function BranchAuditReview({ asTab = false }) {
 
   const confirmedCount = Object.values(reviews).filter((r) => r.status === "confirmed").length;
   const rejectedCount = Object.values(reviews).filter((r) => r.status === "rejected").length;
-  const pendingCount = products.length - tabEnteredCount;
+  const pendingCount = nonZeroProducts.length - tabEnteredCount;
 
   return (
     <div className="space-y-6">
@@ -1104,7 +1152,7 @@ export default function BranchAuditReview({ asTab = false }) {
                 { key: "smallWarehouse", label: t("branchAudit.product.smallWarehouseQty"), icon: "📦", count: swDoneCount },
               ].map((tab) => {
                 const isActive = activeLocationTab === tab.key;
-                const isDone = tab.count === products.length;
+                const isDone = tab.count === nonZeroProducts.length;
                 return (
                   <button
                     key={tab.key}
@@ -1124,7 +1172,7 @@ export default function BranchAuditReview({ asTab = false }) {
                           ? "bg-emerald-100 text-emerald-600"
                           : "bg-neutral-100 text-neutral-500"
                     }`}>
-                      {tab.count}/{products.length}
+                      {tab.count}/{nonZeroProducts.length}
                     </span>
                     {isDone && (
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute top-1.5 right-1.5" />
@@ -1142,10 +1190,10 @@ export default function BranchAuditReview({ asTab = false }) {
                 {t("branchAudit.progress.title")}
               </span>
               <span className="text-sm font-bold text-emerald-600">
-                {tabEnteredCount} / {products.length}
+                {tabEnteredCount} / {nonZeroProducts.length}
                 <span className="ml-2 text-neutral-400">
-                  ({products.length > 0
-                    ? Math.round((tabEnteredCount / products.length) * 100)
+                  ({nonZeroProducts.length > 0
+                    ? Math.round((tabEnteredCount / nonZeroProducts.length) * 100)
                     : 0}%)
                 </span>
               </span>
@@ -1154,7 +1202,7 @@ export default function BranchAuditReview({ asTab = false }) {
               <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
                 style={{
-                  width: `${products.length > 0 ? (tabEnteredCount / products.length) * 100 : 0}%`,
+                  width: `${nonZeroProducts.length > 0 ? (tabEnteredCount / nonZeroProducts.length) * 100 : 0}%`,
                 }}
               />
             </div>
@@ -1176,7 +1224,7 @@ export default function BranchAuditReview({ asTab = false }) {
             {/* Status Tabs */}
             <div className="flex flex-wrap gap-2">
               {[
-                { key: "all", label: t("branchAudit.filters.all"), count: products.length },
+                { key: "all", label: t("branchAudit.filters.all"), count: searchQuery.trim() ? filteredProducts.length : nonZeroProducts.length },
                 { key: "pending", label: t("branchAudit.filters.pending"), count: pendingCount },
                 { key: "confirmed", label: t("branchAudit.filters.confirmed"), count: tabEnteredCount },
                 { key: "rejected", label: t("branchAudit.filters.discrepancies"), count: rejectedCount },
