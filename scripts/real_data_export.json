@@ -1,0 +1,49 @@
+{
+  "exported_at": "2026-05-07T17:41:54.957Z",
+  "summary": {
+    "total_products": 0,
+    "total_categories": 0,
+    "total_locations": 5,
+    "total_stock_rows": 0
+  },
+  "categories": [],
+  "locations": [
+    {
+      "id": "29a131cb-70da-45bc-ab36-32a22ce86d64",
+      "name": "Branch-1",
+      "location_name": "Bek-To'pi 9B",
+      "kind": "branch",
+      "code": "b1"
+    },
+    {
+      "id": "3fe3fcf1-750c-45bf-94e1-408f741265d8",
+      "name": "Branch-2",
+      "location_name": "Jomiy",
+      "kind": "branch",
+      "code": "b2"
+    },
+    {
+      "id": "4c5524fd-2512-4077-9758-60e1ac6c6d7a",
+      "name": "Branch-3",
+      "location_name": "Pavilion",
+      "kind": "branch",
+      "code": "b3"
+    },
+    {
+      "id": "f407e07e-dc91-425d-a3d2-e7d3db7b5ed2",
+      "name": "Warehouse-2",
+      "location_name": "SU",
+      "kind": "warehouse",
+      "code": "w2"
+    },
+    {
+      "id": "483b6b56-ce3f-446c-a5d0-4b8ffcc27997",
+      "name": "Warehouse-1",
+      "location_name": "Ombor",
+      "kind": "warehouse",
+      "code": "w1"
+    }
+  ],
+  "products": [],
+  "product_list": []
+}

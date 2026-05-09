@@ -784,7 +784,6 @@ export default function BranchAuditReview({ asTab = false }) {
           reported_qty: status === "rejected" ? total : null,
           system_qty_at_submit: systemQty,
           submitted_by: userRow?.user_id ?? null,
-          metadata: { branch_qty: branchQty, small_warehouse_qty: swQty },
         };
       });
 

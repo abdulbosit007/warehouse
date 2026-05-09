@@ -1,0 +1,207 @@
+=== PROJECT TITLE ===
+
+Intelligent Warehouse Management System (WMS) with ML-Powered Demand Forecasting
+
+A full-stack, role-based web application for managing multi-location warehouse and branch inventory operations in real time, enhanced with an XGBoost machine learning model for demand prediction and smart restocking recommendations.
+
+
+=== PROBLEM STATEMENT ===
+
+• Small and mid-sized retail businesses with multiple branches and warehouses rely on manual processes (spreadsheets, phone calls, paper forms) to track inventory, process sales, handle stock transfers, and manage loans — leading to data loss, stock discrepancies, and delayed decisions.
+
+• Traditional inventory systems lack role-specific dashboards, meaning warehouse staff, branch staff, and business owners all see the same interface, creating confusion and security risks with sensitive data like pricing and profit margins.
+
+• Demand forecasting in existing systems is either absent or based on simple averages, causing overstocking of slow-moving items and stockouts of popular products — directly impacting revenue and customer satisfaction.
+
+
+=== PROJECT OBJECTIVES ===
+
+• Build a production-ready, role-based WMS supporting 3 distinct user roles (Owner, Warehouse Staff, Branch Staff) with dedicated dashboards, serving 5+ physical locations (2 warehouses, 3 branches) and managing 1,500+ product SKUs.
+
+• Implement a complete inventory lifecycle — from product intake and batch tracking through inter-branch stock transfers, point-of-sale operations, loan management, returns processing, and inventory auditing — all within a single unified platform.
+
+• Develop and integrate an ML-based demand forecasting system using XGBoost that outperforms the traditional Weighted Moving Average (WMA) baseline, providing data-driven restocking recommendations to reduce stockouts and overstock situations.
+
+
+=== SYSTEM ARCHITECTURE ===
+
+The system follows a modern client-server architecture with three main layers:
+
+1. FRONTEND (Client Layer)
+   - Single-Page Application (SPA) built with React 19 + Vite
+   - Role-based routing: /owner/*, /warehouse/*, /branch/* — each with dedicated layouts
+   - Three layout shells: OwnerLayout, WarehouseLayout, BranchLayout
+   - 86 source files, 30,648 lines of JavaScript/JSX code
+   - 10 custom React hooks for authentication, product search, navigation badges, etc.
+   - Real-time UI updates via Supabase subscription listeners
+   - Multi-language support: English, Russian, Uzbek (Latin), Uzbek (Cyrillic)
+
+2. BACKEND (Database + Auth Layer)
+   - Supabase (PostgreSQL) as the Backend-as-a-Service (BaaS)
+   - Row Level Security (RLS) policies enforcing data access per user role
+   - Google OAuth 2.0 authentication via Supabase Auth
+   - Database tables: products, categories, locations, product_list, transactions, transaction_items, branch_requests, branch_request_items, inventory_corrections, and more
+   - Stored procedures (RPCs) for atomic stock operations: add_stock, deduct_stock
+   - Database triggers for batch processing and constraint enforcement
+
+3. ML PREDICTION LAYER
+   - Python FastAPI server (port 8787) serving the trained XGBoost model
+   - Trained on 18-24 months of synthetic demand data across all product SKUs
+   - REST API endpoints: /health, /predict, /predict/batch
+   - Vectorized batch predictions: 1,500 products in ~3 seconds
+   - Graceful fallback to WMA when ML server is offline
+
+DATA FLOW:
+   User Action → React Frontend → Supabase API (REST/Realtime) → PostgreSQL
+   Forecasting: React → HTTP POST → FastAPI → XGBoost Model → Prediction Response
+   Authentication: Google OAuth → Supabase Auth → JWT Token → Role-Based Access
+
+
+=== TOOLS & TECHNOLOGIES ===
+
+FRONTEND:
+   • React 19.1 — UI component library
+   • Vite 7.0 — Build tool and dev server
+   • React Router DOM 7.7 — Client-side routing
+   • TailwindCSS 3.4 — Utility-first CSS framework
+   • Recharts 3.8 — Data visualization (charts, graphs)
+   • Lucide React — Icon library
+   • MUI (Material-UI) 7.3 — UI component library
+   • react-i18next — Internationalization framework
+   • react-day-picker — Date picker component
+   • dayjs — Date manipulation library
+   • xlsx — Excel file export
+
+BACKEND & DATABASE:
+   • Supabase — Backend-as-a-Service (PostgreSQL + Auth + Realtime + Storage)
+   • PostgreSQL — Relational database
+   • Google OAuth 2.0 — Authentication provider
+   • Row Level Security (RLS) — Database-level access control
+
+MACHINE LEARNING:
+   • Python 3.13 — ML server runtime
+   • XGBoost — Gradient boosted tree model for demand forecasting
+   • scikit-learn — Model training and evaluation
+   • Random Forest — Baseline comparison model
+   • pandas / NumPy — Data manipulation
+   • FastAPI — REST API framework for model serving
+   • Uvicorn — ASGI server
+   • joblib — Model serialization
+
+DEVELOPMENT & DEPLOYMENT:
+   • Git / GitHub — Version control (95 commits, 2 contributors)
+   • Vercel — Frontend deployment
+   • ESLint — Code quality
+   • PostCSS / Autoprefixer — CSS processing
+   • VS Code — Primary IDE
+
+
+=== DEVELOPMENT PROCESS ===
+
+STAGE 1: REQUIREMENTS ANALYSIS & PLANNING (Aug 2025)
+   Conducted analysis of the real business workflow at a multi-branch retail operation in Uzbekistan. Identified 3 user roles (Owner, Warehouse Staff, Branch Staff), mapped out the inventory lifecycle, and defined the database schema including 10+ tables with relationships. Planned the role-based access control model and determined the technology stack.
+
+STAGE 2: DATABASE DESIGN & AUTHENTICATION (Aug–Sep 2025)
+   Designed and implemented the Supabase PostgreSQL schema with tables for products, categories, locations, transactions, and inventory tracking. Configured Google OAuth authentication, created Row Level Security (RLS) policies for each user role, and built stored procedures for atomic stock operations (add_stock, deduct_stock) to prevent race conditions and data inconsistencies.
+
+STAGE 3: CORE INVENTORY FEATURES (Sep–Dec 2025)
+   Built the product management system supporting 1,500+ SKUs with categories, pricing (cost and sale price), and multi-location stock tracking. Implemented the full transaction lifecycle: incoming product registration with batch tracking, point-of-sale operations with dynamic cart, sale returns, loan management (with due dates), and loan returns. Created the inter-branch stock request workflow with approval chains.
+
+STAGE 4: ROLE-BASED DASHBOARDS & OPERATIONS (Jan–Mar 2026)
+   Developed three dedicated dashboard interfaces:
+   - Owner Dashboard: Global inventory view across all locations, analytics with revenue charts (line, bar, pie), user management, location settings, incoming product batches, and monthly report generation with Excel export.
+   - Warehouse Dashboard: Stock management, branch request fulfillment, owner request processing, stock corrections, and batch detail views.
+   - Branch Dashboard: Point-of-sale operations (sale, return, loan), stock request creation, inventory corrections, and localized transaction history.
+   Implemented real-time notification badges, product search with debouncing, and pagination for large datasets.
+
+STAGE 5: ADVANCED FEATURES (Mar–Apr 2026)
+   Added inventory auditing system with dual-tab interface (branch + small warehouse), allowing physical stock counts against system records with discrepancy detection and correction workflows. Implemented the Smart Restock recommendation engine using Weighted Moving Average (WMA) with configurable weights [0.2, 0.3, 0.5]. Built comprehensive sales analytics with visual charts, branch performance comparison, and category-level revenue breakdown. Added multi-language support (4 languages: EN, RU, UZ, UZ-Cyrillic) with 44,000+ translation keys.
+
+STAGE 6: ML MODEL INTEGRATION (May 2026)
+   Generated synthetic training data (18-24 months × 1,500+ products × 5 locations) based on real product catalog. Trained an XGBoost regression model achieving superior accuracy over the WMA baseline. Built a Python FastAPI prediction server with vectorized batch processing. Integrated the ML model into the React frontend with a WMA/ML toggle switch, confidence indicators, and automatic fallback to WMA when the ML server is offline. The model uses 26 engineered features including lag variables, rolling averages, seasonality encoding, price tiers, and location type.
+
+
+=== CHALLENGES & RESOLUTIONS ===
+
+CHALLENGE 1: Race Conditions in Stock Operations
+   Problem: When multiple users simultaneously sell or transfer the same product, stock quantities could go negative or become inconsistent due to concurrent read-modify-write operations on the product_list table.
+   Resolution: Implemented PostgreSQL stored procedures (RPCs) using SELECT ... FOR UPDATE row-level locking. The deduct_stock and add_stock functions execute as atomic database transactions, preventing concurrent modifications. Added a database constraint to reject any update that would result in negative stock quantities.
+
+CHALLENGE 2: Scaling to 1,500+ Products with Supabase's 1,000-Row Limit
+   Problem: Supabase's default API returns a maximum of 1,000 rows per query. Many views (product tables, audit reviews, inventory batches) needed to display all 1,500+ products, causing incomplete data rendering and broken features.
+   Resolution: Built a custom fetchAll() utility function that automatically paginates through results using Supabase's .range() method. It fetches data in 1,000-row batches and concatenates results until all rows are retrieved. Applied this pattern consistently across 20+ queries throughout the application.
+
+CHALLENGE 3: ML Model Performance with Large Batch Predictions
+   Problem: The initial ML prediction API processed products one-by-one in a Python loop, creating a new pandas DataFrame and calling model.predict() for each of the 1,580 products. This took over 30 seconds and caused browser timeouts (NS_BINDING_ABORTED).
+   Resolution: Refactored the batch endpoint to use vectorized prediction — building a single DataFrame for all products and calling model.predict() once. This reduced prediction time from 30+ seconds to ~3 seconds for 1,500 products (a 10x improvement). Also increased the frontend timeout and added an ignore-ref pattern to handle React StrictMode's double-rendering.
+
+
+=== RESULTS ===
+
+SYSTEM SCALE:
+   • 1,500+ product SKUs managed across 5 physical locations
+   • 86 source files containing 30,648 lines of code
+   • 95 Git commits from 2 developers over 9 months (Aug 2025 – May 2026)
+   • 3 distinct user roles with dedicated dashboards and access controls
+   • 4 languages supported (English, Russian, Uzbek Latin, Uzbek Cyrillic)
+   • 44,000+ translation keys for full internationalization
+
+FEATURE COMPLETENESS:
+   • Complete inventory lifecycle: intake → storage → transfer → sale → return → audit
+   • 7 transaction types: sale, sale return, loan, loan return, stock transfer, incoming, correction
+   • Real-time analytics: sales trends, branch performance, category revenue distribution
+   • Automated monthly report generation with Excel export
+   • Inventory audit system with discrepancy detection and correction workflows
+
+ML FORECASTING PERFORMANCE:
+   • XGBoost model trained on 26 engineered features
+   • Vectorized batch prediction: 1,500 products in ~3 seconds
+   • Model uses lag features, rolling averages, seasonality encoding, and price tier classification
+   • Side-by-side WMA vs. ML comparison with confidence indicators
+   • Graceful degradation: automatic WMA fallback when ML server is offline
+
+
+=== FUTURE SCOPE ===
+
+1. MOBILE APPLICATION
+   Develop a native mobile app (React Native or Flutter) for warehouse and branch staff to perform stock counts, process sales, and handle transfers using barcode/QR code scanning directly from their smartphones, eliminating the need for desktop access on the warehouse floor.
+
+2. SUPPLIER INTEGRATION & AUTOMATED REORDERING
+   Integrate with supplier APIs to enable automatic purchase order generation when the ML model predicts stock will fall below threshold levels. This closes the loop from demand prediction to actual procurement, reducing manual intervention and lead time delays.
+
+3. ADVANCED ANALYTICS & REPORTING DASHBOARD
+   Build a dedicated analytics module with predictive insights: profit margin trend analysis, dead stock identification, ABC classification of products, customer buying pattern detection, and seasonal demand heatmaps. Add scheduled PDF/Excel report delivery via email for stakeholders.
+
+
+=== IMPACT ===
+
+This WMS directly addresses operational inefficiencies at a real multi-branch retail business in Uzbekistan. By replacing manual spreadsheet-based tracking with a real-time digital system, it eliminates data entry errors, reduces stock discrepancies found during audits, and provides instant visibility into inventory levels across all 5 locations.
+
+The role-based access control ensures that sensitive financial data (cost prices, profit margins, revenue) is visible only to the business owner, while warehouse and branch staff see only the operational data they need — improving both security and usability.
+
+The ML-powered demand forecasting capability transforms restocking from a reactive process (ordering when stock runs out) into a proactive, data-driven strategy. By predicting next month's demand per product per location, the system helps the business reduce stockouts of popular items while avoiding capital tied up in overstocked slow-moving products.
+
+The multi-language support (English, Russian, Uzbek Latin, Uzbek Cyrillic) makes the system accessible to all employees regardless of their language preference, which is critical in Uzbekistan's multilingual business environment.
+
+
+=== LESSONS LEARNED ===
+
+1. DATABASE DESIGN IS THE FOUNDATION
+   Investing time in proper PostgreSQL schema design — with correct foreign keys, unique constraints, and Row Level Security policies — prevented countless bugs later. The atomic stored procedures for stock operations proved essential when multiple users operated concurrently. Lesson: always design your data model before writing a single line of frontend code.
+
+2. PAGINATION AND SCALE MUST BE PLANNED FROM DAY ONE
+   Supabase's 1,000-row API limit only became apparent when the product catalog grew beyond that threshold, breaking multiple features simultaneously. Building the fetchAll() pagination utility and retrofitting it across 20+ queries was time-consuming. Lesson: always design for the full data scale from the start, not just the development dataset.
+
+3. ML MODEL INTEGRATION REQUIRES INFRASTRUCTURE THINKING
+   Training a model in a Jupyter notebook is fundamentally different from deploying it in a production application. The .joblib format required a Python server, the batch prediction needed vectorization for performance, and React's StrictMode created unexpected double-rendering issues. Lesson: model deployment architecture should be planned alongside model training, not as an afterthought.
+
+
+=== ACKNOWLEDGMENT ===
+
+We would like to express our sincere gratitude to our graduation project supervisor for their guidance and feedback throughout the development process.
+
+Special thanks to the management and staff of the retail business that served as our pilot deployment site, for providing access to their operational workflows, product catalogs, and real-world feedback that shaped the system's features.
+
+We also acknowledge the open-source communities behind React, Supabase, XGBoost, and the many libraries that made this project possible.
+
+Finally, we thank our university and the Computer Science department for providing the academic foundation and environment that enabled this work.
