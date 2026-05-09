@@ -232,18 +232,71 @@ export default function OwnerAuditDetail() {
   }, [locationStats, locations]);
 
   /* ─────────────────────────────────────────────────────────────────────────
-     CLOSE SESSION
+     CLOSE SESSION — applies corrections then marks closed
   ───────────────────────────────────────────────────────────────────────── */
+  const [closing, setClosing] = useState(false);
+
   async function handleClose() {
     const ok = window.confirm(t("ownerAuditDetail.confirm.close"));
     if (!ok) return;
 
+    setClosing(true);
+    setError(null);
+
     try {
-      await supabase.from("inventory_audit_sessions").update({ status: "closed" }).eq("id", sessionId);
+      // 1. Find all rejected responses (discrepancies) for this session
+      const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
+
+      // 2. For each discrepancy, update product_list to match the reported (physical) quantity
+      for (const resp of rejected) {
+        const { data: entry, error: lookupErr } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", resp.product_id)
+          .eq("location_id", resp.location_id)
+          .maybeSingle();
+
+        if (lookupErr) {
+          console.error("[closeAudit] product_list lookup error:", lookupErr);
+          continue;
+        }
+
+        if (entry) {
+          // Update existing entry to reported quantity
+          const { error: upErr } = await supabase
+            .from("product_list")
+            .update({ quantity: resp.reported_qty })
+            .eq("id", entry.id);
+
+          if (upErr) {
+            console.error("[closeAudit] product_list update error:", upErr);
+          } else {
+            console.log(
+              `[closeAudit] Updated product ${resp.product_id} at location ${resp.location_id}: ${entry.quantity} → ${resp.reported_qty}`
+            );
+          }
+        } else {
+          console.warn(
+            `[closeAudit] No product_list entry found for product ${resp.product_id} at location ${resp.location_id}`
+          );
+        }
+      }
+
+      // 3. Mark session as closed
+      const { error: closeErr } = await supabase
+        .from("inventory_audit_sessions")
+        .update({ status: "closed" })
+        .eq("id", sessionId);
+
+      if (closeErr) throw closeErr;
+
+      console.log(`[closeAudit] Session closed. ${rejected.length} corrections applied.`);
       navigate("/owner/inventory-batches");
     } catch (err) {
       console.error("Error closing session:", err);
       setError(err.message || t("ownerAuditDetail.errors.closeFailed"));
+    } finally {
+      setClosing(false);
     }
   }
 
@@ -345,10 +398,20 @@ export default function OwnerAuditDetail() {
           {isOpen && overallStats.allSubmitted && (
             <button
               onClick={handleClose}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-sm font-semibold text-white"
+              disabled={closing}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              <Check className="w-4 h-4" />
-              {t("ownerAuditDetail.actions.closeAudit")}
+              {closing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {t("ownerAuditDetail.actions.applyingCorrections") || "Applying..."}
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  {t("ownerAuditDetail.actions.closeAudit")}
+                </>
+              )}
             </button>
           )}
         </div>
