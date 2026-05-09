@@ -653,6 +653,48 @@ export default function WarehouseAuditReview({ asTab = false }) {
       const { error: insertErr } = await supabase.from("inventory_audit_responses").insert(responses);
       if (insertErr) throw insertErr;
 
+      // Immediately update product_list for discrepancies
+      const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
+      for (const resp of rejected) {
+        const { data: entry, error: lookupErr } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", resp.product_id)
+          .eq("location_id", resp.location_id)
+          .maybeSingle();
+
+        if (lookupErr) {
+          console.error("[auditSubmit] product_list lookup error:", lookupErr);
+          continue;
+        }
+        if (entry) {
+          await supabase.from("product_list").update({ quantity: resp.reported_qty }).eq("id", entry.id);
+          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${resp.reported_qty}`);
+        }
+      }
+
+      // Auto-close session if all locations have now submitted
+      try {
+        const { data: allLocations } = await supabase
+          .from("locations")
+          .select("id");
+        const { data: allResponses } = await supabase
+          .from("inventory_audit_responses")
+          .select("location_id")
+          .eq("session_id", openSession.id);
+
+        if (allLocations && allResponses) {
+          const submittedLocationIds = new Set(allResponses.map((r) => r.location_id));
+          const allSubmitted = allLocations.every((loc) => submittedLocationIds.has(loc.id));
+          if (allSubmitted) {
+            await supabase.from("inventory_audit_sessions").update({ status: "closed" }).eq("id", openSession.id);
+            console.log("[auditSubmit] All locations submitted — session auto-closed");
+          }
+        }
+      } catch (e) {
+        console.error("[auditSubmit] Auto-close check error:", e);
+      }
+
       const key = getStorageKey(openSession.id, warehouseLocation.id);
       localStorage.removeItem(key);
 
