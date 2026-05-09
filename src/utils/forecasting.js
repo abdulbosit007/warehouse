@@ -64,3 +64,78 @@ export function scoreRestock(products) {
   // Sort descending by score
   return scoredData.sort((a, b) => b.score - a.score);
 }
+
+// ─── ML Model Integration ─────────────────────────────────────────────────────
+
+const ML_API_URL = "http://localhost:8787";
+
+/**
+ * Check if the ML prediction server is running.
+ * @returns {Promise<boolean>}
+ */
+export async function checkMLServerHealth() {
+  try {
+    const res = await fetch(`${ML_API_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.status === "ok";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get ML predictions for a batch of products.
+ * Falls back to WMA if the server is unavailable.
+ *
+ * @param {Array} products - Array of product objects with sales data
+ * @param {string} locationId - The location UUID
+ * @param {string} locationKind - "warehouse" or "branch"
+ * @param {Map} salesMap - Map of product_id → [oldest, middle, newest] sales arrays
+ * @returns {Promise<Map>} Map of product_id → { ml_prediction, wma_prediction, confidence }
+ */
+export async function predictWithML(products, locationId, locationKind, salesMap) {
+  const batch = products.map(p => {
+    const salesArr = salesMap.get(p.id) || [0, 0, 0];
+    return {
+      product_id: p.id,
+      location_id: locationId,
+      location_kind: locationKind || "branch",
+      price: Number(p.price) || 0,
+      sale_price: Number(p.sale_price) || 0,
+      category: null, // real categories may not match training data
+      current_stock: p.current_stock || 0,
+      incoming_qty: 0,
+      stockout: (p.current_stock || 0) === 0,
+      sales_history: salesArr,
+    };
+  });
+
+  try {
+    const res = await fetch(`${ML_API_URL}/predict/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ products: batch }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`ML API error ${res.status}: ${text}`);
+    }
+
+    const predictions = await res.json();
+    const resultMap = new Map();
+    for (const pred of predictions) {
+      resultMap.set(pred.product_id, {
+        ml_prediction: pred.ml_prediction,
+        wma_prediction: pred.wma_prediction,
+        confidence: pred.confidence,
+      });
+    }
+    return resultMap;
+  } catch (err) {
+    console.warn("ML prediction failed, using WMA fallback:", err.message);
+    return null; // caller should fall back to WMA
+  }
+}
