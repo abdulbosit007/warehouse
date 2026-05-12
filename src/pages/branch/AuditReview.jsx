@@ -787,15 +787,19 @@ export default function BranchAuditReview({ asTab = false }) {
         };
       });
 
-      const { error: insertErr } = await supabase
-        .from("inventory_audit_responses")
-        .insert(responses);
-
-      if (insertErr) throw insertErr;
+      // Batch insert in chunks of 500 to avoid Supabase limits
+      for (let i = 0; i < responses.length; i += 500) {
+        const batch = responses.slice(i, i + 500);
+        const { error: insertErr } = await supabase
+          .from("inventory_audit_responses")
+          .insert(batch);
+        if (insertErr) throw insertErr;
+      }
 
       // Immediately update product_list for discrepancies
-      const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
+      const rejected = responses.filter((r) => r.status === "rejected");
       for (const resp of rejected) {
+        const newQty = resp.reported_qty ?? 0;
         const { data: entry, error: lookupErr } = await supabase
           .from("product_list")
           .select("id, quantity")
@@ -808,8 +812,17 @@ export default function BranchAuditReview({ asTab = false }) {
           continue;
         }
         if (entry) {
-          await supabase.from("product_list").update({ quantity: resp.reported_qty }).eq("id", entry.id);
-          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${resp.reported_qty}`);
+          await supabase.from("product_list").update({ quantity: newQty }).eq("id", entry.id);
+          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${newQty}`);
+        } else {
+          // No product_list row exists — create one
+          await supabase.from("product_list").insert({
+            product_id: resp.product_id,
+            location_id: resp.location_id,
+            quantity: newQty,
+            status: "available",
+          });
+          console.log(`[auditSubmit] Inserted product ${resp.product_id} with qty ${newQty}`);
         }
       }
 

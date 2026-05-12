@@ -30,10 +30,10 @@ import {
 function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onReject, onEdit }) {
   const { t } = useTranslation();
   const [showEdit, setShowEdit] = useState(false);
-  const [editQty, setEditQty] = useState(reportedQty || "");
+  const [editQty, setEditQty] = useState(reportedQty ?? "");
 
   const handleReject = () => {
-    if (!editQty || Number(editQty) < 0) {
+    if (editQty === "" || editQty === null || editQty === undefined || Number(editQty) < 0) {
       alert(t("warehouseAudit.alert.enterValidQty"));
       return;
     }
@@ -115,7 +115,7 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
             onClick={() => {
               onEdit();
               setShowEdit(true);
-              setEditQty(reportedQty || "");
+              setEditQty(reportedQty ?? "");
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
           >
@@ -645,17 +645,22 @@ export default function WarehouseAuditReview({ asTab = false }) {
         location_id: warehouseLocation.id,
         product_id: p.id,
         status: reviews[p.id].status,
-        reported_qty: reviews[p.id].reportedQty || null,
+        reported_qty: reviews[p.id].reportedQty ?? null,
         system_qty_at_submit: getQtyAt(p.id),
-        submitted_by: userRow?.user_id || null,
+        submitted_by: userRow?.user_id ?? null,
       }));
 
-      const { error: insertErr } = await supabase.from("inventory_audit_responses").insert(responses);
-      if (insertErr) throw insertErr;
+      // Batch insert in chunks of 500 to avoid Supabase limits
+      for (let i = 0; i < responses.length; i += 500) {
+        const batch = responses.slice(i, i + 500);
+        const { error: insertErr } = await supabase.from("inventory_audit_responses").insert(batch);
+        if (insertErr) throw insertErr;
+      }
 
       // Immediately update product_list for discrepancies
-      const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
+      const rejected = responses.filter((r) => r.status === "rejected");
       for (const resp of rejected) {
+        const newQty = resp.reported_qty ?? 0;
         const { data: entry, error: lookupErr } = await supabase
           .from("product_list")
           .select("id, quantity")
@@ -668,8 +673,17 @@ export default function WarehouseAuditReview({ asTab = false }) {
           continue;
         }
         if (entry) {
-          await supabase.from("product_list").update({ quantity: resp.reported_qty }).eq("id", entry.id);
-          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${resp.reported_qty}`);
+          await supabase.from("product_list").update({ quantity: newQty }).eq("id", entry.id);
+          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${newQty}`);
+        } else {
+          // No product_list row exists — create one
+          await supabase.from("product_list").insert({
+            product_id: resp.product_id,
+            location_id: resp.location_id,
+            quantity: newQty,
+            status: "available",
+          });
+          console.log(`[auditSubmit] Inserted product ${resp.product_id} with qty ${newQty}`);
         }
       }
 
