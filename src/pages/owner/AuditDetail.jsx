@@ -248,37 +248,25 @@ export default function OwnerAuditDetail() {
       const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
 
       // 2. For each discrepancy, update product_list to match the reported (physical) quantity
-      for (const resp of rejected) {
-        const { data: entry, error: lookupErr } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", resp.product_id)
-          .eq("location_id", resp.location_id)
-          .maybeSingle();
+      if (rejected.length > 0) {
+        const productUpdates = rejected.map(resp => ({
+          product_id: resp.product_id,
+          location_id: resp.location_id,
+          status: "available",
+          quantity: resp.reported_qty ?? 0
+        }));
 
-        if (lookupErr) {
-          console.error("[closeAudit] product_list lookup error:", lookupErr);
-          continue;
-        }
-
-        if (entry) {
-          // Update existing entry to reported quantity
-          const { error: upErr } = await supabase
+        for (let i = 0; i < productUpdates.length; i += 500) {
+          const chunk = productUpdates.slice(i, i + 500);
+          const { error: upsertErr } = await supabase
             .from("product_list")
-            .update({ quantity: resp.reported_qty })
-            .eq("id", entry.id);
-
-          if (upErr) {
-            console.error("[closeAudit] product_list update error:", upErr);
+            .upsert(chunk, { onConflict: "product_id,location_id,status" });
+            
+          if (upsertErr) {
+            console.error("[closeAudit] product_list upsert error:", upsertErr);
           } else {
-            console.log(
-              `[closeAudit] Updated product ${resp.product_id} at location ${resp.location_id}: ${entry.quantity} → ${resp.reported_qty}`
-            );
+            console.log(`[closeAudit] Upserted batch of ${chunk.length} discrepancies`);
           }
-        } else {
-          console.warn(
-            `[closeAudit] No product_list entry found for product ${resp.product_id} at location ${resp.location_id}`
-          );
         }
       }
 
