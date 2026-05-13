@@ -509,7 +509,7 @@ export default function BranchAuditReview({ asTab = false }) {
 
       const [productsRes, plRes] = await Promise.all([
         fetchAll(() => supabase.from("products").select("id, name, sku, category_id")),
-        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity")),
+        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity").eq("status", "available")),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -796,33 +796,25 @@ export default function BranchAuditReview({ asTab = false }) {
         if (insertErr) throw insertErr;
       }
 
-      // Immediately update product_list for discrepancies
+      // Batch update product_list for discrepancies to avoid timeouts
       const rejected = responses.filter((r) => r.status === "rejected");
-      for (const resp of rejected) {
-        const newQty = resp.reported_qty ?? 0;
-        const { data: entry, error: lookupErr } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", resp.product_id)
-          .eq("location_id", resp.location_id)
-          .maybeSingle();
+      if (rejected.length > 0) {
+        const productUpdates = rejected.map(resp => ({
+          product_id: resp.product_id,
+          location_id: resp.location_id,
+          status: "available",
+          quantity: resp.reported_qty ?? 0
+        }));
 
-        if (lookupErr) {
-          console.error("[auditSubmit] product_list lookup error:", lookupErr);
-          continue;
-        }
-        if (entry) {
-          await supabase.from("product_list").update({ quantity: newQty }).eq("id", entry.id);
-          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${newQty}`);
-        } else {
-          // No product_list row exists — create one
-          await supabase.from("product_list").insert({
-            product_id: resp.product_id,
-            location_id: resp.location_id,
-            quantity: newQty,
-            status: "available",
-          });
-          console.log(`[auditSubmit] Inserted product ${resp.product_id} with qty ${newQty}`);
+        for (let i = 0; i < productUpdates.length; i += 500) {
+          const chunk = productUpdates.slice(i, i + 500);
+          const { error: upsertErr } = await supabase
+            .from("product_list")
+            .upsert(chunk, { onConflict: "product_id,location_id,status" });
+            
+          if (upsertErr) {
+            console.error("[auditSubmit] product_list upsert error:", upsertErr);
+          }
         }
       }
 

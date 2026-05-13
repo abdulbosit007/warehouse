@@ -1,7 +1,7 @@
 // src/pages/owner/InventoryBatchDetail.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import {
@@ -681,10 +681,10 @@ export default function InventoryBatchDetail() {
         .select("id, status, created_at")
         .order("created_at", { ascending: false });
 
-      const { data: auditData } = await supabase
+      const { data: auditData } = await fetchAll(() => supabase
         .from("inventory_audit_responses")
         .select("*")
-        .eq("location_id", locationId);
+        .eq("location_id", locationId));
 
       if (allSessions) {
         const responsesBySession = {};
