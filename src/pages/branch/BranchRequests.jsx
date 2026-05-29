@@ -30,6 +30,7 @@ import {
   Filter,
   SlidersHorizontal,
 } from "lucide-react";
+import TransfersSection from "../../components/TransfersSection";
 
 /* -------------------------------------------------------------------------- */
 /*                              STATUS CONFIG                                  */
@@ -69,6 +70,13 @@ const STATUS_CONFIG = {
     icon: X,
     iconBg: "bg-neutral-100",
     labelKey: "branchRequests.status.cancelled",
+  },
+  closed: {
+    color:
+      "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200/80 shadow-emerald-100/50",
+    icon: PackageCheck,
+    iconBg: "bg-emerald-100",
+    labelKey: "branchRequests.status.closed",
   },
 };
 
@@ -144,6 +152,7 @@ export default function BranchRequests() {
 
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [mode, setMode] = useState("requests"); // "requests" | "transfers"
   const [activeTab, setActiveTab] = useState("new"); // new, outgoing, incoming, history
   const [toast, setToast] = useState(null);
   const [tabBadges, setTabBadges] = useState({ outgoing: 0, incoming: 0, history: 0 });
@@ -178,11 +187,13 @@ export default function BranchRequests() {
     if (!location) return;
     try {
       // Outgoing: requests where to_location_id = my location, status sent/approved
+      // Exclude sale/loan purpose requests — those are handled in History page only
       const { count: outCount } = await supabase
         .from("branch_requests")
         .select("id", { count: "exact", head: true })
         .eq("to_location_id", location.id)
-        .in("status", ["sent", "approved"]);
+        .in("status", ["sent", "approved"])
+        .not("purpose", "in", "(sale,loan)");
 
       // Incoming: only count requests that have items with status "requested"
       // (items the user still needs to approve/reject — not already acted on)
@@ -211,10 +222,12 @@ export default function BranchRequests() {
       } catch { seenIds = []; }
 
       // Get recent finished requests (both outgoing and incoming)
+      // Exclude sale/loan purpose — those live in History page
       const { data: finishedReqs } = await supabase
         .from("branch_requests")
-        .select("id, to_location_id, items:branch_request_items(source_location_id)")
-        .in("status", ["completed", "cancelled", "rejected"])
+        .select("id, to_location_id, purpose, items:branch_request_items(source_location_id)")
+        .in("status", ["completed", "cancelled", "rejected", "closed"])
+        .not("purpose", "in", "(sale,loan)")
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -238,7 +251,7 @@ export default function BranchRequests() {
       const { data: finishedReqs } = await supabase
         .from("branch_requests")
         .select("id, to_location_id, items:branch_request_items(source_location_id)")
-        .in("status", ["completed", "cancelled", "rejected"])
+        .in("status", ["completed", "cancelled", "rejected", "closed"])
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -332,7 +345,33 @@ export default function BranchRequests() {
             {t("branchRequests.subtitle")}
           </p>
         </div>
+
+        {/* Mode toggle: Requests vs Transfers */}
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          {[
+            { key: "requests",  label: t("branchRequests.modeToggle.requests") },
+            { key: "transfers", label: t("branchRequests.modeToggle.transfers") },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setMode(key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === key
+                  ? "bg-white text-neutral-900 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Transfers mode */}
+      {mode === "transfers" && <TransfersSection location={location} />}
+
+      {/* Requests mode — existing tabs */}
+      {mode === "requests" && <>
 
       {/* Modern Pill Tabs */}
       <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
@@ -377,6 +416,8 @@ export default function BranchRequests() {
         )}
         {activeTab === "history" && <HistoryTab location={location} />}
       </div>
+
+      </>} {/* end requests mode */}
 
       {/* Toast */}
       {toast && (
@@ -1354,6 +1395,7 @@ function OutgoingTab({ location, showToast }) {
       `)
       .eq("to_location_id", location.id)
       .in("status", ["sent", "approved"])
+      .not("purpose", "in", "(sale,loan)")
       .order("created_at", { ascending: false });
 
     setRequests(data || []);
@@ -2084,6 +2126,7 @@ function HistoryTab({ location }) {
   const [direction, setDirection] = useState("outgoing");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("closed"); // "opened" | "closed"
 
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
@@ -2100,7 +2143,7 @@ function HistoryTab({ location }) {
       const { data, error } = await supabase
         .from("branch_requests")
         .select(`
-        id, status, created_at, to_location_id,
+        id, status, created_at, warehouse_decided_at, to_location_id,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
@@ -2108,9 +2151,10 @@ function HistoryTab({ location }) {
           source_location:source_location_id (id, name, location_name)
         )
       `)
-        .in("status", ["completed", "cancelled", "rejected"])
+        .in("status", ["completed", "cancelled", "rejected", "closed"])
         .gte("created_at", `${dateFrom}T00:00:00`)
         .lte("created_at", `${dateTo}T23:59:59`)
+        .order(sortBy === "closed" ? "warehouse_decided_at" : "created_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -2134,7 +2178,7 @@ function HistoryTab({ location }) {
       setLoading(false);
       setLoadingMore(false);
     },
-    [location.id, dateFrom, dateTo]
+    [location.id, dateFrom, dateTo, sortBy]
   );
 
   useEffect(() => {
@@ -2182,6 +2226,8 @@ function HistoryTab({ location }) {
       all: directionFiltered.length,
       completed: directionFiltered.filter((r) => r.status === "completed").length,
       cancelled: directionFiltered.filter((r) => r.status === "cancelled").length,
+      rejected: directionFiltered.filter((r) => r.status === "rejected").length,
+      closed: directionFiltered.filter((r) => r.status === "closed").length,
     };
   }, [directionFiltered]);
 
@@ -2266,11 +2312,13 @@ function HistoryTab({ location }) {
           </div>
 
           {/* Status Pills */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {[
-              { key: "all", label: t("branchRequests.history.statusPills.all") },
+              { key: "all",       label: t("branchRequests.history.statusPills.all") },
               { key: "completed", label: t("branchRequests.history.statusPills.completed") },
               { key: "cancelled", label: t("branchRequests.history.statusPills.cancelled") },
+              { key: "rejected",  label: t("branchRequests.history.statusPills.rejected") },
+              { key: "closed",    label: t("branchRequests.history.statusPills.closed") },
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -2284,6 +2332,26 @@ function HistoryTab({ location }) {
                 {label} ({counts[key]})
               </button>
             ))}
+          </div>
+
+          {/* Sort toggle */}
+          <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 ml-auto">
+            <button
+              onClick={() => setSortBy("opened")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "opened" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("branchRequests.history.sortOpened")}
+            </button>
+            <button
+              onClick={() => setSortBy("closed")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "closed" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("branchRequests.history.sortClosed")}
+            </button>
           </div>
         </div>
       </div>
@@ -2341,11 +2409,18 @@ function HistoryTab({ location }) {
                           {label}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-500">
-                        {req.items?.length || 0} {t("branchRequests.history.columns.products").toLowerCase()}
-                        {" · "}{t("branchRequests.history.columns.qty")}: {totalQty}
-                        {" · "}{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                        {new Date(req.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      <p className="text-xs text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>{req.items?.length || 0} {t("branchRequests.history.columns.products").toLowerCase()}</span>
+                        <span>·</span>
+                        <span>{t("branchRequests.history.columns.qty")}: {totalQty}</span>
+                        <span>·</span>
+                        <span>{t("branchRequests.history.requested")}: {new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}{new Date(req.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                        {req.warehouse_decided_at && (
+                          <>
+                            <span>·</span>
+                            <span className="text-emerald-600 font-medium">{t("branchRequests.history.closed")}: {new Date(req.warehouse_decided_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}{new Date(req.warehouse_decided_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -2436,6 +2511,7 @@ function HistoryTab({ location }) {
 /*                        CATEGORY FILTER MODAL                                */
 /* -------------------------------------------------------------------------- */
 function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, color = "emerald" }) {
+  const { t } = useTranslation();
   const [localCategory, setLocalCategory] = useState(selectedCategory);
 
   const gradientMap = {
@@ -2460,7 +2536,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
-            <h3 className="text-lg font-semibold text-white">Filtrlar</h3>
+            <h3 className="text-lg font-semibold text-white">{t("branchRequests.filterModal.title")}</h3>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white">
             <X className="w-5 h-5" />
@@ -2470,15 +2546,15 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         <div className="p-6 min-h-[200px]">
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-              Kategoriya
+              {t("branchRequests.filterModal.categoryLabel")}
             </label>
             <CustomSelect
               value={localCategory || ""}
               onChange={(val) => setLocalCategory(val)}
-              placeholder="Barcha kategoriyalar"
+              placeholder={t("branchRequests.filterModal.allCategories")}
               color={color === "emerald" ? "green" : "blue"}
               options={[
-                { value: "", label: "Barcha kategoriyalar" },
+                { value: "", label: t("branchRequests.filterModal.allCategories") },
                 ...categories.map((cat) => ({
                   value: cat,
                   label: cat,
@@ -2493,14 +2569,14 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
-            Bekor qilish
+            {t("branchRequests.filterModal.cancel")}
           </button>
           <button
             onClick={() => onApply(localCategory)}
             className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${btnMap[color]} px-4 py-2 text-sm font-semibold text-white shadow-lg`}
           >
             <Check className="w-4 h-4" />
-            Qo'llash
+            {t("branchRequests.filterModal.apply")}
           </button>
         </div>
       </div>

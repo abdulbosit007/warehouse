@@ -1,7 +1,7 @@
 {
   "nav": {
     "home": "Bosh sahifa",
-    "branchRequests": "Filial so‘rovlari",
+    "branchRequests": "O’tkazmalar",
     "incomingBatches": "Kiruvchi partiyalar",
     "stockCorrections": "Ombor tuzatishlari",
     "auditReview": "Audit tekshiruvi",
@@ -26,7 +26,8 @@
     "saveChanges": "O‘zgarishlarni saqlash",
     "clearFilters": "Filtrlarni tozalash",
     "clearAll": "Hammasini tozalash",
-    "applyFilters": "Filtrlarni qo‘llash",
+    "apply": "Qo’llash",
+    "applyFilters": "Filtrlarni qo’llash",
     "rows": "Qatorlar",
     "prev": "Oldingi",
     "next": "Keyingi",
@@ -701,7 +702,7 @@
     "actions": {
       "refresh": "Yangilash",
       "back": "Auditlar ro‘yxatiga qaytish",
-      "submit": "Auditni egasiga yuborish",
+      "submit": "Auditni boshqaruvchiga yuborish",
       "submitting": "Yuborilmoqda...",
       "next": "Keyingi",
       "previous": "Oldingi",
@@ -780,8 +781,8 @@
     }
   },
   "branchRequests": {
-    "title": "Mahsulot so‘rovlari",
-    "subtitle": "Kiruvchi va chiquvchi mahsulot ko‘chirmalarini boshqaring",
+    "title": "O’tkazmalar",
+    "subtitle": "Kiruvchi va chiquvchi mahsulot o’tkazmalarini boshqaring",
     "tabs": {
       "new": "Yangi so‘rov",
       "outgoing": "Mening so‘rovlarim",
@@ -794,11 +795,12 @@
       "rejected": "Rad etildi",
       "completed": "Yakunlandi",
       "cancelled": "Bekor qilindi",
+      "closed": "Qabul qilindi",
       "awaitingReceipt": "Qabul kutilmoqda",
       "received": "Qabul qilindi"
     },
     "toast": {
-      "requestSentSuccess": "So‘rov muvaffaqiyatli yuborildi!",
+      "requestSentSuccess": "So’rov muvaffaqiyatli yuborildi!",
       "requestSentFail": "So‘rovni yuborib bo‘lmadi",
       "cancelSuccess": "So‘rov bekor qilindi",
       "cancelFail": "So‘rovni bekor qilib bo‘lmadi",
@@ -806,14 +808,29 @@
       "approveFail": "So‘rovni tasdiqlab bo‘lmadi",
       "rejectInfo": "So‘rov rad etildi",
       "confirmReceiptSuccess": "Mahsulot qabul qilindi! Zaxira yangilandi.",
-      "confirmReceiptFail": "Qabul qilishni tasdiqlab bo‘lmadi"
+      "confirmReceiptFail": "Qabul qilishni tasdiqlab bo’lmadi"
+    },
+    "modeToggle": {
+      "requests": "Filial so’rovlari",
+      "transfers": "Mahsulot o’tkazmalari"
+    },
+    "filterModal": {
+      "title": "Filtrlar",
+      "categoryLabel": "Kategoriya",
+      "allCategories": "Barcha kategoriyalar",
+      "cancel": "Bekor qilish",
+      "apply": "Qo’llash"
+    },
+    "filter": {
+      "placeholder": "Nom yoki SKU bo’yicha filtrlash..."
     },
     "common": {
       "loading": "Yuklanmoqda...",
       "searching": "Qidirilmoqda...",
       "unknown": "Noma’lum",
       "qty": "soni",
-      "product": "Mahsulot"
+      "product": "Mahsulot",
+      "ofTotal": "{{total}} tadan"
     },
     "newRequest": {
       "searchTitle": "Mahsulot qidirish",
@@ -842,7 +859,9 @@
       "arrived": "Kelgan",
       "addToCart": "Savatga qo'shish",
       "noStock": "Hech qaysi omborxonada mavjud emas",
-      "addedToCartBulk": "{{count}} ta mahsulot savatga qo'shildi"
+      "addedToCartBulk": "{{count}} ta mahsulot savatga qo'shildi",
+      "selected": "tanlangan",
+      "items": "ta mahsulot"
     },
     "outgoing": {
       "emptyTitle": "Faol so‘rovlar yo‘q",
@@ -885,10 +904,13 @@
         "all": "Barchasi",
         "completed": "Yakunlangan",
         "cancelled": "Bekor qilingan",
-        "rejected": "Rad etilgan"
+        "rejected": "Rad etilgan",
+        "closed": "Qabul qilindi"
       },
+      "requested": "So’ralgan",
+      "closed": "Yopilgan",
       "noResultsTitle": "Natija topilmadi",
-      "noResultsText": "Filtrlarga mos so‘rovlar yo‘q",
+      "noResultsText": "Filtrlarga mos so’rovlar yo’q",
       "columns": {
         "products": "Mahsulotlar",
         "from": "Qayerdan",
@@ -897,7 +919,9 @@
         "status": "Holat",
         "date": "Sana"
       },
-      "showing": "{{filtered}} / {{all}} ta so‘rov ko‘rsatilmoqda",
+      "sortOpened": "Ochilgan sana",
+      "sortClosed": "Yopilgan sana",
+      "showing": "{{filtered}} / {{all}} ta so’rov ko’rsatilmoqda",
       "loadMore": "Yana yuklash (hozir: {{count}})"
     }
   },
@@ -926,19 +950,226 @@
       "borrowerAndQtyRequired": "Qarz oluvchi va sonlar majburiy.",
       "selectItemsAndQty": "Iltimos, mahsulot va sonini tanlang.",
       "pickSkuRow": "Avval SKU qatorini tanlang.",
-      "invalidQuantity": "Noto‘g‘ri son",
-      "noItemsToSell": "Sotish uchun mahsulot yo‘q"
+      "invalidQuantity": "Noto’g’ri son",
+      "noItemsToSell": "Sotish uchun mahsulot yo’q",
+      "stockChanged": "Zaxira o’zgardi",
+      "stockItemIssue": "{{name}}: faqat {{available}} mavjud, {{qty}} so’ralgan"
     },
     "success": {
       "saleCommitted": "Sotuv tasdiqlandi. TX: {{tx}}",
+      "saleCommittedSimple": "Sotuv tasdiqlandi.",
+      "salePlusBranchRequest": "Filialdan {{sold}} dona sotildi. {{requested}} dona uchun tasdiq so’rovi yuborildi.",
+      "approvalRequestSent": "{{count}} dona uchun tasdiq so’rovi yuborildi. Tasdiqlash kutilmoqda.",
       "loanCommitted": "Qarz tasdiqlandi. TX: {{tx}}",
+      "loanCommittedSimple": "Qarz tasdiqlandi.",
+      "loanPlusBranchRequest": "Filialdan {{loaned}} dona qarzga berildi. {{requested}} dona uchun tasdiq so’rovi yuborildi.",
       "returnCommittedOne": "Qaytarish tasdiqlandi. TX: {{tx}}",
       "returnCommittedMany": "{{count}} ta qaytarish tranzaksiyasi tasdiqlandi.",
       "noteUpdated": "Izoh yangilandi",
       "dueDateUpdated": "Muddat yangilandi",
       "markedSold": "{{qty}} dona sotildi deb belgilandi",
-      "soldAll": "{{name}} uchun barcha {{qty}} dona sotildi",
-      "returnedItems": "{{qty}} dona qaytarildi"
+      "soldAll": "{{name}} dan barcha {{qty}} dona sotildi",
+      "returnedItems": "{{qty}} dona qaytarildi",
+      "transferAccepted": "{{qty}} × {{name}} qabul qilindi — sotuv tasdiqlandi.",
+      "loanTransferAccepted": "{{qty}} × {{name}} qabul qilindi — qarz qayd etildi."
+    },
+    "modal": {
+      "addToCartLabel": "Savatga qo’shish",
+      "enterQty": "Har bir joy uchun sonini kiriting",
+      "tagCurrent": "Joriy",
+      "tagViaRequest": "So’rov orqali",
+      "available": "mavjud",
+      "totalOne": "Jami: 1 dona tanlangan",
+      "totalMany": "Jami: {{count}} dona tanlangan",
+      "includesViaRequest": "· So’rov orqali mahsulotlar kiradi",
+      "cancel": "Bekor qilish",
+      "addToCartBtn": "Savatga qo’shish"
+    },
+    "saleSection": {
+      "title": "Sotuvlar",
+      "subtitle": "Sotuv yarating va tarixni ko’ring",
+      "newSale": "Yangi sotuv",
+      "history": "Tarix",
+      "productsTitle": "Mahsulotlar",
+      "productsCount": "{{count}} mahsulot · Filial va Ombor",
+      "searchPlaceholder": "Nom yoki SKU bo’yicha qidiring"
+    },
+    "loanSection": {
+      "title": "Qarz boshqaruvi",
+      "subtitle": "Qarz yarating, faol qarzlarni kuzating, tarixni ko’ring",
+      "newLoan": "Yangi qarz",
+      "pending": "Kutilmoqda",
+      "noPending": "Kutilayotgan qarz o'tkazmalari yo'q",
+      "unknownBorrower": "Noma'lum qarz oluvchi",
+      "dueDate": "Muddat",
+      "acceptLoan": "Qabul qilish",
+      "approved": "Tasdiqlandi",
+      "waitingApproval": "Kutilmoqda...",
+      "rejected": "Rad etildi",
+      "cancelled": "Bekor qilindi",
+      "activeLoans": "Faol qarzlar",
+      "history": "Tarix",
+      "productsTitle": "{{locationName}} mahsulotlari",
+      "productsCount": "{{count}} mahsulot mavjud",
+      "searchPlaceholder": "Nom yoki SKU bo’yicha qidiring"
+    },
+    "filterModal": {
+      "title": "Filtrlar",
+      "categoryLabel": "Kategoriya",
+      "allCategories": "Barcha kategoriyalar",
+      "cancel": "Bekor qilish",
+      "apply": "Qo’llash"
+    },
+    "productsTable": {
+      "colName": "Nomi",
+      "colSku": "SKU",
+      "colBranch": "Filial",
+      "colOverall": "Jami",
+      "colAction": "Amal",
+      "noProducts": "Mahsulot yo’q",
+      "addBtn": "Qo’shish",
+      "footerCount": "{{count}} mahsulot"
+    },
+    "loanHistory": {
+      "viewByDate": "Sana bo'yicha",
+      "viewByProduct": "Mahsulot bo'yicha",
+      "selectDate": "Sana tanlang",
+      "today": "Bugun",
+      "itemsOne": "{{count}} ta",
+      "itemsMany": "{{count}} ta",
+      "noLoans": "Bu sanada qarz yo'q",
+      "colProduct": "Mahsulot",
+      "colBorrower": "Qarz oluvchi",
+      "colQty": "Son",
+      "colStatus": "Holat",
+      "colDate": "Sana",
+      "colType": "Tur",
+      "colReturned": "Qaytarildi",
+      "statusDone": "Tugadi",
+      "statusActive": "Faol",
+      "statusClosed": "Yopildi",
+      "typeLoan": "Qarz",
+      "typeReturn": "Qaytarish",
+      "searchLabel": "Mahsulot qidirish",
+      "searchPlaceholder": "Nom yoki SKU bo'yicha qidiring...",
+      "productHistoryTitle": "Mahsulot bo'yicha qarz tarixi",
+      "loadingHistory": "Tarix yuklanmoqda...",
+      "searchPrompt": "Yuqorida mahsulot kiriting",
+      "searchPromptSub": "Har qanday mahsulot bo'yicha to'liq qarz tarixini ko'ring",
+      "noLoansInYear": "{{year}} yilda qarz yo'q",
+      "noLoansHint": "Boshqa yilni tanlang",
+      "summaryLoaned": "Berildi",
+      "summaryReturned": "Qaytarildi",
+      "summaryTransactions": "Tranzaksiyalar",
+      "detailProgress": "Jarayon",
+      "detailTotalLoaned": "Jami berilgan",
+      "detailReturned": "Qaytarilgan",
+      "detailSold": "Sotilgan",
+      "detailRemaining": "Qolgan"
+    },
+    "activeLoans": {
+      "title": "Faol qarzlar",
+      "subtitle": "{{active}} faol · {{items}} ta kutilmoqda",
+      "refresh": "Yangilash",
+      "loadingLoans": "Qarzlar yuklanmoqda...",
+      "allCaughtUp": "Hammasi yaxshi!",
+      "noPending": "Faol qarzlar yo'q",
+      "daysLate": "{{days}} kun kechikdi",
+      "noDueDate": "Muddat ko'rsatilmagan",
+      "itemsOne": "{{count}} ta",
+      "itemsMany": "{{count}} ta",
+      "dueDateLabel": "Qaytarish muddati",
+      "notSet": "Ko'rsatilmagan",
+      "edit": "Tahrirlash",
+      "noteLabel": "Izoh",
+      "noNote": "Izoh yo'q",
+      "addNoteBtn": "Qo'shish",
+      "colProduct": "Mahsulot",
+      "colProgress": "Jarayon",
+      "colActions": "Amallar",
+      "itemDone": "Tugadi",
+      "btnReturn": "Qaytarish",
+      "btnSell": "Sotish",
+      "sellAll": "Barcha qolganlarni sotish ({{count}} ta)",
+      "modalSell": "Sotildi deb belgilash",
+      "modalReturn": "Qaytarildi deb belgilash",
+      "available": "Mavjud:",
+      "qtyLabel": "{{action}} uchun son",
+      "qtyMax": "(maks: {{max}})",
+      "noteOptional": "(ixtiyoriy)",
+      "notePlaceholder": "Izoh qo'shing...",
+      "cancel": "Bekor qilish",
+      "confirm": "Tasdiqlash",
+      "editNoteTitle": "Izohni tahrirlash",
+      "addNoteTitle": "Izoh qo'shish",
+      "noteModalPlaceholder": "Qarz uchun izoh qo'shing...",
+      "saveNote": "Izohni saqlash",
+      "editDueDateTitle": "Muddatni tahrirlash",
+      "save": "Saqlash"
+    },
+    "cartPanel": {
+      "title": "Savat",
+      "itemsCount": "{{count}} ta",
+      "empty": "Savat bo’sh.",
+      "max": "maks.",
+      "sourceBranch": "Filial",
+      "viaRequest": "So’rov orqali",
+      "borrowerTitle": "Qarz oluvchi ma’lumotlari",
+      "borrowerName": "Ism",
+      "borrowerNamePlaceholder": "Qarz oluvchi ismi",
+      "borrowerPhone": "Telefon",
+      "borrowerStore": "Do’kon №",
+      "borrowerStorePlaceholder": "Do’kon raqami",
+      "borrowerDueDate": "Qaytarish muddati",
+      "borrowerHint": "Majburiy: Ism va (Telefon YOKI Do’kon №). Muddat standart +3 kun.",
+      "commitSale": "Sotuvni tasdiqlash",
+      "commitLoan": "Qarzni tasdiqlash"
+    },
+    "saleHistory": {
+      "byDate": "Sana bo'yicha",
+      "byProduct": "Mahsulot bo'yicha",
+      "selectDate": "Sana tanlash",
+      "today": "Bugun",
+      "filterPlaceholder": "Nom yoki SKU bo'yicha...",
+      "loading": "Yuklanmoqda...",
+      "noMatch": "Mos keluvchi yo'q",
+      "noSales": "Bu sanada sotuv yo'q",
+      "clearFilter": "Filtrni tozalash",
+      "colProduct": "Mahsulot",
+      "colSold": "Sotilgan",
+      "colReturned": "Qaytarilgan",
+      "colRemaining": "Qoldiq",
+      "fromLocation": "{{name}} dan",
+      "statusCompleted": "Bajarildi",
+      "statusRejected": "Rad etildi",
+      "statusReady": "Tayyor",
+      "statusWaiting": "Kutilmoqda",
+      "acceptBtn": "Qabul qilish",
+      "approvedQty": "({{count}} tasdiqlangan)",
+      "footerTotal": "Jami: {{sold}} sotilgan · {{returned}} qaytarilgan",
+      "footerShowing": "{{count}} / {{total}} ko'rsatilmoqda",
+      "headerCount": "{{products}} mahsulot · {{units}} dona",
+      "headerCountMany": "{{products}} mahsulot · {{units}} dona",
+      "searchLabel": "Mahsulot qidirish",
+      "searchPlaceholder": "Nom yoki SKU bo'yicha qidirish...",
+      "byProductTitle": "Mahsulot bo'yicha sotuv tarixi",
+      "loadingHistory": "Tarix yuklanmoqda...",
+      "searchPrompt": "Yuqoridan mahsulot qidiring",
+      "searchPromptSub": "Istalgan mahsulotning to'liq sotuv tarixini ko'ring",
+      "noSalesInYear": "{{year}} yilda sotuv yo'q",
+      "noSalesInYearSub": "Boshqa yilni tanlang",
+      "summaryTotalSold": "Jami sotilgan",
+      "summaryReturned": "Qaytarilgan",
+      "summaryTransactions": "Tranzaksiyalar",
+      "colDate": "Sana",
+      "colType": "Tur",
+      "colQty": "Miqdor",
+      "typeSale": "Sotuv",
+      "typeReturn": "Qaytarish",
+      "returnModalTitle": "Mahsulot qaytarish",
+      "returnQtyLabel": "Qaytarish miqdori (maks: {{max}})",
+      "cancel": "Bekor qilish",
+      "returnBtn": "Qaytarish"
     }
   },
   "warehouseHome": {
@@ -1108,10 +1339,14 @@
       "to": "Qayerga",
       "statusAll": "Barchasi",
       "searchPlaceholder": "Mahsulot yoki SKU bo‘yicha qidirish...",
-      "noResultsTitle": "Natija yo‘q",
-      "noResultsHint": "Filtrlarga mos so‘rov topilmadi",
+      "requested": "So’ralgan",
+      "closed": "Yopilgan",
+      "noResultsTitle": "Natija yo’q",
+      "noResultsHint": "Filtrlarga mos so’rov topilmadi",
+      "sortOpened": "Ochilgan sana",
+      "sortClosed": "Yopilgan sana",
       "loadMore": "Yana yuklash (hozir: {{count}})",
-      "summaryLine": "Ko‘rsatilmoqda {{shown}} / {{total}} ta {{direction}} so‘rov{{q, select, '' {} other {, \"{{q}}\" bo‘yicha}}}"
+      "summaryLine": "Ko’rsatilmoqda {{shown}} / {{total}} ta {{direction}} so’rov{{q, select, ‘’ {} other {, \"{{q}}\" bo’yicha}}}"
     }
   },
   "warehouseAudit": {
@@ -1179,7 +1414,7 @@
       "yourAudits": "Sizning auditlaringiz"
     },
     "submit": {
-      "submitToOwner": "Auditni egasiga yuborish",
+      "submitToOwner": "Auditni boshqaruvchiga yuborish",
       "submitting": "Yuborilmoqda...",
       "successTitle": "Audit muvaffaqiyatli yuborildi!",
       "successDesc": "Javoblaringiz saqlandi. Egasi natijalarni ko‘rib chiqadi."
@@ -1423,6 +1658,93 @@
       "branch": "Branch"
     }
   },
+  "ownerAnalytics": {
+    "title": "Tahlil va Faoliyat",
+    "subtitle": "Barcha joylardagi biznes samaradorligining umumiy ko'rinishi",
+    "allLocations": "Barcha joylar",
+    "presets": {
+      "today": "Bugun",
+      "7days": "7 kun",
+      "30days": "30 kun",
+      "90days": "90 kun"
+    },
+    "tabs": {
+      "analytics": "Sotuv tahlili",
+      "logs": "Faoliyat jurnali",
+      "restock": "Aqlli buyurtma"
+    },
+    "summary": {
+      "transactions": "Tranzaksiyalar",
+      "transactionsSub": "tanlangan davr uchun",
+      "unitsSold": "Sotilgan birliklar",
+      "unitsSoldSub": "jami mahsulotlar",
+      "totalRevenue": "Jami daromad",
+      "totalRevenueSub": "sotuv narxlari yig'indisi",
+      "avgSale": "O'rtacha sotuv",
+      "avgSaleSub": "har bir sotuv uchun daromad"
+    },
+    "loading": "Tahlil yuklanmoqda…",
+    "noSales": "Bu davrda sotuv yo'q",
+    "noSalesSub": "Katta sana oralig'ini sinab ko'ring",
+    "trend": {
+      "title": "Daromad trendi",
+      "overall": "Umumiy",
+      "noData": "Grafik uchun ma'lumot yetarli emas.",
+      "revenue": "Daromad",
+      "transactions": "Tranzaksiyalar"
+    },
+    "byBranch": {
+      "title": "Filiallarga ko'ra",
+      "noData": "Filiallar bo'yicha ma'lumot yo'q.",
+      "revenue": "Daromad"
+    },
+    "categoryPie": {
+      "title": "Kategoriyalar bo'yicha daromad",
+      "hint": "Mahsulotlarni ko'rish uchun kesimni bosing",
+      "noData": "Kategoriya ma'lumotlari yo'q"
+    },
+    "drilldown": {
+      "placeholder": "Kategoriyani tanlang",
+      "clear": "Tozalash",
+      "hint": "Diagramma kesimini bosing",
+      "colNumber": "#",
+      "colProduct": "Mahsulot",
+      "colUnits": "Sotilgan (dona)",
+      "colRevenue": "Daromad"
+    },
+    "topProducts": {
+      "title": "Top mahsulotlar",
+      "subtitle": "daromad bo'yicha · top 10",
+      "colNumber": "#",
+      "colProduct": "Mahsulot",
+      "colCategory": "Kategoriya",
+      "colUnits": "Miqdor",
+      "colRevenue": "Daromad",
+      "colShare": "Ulush"
+    },
+    "inventory": {
+      "title": "Joylashuvlar bo'yicha zaxira qiymati",
+      "subtitle": "Joriy mavjud zaxira — (miqdor × sotuv narxi) yig'indisi",
+      "noData": "Zaxira ma'lumotlari topilmadi.",
+      "colLocation": "Joylashuv",
+      "colType": "Tur",
+      "colUnits": "Jami birliklar",
+      "colValue": "Zaxira qiymati",
+      "colShare": "Ulush",
+      "overallTotal": "Jami"
+    },
+    "logs": {
+      "noData": "Tanlangan mezonlar bo'yicha faoliyat topilmadi.",
+      "colDate": "Sana",
+      "colLocation": "Joylashuv",
+      "colType": "Tur",
+      "colItems": "Mahsulotlar",
+      "sale": "Sotuv",
+      "return": "Qaytarish",
+      "loan": "Qarz"
+    },
+    "unauthorized": "Ruxsat yo'q. Faqat boshqaruvchilar uchun."
+  },
   "ownerBranchRequests": {
     "title": "Global filiallarlararo so'rovlar",
     "subtitle": "Omborlar va filiallar o'rtasidagi barcha zaxira so'rovlarining ko'rinishi.",
@@ -1437,6 +1759,9 @@
     "transferTo": "{{name}} ga o'tkazish",
     "id": "ID",
     "from": "Dan",
+    "requested": "So'ralgan",
+    "closed": "Yopilgan",
+    "sortBy": "Saralash",
     "table": {
       "product": "Mahsulot",
       "requested": "So'ralgan",
@@ -1450,6 +1775,82 @@
       "completed": "Tugallangan",
       "cancelled": "Bekor qilingan",
       "requestedItem": "So'ralgan mahsulot"
+    }
+  },
+  "stockTransfers": {
+    "status": {
+      "pending": "Kutilmoqda",
+      "accepted": "Qabul qilindi",
+      "rejected": "Rad etildi",
+      "cancelled": "Bekor qilindi",
+      "partial": "Qisman"
+    },
+    "tabs": {
+      "send": "O'tkazma yuborish",
+      "outgoing": "Chiquvchi",
+      "incoming": "Kiruvchi",
+      "history": "Tarix"
+    },
+    "kind": {
+      "branch": "Filial",
+      "warehouse": "Ombor"
+    },
+    "send": {
+      "destinationLabel": "Qabul qiluvchi",
+      "productsAt": "{{name}} mahsulotlari",
+      "searchPlaceholder": "Nom yoki SKU bo'yicha qidirish…",
+      "searching": "Qidirilmoqda…",
+      "available": "mavjud",
+      "addBtn": "Qo'shish",
+      "addedBtn": "Qo'shildi",
+      "noProducts": "Mahsulot topilmadi.",
+      "cartTitle": "O'tkazma savati",
+      "cartItems": "{{count}} ta mahsulot",
+      "emptyCart": "Hali mahsulot qo'shilmagan.",
+      "maxQty": "maks {{max}}",
+      "notePlaceholder": "Izoh (ixtiyoriy)…",
+      "sendBtn": "O'tkazma yuborish",
+      "sending": "Yuborilmoqda…",
+      "successMsg": "O'tkazma muvaffaqiyatli yuborildi.",
+      "errNoDestination": "Qabul qiluvchini tanlang.",
+      "errEmptyCart": "Kamida bitta mahsulot qo'shing.",
+      "errZeroQty": "Miqdor 0 dan katta bo'lishi kerak."
+    },
+    "outgoing": {
+      "summary": "{{count}} ta chiquvchi o'tkazma",
+      "empty": "Chiquvchi o'tkazmalar yo'q.",
+      "cancelBtn": "Bekor qilish",
+      "cancelling": "Bekor qilinmoqda…",
+      "refresh": "Yangilash"
+    },
+    "incoming": {
+      "summary": "{{count}} ta kutilmoqda",
+      "empty": "Kiruvchi o'tkazmalar yo'q.",
+      "rejectBtn": "Rad etish",
+      "acceptBtn": "Qabul qilish",
+      "processing": "Jarayonda…",
+      "refresh": "Yangilash"
+    },
+    "history": {
+      "filterAll": "Barchasi",
+      "filterSent": "Yuborilgan",
+      "filterReceived": "Qabul qilingan",
+      "empty": "O'tkazmalar tarixi yo'q.",
+      "refresh": "Yangilash",
+      "requested": "So'ralgan",
+      "closed": "Yopilgan",
+      "sortOpened": "Ochilgan sana",
+      "sortClosed": "Yopilgan sana"
+    },
+    "card": {
+      "units": "{{count}} dona",
+      "note": "Izoh: {{text}}",
+      "to": "→ {{name}}",
+      "from": "← {{name}} dan",
+      "colProduct": "Mahsulot",
+      "colSku": "SKU",
+      "colQty": "Miqdor",
+      "colStatus": "Holat"
     }
   }
 }

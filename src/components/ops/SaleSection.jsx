@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ShoppingBag, Plus, Clock, Search, Store, SlidersHorizontal, Check, X, Filter } from "lucide-react";
 import BranchProductsTable from "../BranchProductsTable";
 import CartPanel from "../CartPanel";
@@ -31,11 +32,19 @@ export default function SaleSection({
   saleHistoryLoading = false,
   loadSaleHistory,
   commitSaleReturn,
+  salePendingRequests = [],
+  onAcceptTransfer,
+  // Return destination modal props
+  allLocations = [],
+  branchLocationId = null,
   // Product search props
   searchProducts,
   searchProductHistory,
   getFirstSaleYear,
+  // Notification badge
+  pendingTransferCount = 0,
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState("new"); // "new" | "history"
   const [showFilters, setShowFilters] = useState(false);
 
@@ -50,17 +59,17 @@ export default function SaleSection({
             <ShoppingBag className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-neutral-900">Sales</h3>
-            <p className="text-xs text-neutral-500">Create sales and view history</p>
+            <h3 className="font-semibold text-neutral-900">{t("branchOperations.saleSection.title")}</h3>
+            <p className="text-xs text-neutral-500">{t("branchOperations.saleSection.subtitle")}</p>
           </div>
         </div>
 
         {/* Mode Toggle */}
         <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
           {[
-            { key: "new", label: "New Sale", icon: Plus },
-            { key: "history", label: "History", icon: Clock },
-          ].map(({ key, label, icon: Icon }) => (
+            { key: "new", label: t("branchOperations.saleSection.newSale"), icon: Plus, badge: 0 },
+            { key: "history", label: t("branchOperations.saleSection.history"), icon: Clock, badge: pendingTransferCount },
+          ].map(({ key, label, icon: Icon, badge }) => (
             <button
               key={key}
               onClick={() => {
@@ -77,6 +86,11 @@ export default function SaleSection({
             >
               <Icon className="w-3.5 h-3.5" />
               {label}
+              {badge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -93,8 +107,8 @@ export default function SaleSection({
                   <Store className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-neutral-900">Products in {locationName}</h3>
-                  <p className="text-xs text-neutral-500">{rows.length} products available</p>
+                  <h3 className="font-semibold text-neutral-900">{t("branchOperations.saleSection.productsTitle")}</h3>
+                  <p className="text-xs text-neutral-500">{t("branchOperations.saleSection.productsCount", { count: rows.length })}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -103,7 +117,7 @@ export default function SaleSection({
                   <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search by name or SKU"
+                    placeholder={t("branchOperations.saleSection.searchPlaceholder")}
                     className="w-full sm:w-[220px] rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition-all"
                   />
                 </div>
@@ -165,6 +179,10 @@ export default function SaleSection({
           loading={saleHistoryLoading}
           loadSaleHistory={loadSaleHistory}
           commitSaleReturn={commitSaleReturn}
+          salePendingRequests={salePendingRequests}
+          onAcceptTransfer={onAcceptTransfer}
+          allLocations={allLocations}
+          branchLocationId={branchLocationId}
           searchProducts={searchProducts}
           searchProductHistory={searchProductHistory}
           getFirstSaleYear={getFirstSaleYear}
@@ -192,6 +210,7 @@ export default function SaleSection({
    CATEGORY FILTER MODAL  (shared style with warehouse Home FilterModal)
 ───────────────────────────────────────────────────────────────────────────── */
 function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, color = "emerald" }) {
+  const { t } = useTranslation();
   const [localCategory, setLocalCategory] = useState(selectedCategory);
 
   const gradientMap = {
@@ -217,7 +236,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
-            <h3 className="text-lg font-semibold text-white">Filtrlar</h3>
+            <h3 className="text-lg font-semibold text-white">{t("branchOperations.filterModal.title")}</h3>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white">
             <X className="w-5 h-5" />
@@ -228,15 +247,15 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         <div className="p-6 min-h-[200px]">
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-              Kategoriya
+              {t("branchOperations.filterModal.categoryLabel")}
             </label>
             <CustomSelect
               value={localCategory || ""}
               onChange={(val) => setLocalCategory(val)}
-              placeholder="Barcha kategoriyalar"
+              placeholder={t("branchOperations.filterModal.allCategories")}
               color={color === "emerald" ? "green" : "blue"}
               options={[
-                { value: "", label: "Barcha kategoriyalar" },
+                { value: "", label: t("branchOperations.filterModal.allCategories") },
                 ...categories.map((cat) => ({
                   value: cat,
                   label: cat,
@@ -252,14 +271,14 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
-            Bekor qilish
+            {t("branchOperations.filterModal.cancel")}
           </button>
           <button
             onClick={() => onApply(localCategory)}
             className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${btnMap[color]} px-4 py-2 text-sm font-semibold text-white shadow-lg`}
           >
             <Check className="w-4 h-4" />
-            Qo'llash
+            {t("branchOperations.filterModal.apply")}
           </button>
         </div>
       </div>

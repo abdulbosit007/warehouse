@@ -84,6 +84,7 @@ export default function OwnerBranchRequests() {
   const [statusFilter, setStatusFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [destFilter, setDestFilter] = useState("");
+  const [sortBy, setSortBy] = useState("closed"); // "opened" | "closed"
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function OwnerBranchRequests() {
       const { data, error: reqErr } = await supabase
         .from("branch_requests")
         .select(`
-          id, status, created_at,
+          id, status, created_at, warehouse_decided_at,
           to_location:to_location_id (id, name, location_name),
           items:branch_request_items (
             id, requested_qty, approved_qty, status,
@@ -114,6 +115,7 @@ export default function OwnerBranchRequests() {
             source_location:source_location_id (id, name, location_name)
           )
         `)
+        .order("warehouse_decided_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(1000);
 
@@ -169,8 +171,15 @@ export default function OwnerBranchRequests() {
       result = result.filter(r => r.to_location?.id === destFilter);
     }
 
+    // Sort
+    result = [...result].sort((a, b) => {
+      const aVal = sortBy === "closed" ? (a.warehouse_decided_at || a.created_at) : a.created_at;
+      const bVal = sortBy === "closed" ? (b.warehouse_decided_at || b.created_at) : b.created_at;
+      return new Date(bVal) - new Date(aVal);
+    });
+
     return result;
-  }, [requests, search, statusFilter, sourceFilter, destFilter]);
+  }, [requests, search, statusFilter, sourceFilter, destFilter, sortBy]);
 
 
   if (authLoading) return <div className="p-10 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-indigo-600" /></div>;
@@ -247,6 +256,29 @@ export default function OwnerBranchRequests() {
              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
           </div>
         </div>
+
+        {/* Sort toggle */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-xs text-neutral-500 font-medium">{t("ownerBranchRequests.sortBy")}:</span>
+          <div className="inline-flex rounded-lg bg-neutral-100 p-0.5">
+            <button
+              onClick={() => setSortBy("opened")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "opened" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("ownerBranchRequests.requested")}
+            </button>
+            <button
+              onClick={() => setSortBy("closed")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "closed" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("ownerBranchRequests.closed")}
+            </button>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -296,7 +328,13 @@ export default function OwnerBranchRequests() {
                                 <StatusBadge status={req.status} />
                              </div>
                              <p className="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-2">
-                                <span>{new Date(req.created_at).toLocaleString()}</span>
+                                <span>{t("ownerBranchRequests.requested")}: {new Date(req.created_at).toLocaleString()}</span>
+                                {req.warehouse_decided_at && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-emerald-600 font-medium">{t("ownerBranchRequests.closed")}: {new Date(req.warehouse_decided_at).toLocaleString()}</span>
+                                  </>
+                                )}
                                 <span>•</span>
                                 <span className="font-mono text-xs bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-600">{t("ownerBranchRequests.id")}: {req.id.substring(0,8).toUpperCase()}</span>
                                 {Object.keys(bySource).length > 0 && (

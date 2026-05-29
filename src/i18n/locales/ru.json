@@ -1,7 +1,7 @@
 {
   "nav": {
     "home": "Главная",
-    "branchRequests": "Запросы филиалов",
+    "branchRequests": "Перемещения",
     "incomingBatches": "Входящие партии",
     "stockCorrections": "Корректировка склада",
     "auditReview": "Проверка аудита",
@@ -26,6 +26,7 @@
     "saveChanges": "Сохранить изменения",
     "clearFilters": "Очистить фильтры",
     "clearAll": "Очистить всё",
+    "apply": "Применить",
     "applyFilters": "Применить фильтры",
     "rows": "Строк",
     "prev": "Назад",
@@ -781,7 +782,7 @@
     }
   },
   "branchRequests": {
-    "title": "Запросы на товары",
+    "title": "Перемещения",
     "subtitle": "Управляйте входящими и исходящими перемещениями товаров",
     "tabs": {
       "new": "Новый запрос",
@@ -795,6 +796,7 @@
       "rejected": "Отклонено",
       "completed": "Завершено",
       "cancelled": "Отменено",
+      "closed": "Принято",
       "awaitingReceipt": "Ожидает получения",
       "received": "Получено"
     },
@@ -809,12 +811,27 @@
       "confirmReceiptSuccess": "Товар получен! Остатки обновлены.",
       "confirmReceiptFail": "Не удалось подтвердить получение"
     },
+    "modeToggle": {
+      "requests": "Запросы филиала",
+      "transfers": "Товарные трансферы"
+    },
+    "filterModal": {
+      "title": "Фильтры",
+      "categoryLabel": "Категория",
+      "allCategories": "Все категории",
+      "cancel": "Отмена",
+      "apply": "Применить"
+    },
+    "filter": {
+      "placeholder": "Фильтр по названию или SKU..."
+    },
     "common": {
       "loading": "Загрузка...",
       "searching": "Поиск...",
       "unknown": "Неизвестно",
       "qty": "кол-во",
-      "product": "Товар"
+      "product": "Товар",
+      "ofTotal": "из {{total}}"
     },
     "newRequest": {
       "searchTitle": "Поиск товаров",
@@ -843,7 +860,9 @@
       "arrived": "Поступило",
       "addToCart": "В корзину",
       "noStock": "Нет в наличии ни на одном складе",
-      "addedToCartBulk": "{{count}} товаров добавлено в корзину"
+      "addedToCartBulk": "{{count}} товаров добавлено в корзину",
+      "selected": "выбрано",
+      "items": "позиций"
     },
     "outgoing": {
       "emptyTitle": "Нет активных запросов",
@@ -886,8 +905,11 @@
         "all": "Все",
         "completed": "Завершено",
         "cancelled": "Отменено",
-        "rejected": "Отклонено"
+        "rejected": "Отклонено",
+        "closed": "Принято"
       },
+      "requested": "Запрошено",
+      "closed": "Закрыто",
       "noResultsTitle": "Нет результатов",
       "noResultsText": "Нет запросов, подходящих под фильтры",
       "columns": {
@@ -898,6 +920,8 @@
         "status": "Статус",
         "date": "Дата"
       },
+      "sortOpened": "Дата открытия",
+      "sortClosed": "Дата закрытия",
       "showing": "Показано {{filtered}} из {{all}} запросов",
       "loadMore": "Загрузить ещё (сейчас: {{count}})"
     }
@@ -928,18 +952,225 @@
       "selectItemsAndQty": "Пожалуйста, выберите товары и количество.",
       "pickSkuRow": "Сначала выберите строку SKU.",
       "invalidQuantity": "Некорректное количество",
-      "noItemsToSell": "Нет товаров для продажи"
+      "noItemsToSell": "Нет товаров для продажи",
+      "stockChanged": "Запасы изменились",
+      "stockItemIssue": "{{name}}: доступно только {{available}}, запрошено {{qty}}"
     },
     "success": {
       "saleCommitted": "Продажа подтверждена. TX: {{tx}}",
+      "saleCommittedSimple": "Продажа подтверждена.",
+      "salePlusBranchRequest": "{{sold}} ед. продано из филиала. Запрос на одобрение отправлен для {{requested}} ед.",
+      "approvalRequestSent": "Запрос на одобрение отправлен для {{count}} ед. Ожидание подтверждения.",
       "loanCommitted": "Займ подтверждён. TX: {{tx}}",
+      "loanCommittedSimple": "Займ подтверждён.",
+      "loanPlusBranchRequest": "{{loaned}} ед. выдано в займ из филиала. Запрос на одобрение отправлен для {{requested}} ед.",
       "returnCommittedOne": "Возврат подтверждён. TX: {{tx}}",
       "returnCommittedMany": "Подтверждено транзакций возврата: {{count}}.",
       "noteUpdated": "Комментарий обновлён",
       "dueDateUpdated": "Срок обновлён",
       "markedSold": "Отмечено как продано: {{qty}} шт.",
-      "soldAll": "Проданы все товары ({{qty}} шт.) для {{name}}",
-      "returnedItems": "Возвращено: {{qty}} шт."
+      "soldAll": "Проданы все товары ({{qty}} шт.) от {{name}}",
+      "returnedItems": "Возвращено: {{qty}} шт.",
+      "transferAccepted": "Принято {{qty}} × {{name}} — продажа подтверждена.",
+      "loanTransferAccepted": "Принято {{qty}} × {{name}} — займ зафиксирован."
+    },
+    "modal": {
+      "addToCartLabel": "Добавить в корзину",
+      "enterQty": "Введите количество по складу",
+      "tagCurrent": "Текущий",
+      "tagViaRequest": "По запросу",
+      "available": "в наличии",
+      "totalOne": "Итого: 1 единица выбрана",
+      "totalMany": "Итого: {{count}} единиц выбрано",
+      "includesViaRequest": "· Включает товары по запросу",
+      "cancel": "Отмена",
+      "addToCartBtn": "В корзину"
+    },
+    "saleSection": {
+      "title": "Продажи",
+      "subtitle": "Создавайте продажи и просматривайте историю",
+      "newSale": "Новая продажа",
+      "history": "История",
+      "productsTitle": "Продукты",
+      "productsCount": "{{count}} товаров · Филиал и Склад",
+      "searchPlaceholder": "Поиск по названию или SKU"
+    },
+    "loanSection": {
+      "title": "Управление займами",
+      "subtitle": "Создавайте займы, отслеживайте активные займы, просматривайте историю",
+      "newLoan": "Новый займ",
+      "pending": "Ожидающие",
+      "noPending": "Нет ожидающих займовых переводов",
+      "unknownBorrower": "Неизвестный заёмщик",
+      "dueDate": "Срок",
+      "acceptLoan": "Принять",
+      "approved": "Одобрено",
+      "waitingApproval": "Ожидание...",
+      "rejected": "Отклонено",
+      "cancelled": "Отменено",
+      "activeLoans": "Активные займы",
+      "history": "История",
+      "productsTitle": "Товары в {{locationName}}",
+      "productsCount": "{{count}} товаров доступно",
+      "searchPlaceholder": "Поиск по названию или SKU"
+    },
+    "filterModal": {
+      "title": "Фильтры",
+      "categoryLabel": "Категория",
+      "allCategories": "Все категории",
+      "cancel": "Отмена",
+      "apply": "Применить"
+    },
+    "productsTable": {
+      "colName": "Название",
+      "colSku": "SKU",
+      "colBranch": "Филиал",
+      "colOverall": "Всего",
+      "colAction": "Действие",
+      "noProducts": "Нет продуктов",
+      "addBtn": "Добавить",
+      "footerCount": "{{count}} товаров"
+    },
+    "loanHistory": {
+      "viewByDate": "По дате",
+      "viewByProduct": "По продукту",
+      "selectDate": "Выбрать дату",
+      "today": "Сегодня",
+      "itemsOne": "{{count}} позиция",
+      "itemsMany": "{{count}} позиций",
+      "noLoans": "Займов на эту дату нет",
+      "colProduct": "Продукт",
+      "colBorrower": "Заёмщик",
+      "colQty": "Кол-во",
+      "colStatus": "Статус",
+      "colDate": "Дата",
+      "colType": "Тип",
+      "colReturned": "Возврат",
+      "statusDone": "Завершён",
+      "statusActive": "Активен",
+      "statusClosed": "Закрыт",
+      "typeLoan": "Займ",
+      "typeReturn": "Возврат",
+      "searchLabel": "Поиск продукта",
+      "searchPlaceholder": "Поиск по названию или SKU...",
+      "productHistoryTitle": "История займов по продукту",
+      "loadingHistory": "Загрузка истории...",
+      "searchPrompt": "Введите продукт выше",
+      "searchPromptSub": "Просмотр полной истории займов по любому товару",
+      "noLoansInYear": "Займов в {{year}} нет",
+      "noLoansHint": "Попробуйте выбрать другой год",
+      "summaryLoaned": "Выдано",
+      "summaryReturned": "Возвращено",
+      "summaryTransactions": "Транзакций",
+      "detailProgress": "Прогресс",
+      "detailTotalLoaned": "Всего выдано",
+      "detailReturned": "Возвращено",
+      "detailSold": "Продано",
+      "detailRemaining": "Остаток"
+    },
+    "activeLoans": {
+      "title": "Активные займы",
+      "subtitle": "{{active}} активных · {{items}} позиций ожидает",
+      "refresh": "Обновить",
+      "loadingLoans": "Загрузка займов...",
+      "allCaughtUp": "Всё в порядке!",
+      "noPending": "Нет активных займов",
+      "daysLate": "{{days}} дн. просрочки",
+      "noDueDate": "Срок не указан",
+      "itemsOne": "{{count}} позиция",
+      "itemsMany": "{{count}} позиций",
+      "dueDateLabel": "Срок возврата",
+      "notSet": "Не указан",
+      "edit": "Редактировать",
+      "noteLabel": "Заметка",
+      "noNote": "Заметки нет",
+      "addNoteBtn": "Добавить",
+      "colProduct": "Продукт",
+      "colProgress": "Прогресс",
+      "colActions": "Действия",
+      "itemDone": "Готово",
+      "btnReturn": "Вернуть",
+      "btnSell": "Продать",
+      "sellAll": "Продать все оставшиеся ({{count}} шт.)",
+      "modalSell": "Отметить как проданное",
+      "modalReturn": "Отметить как возвращённое",
+      "available": "Доступно:",
+      "qtyLabel": "Количество для {{action}}",
+      "qtyMax": "(макс: {{max}})",
+      "noteOptional": "(необязательно)",
+      "notePlaceholder": "Добавить заметку...",
+      "cancel": "Отмена",
+      "confirm": "Подтвердить",
+      "editNoteTitle": "Изменить заметку",
+      "addNoteTitle": "Добавить заметку",
+      "noteModalPlaceholder": "Добавить заметку к займу...",
+      "saveNote": "Сохранить заметку",
+      "editDueDateTitle": "Изменить срок",
+      "save": "Сохранить"
+    },
+    "cartPanel": {
+      "title": "Корзина",
+      "itemsCount": "{{count}} поз.",
+      "empty": "Корзина пуста.",
+      "max": "макс.",
+      "sourceBranch": "Филиал",
+      "viaRequest": "По запросу",
+      "borrowerTitle": "Данные заёмщика",
+      "borrowerName": "Имя",
+      "borrowerNamePlaceholder": "Имя заёмщика",
+      "borrowerPhone": "Телефон",
+      "borrowerStore": "Магазин №",
+      "borrowerStorePlaceholder": "Номер магазина",
+      "borrowerDueDate": "Срок возврата",
+      "borrowerHint": "Обязательно: Имя и (Телефон ИЛИ Магазин №). Срок по умолчанию +3 дня.",
+      "commitSale": "Оформить продажу",
+      "commitLoan": "Оформить займ"
+    },
+    "saleHistory": {
+      "byDate": "По дате",
+      "byProduct": "По товару",
+      "selectDate": "Выбрать дату",
+      "today": "Сегодня",
+      "filterPlaceholder": "Фильтр по названию или SKU...",
+      "loading": "Загрузка...",
+      "noMatch": "Нет совпадений",
+      "noSales": "Нет продаж на эту дату",
+      "clearFilter": "Сбросить фильтр",
+      "colProduct": "Товар",
+      "colSold": "Продано",
+      "colReturned": "Возвращено",
+      "colRemaining": "Остаток",
+      "fromLocation": "из {{name}}",
+      "statusCompleted": "Выполнено",
+      "statusRejected": "Отклонено",
+      "statusReady": "Готово",
+      "statusWaiting": "Ожидание",
+      "acceptBtn": "Принять",
+      "approvedQty": "({{count}} одобрено)",
+      "footerTotal": "Итого: {{sold}} продано · {{returned}} возвращено",
+      "footerShowing": "Показано {{count}} из {{total}}",
+      "headerCount": "{{products}} продукт · {{units}} единиц",
+      "headerCountMany": "{{products}} продуктов · {{units}} единиц",
+      "searchLabel": "Поиск товара",
+      "searchPlaceholder": "Поиск по названию или SKU...",
+      "byProductTitle": "История продаж по товару",
+      "loadingHistory": "Загрузка истории...",
+      "searchPrompt": "Найдите товар выше",
+      "searchPromptSub": "Просмотр полной истории продаж",
+      "noSalesInYear": "Нет продаж в {{year}}",
+      "noSalesInYearSub": "Выберите другой год",
+      "summaryTotalSold": "Продано",
+      "summaryReturned": "Возвращено",
+      "summaryTransactions": "Транзакций",
+      "colDate": "Дата",
+      "colType": "Тип",
+      "colQty": "Кол-во",
+      "typeSale": "Продажа",
+      "typeReturn": "Возврат",
+      "returnModalTitle": "Возврат товара",
+      "returnQtyLabel": "Количество для возврата (макс: {{max}})",
+      "cancel": "Отмена",
+      "returnBtn": "Вернуть"
     }
   },
   "warehouseHome": {
@@ -1109,8 +1340,12 @@
       "to": "Куда",
       "statusAll": "Все",
       "searchPlaceholder": "Поиск товара или SKU...",
+      "requested": "Запрошено",
+      "closed": "Закрыто",
       "noResultsTitle": "Нет результатов",
       "noResultsHint": "Нет заявок по выбранным фильтрам",
+      "sortOpened": "Дата открытия",
+      "sortClosed": "Дата закрытия",
       "loadMore": "Загрузить ещё (показано: {{count}})",
       "summaryLine": "Показано {{shown}} из {{total}} {{direction}} заявок{{q, select, '' {} other { по запросу \"{{q}}\"}}}"
     }
@@ -1424,6 +1659,93 @@
       "branch": "Branch"
     }
   },
+  "ownerAnalytics": {
+    "title": "Аналитика и Активность",
+    "subtitle": "Общий обзор эффективности бизнеса по всем локациям",
+    "allLocations": "Все локации",
+    "presets": {
+      "today": "Сегодня",
+      "7days": "7 дней",
+      "30days": "30 дней",
+      "90days": "90 дней"
+    },
+    "tabs": {
+      "analytics": "Аналитика продаж",
+      "logs": "Журнал активности",
+      "restock": "Умный заказ"
+    },
+    "summary": {
+      "transactions": "Транзакции",
+      "transactionsSub": "за выбранный период",
+      "unitsSold": "Продано единиц",
+      "unitsSoldSub": "всего товаров",
+      "totalRevenue": "Общая выручка",
+      "totalRevenueSub": "сумма цен продаж",
+      "avgSale": "Средний чек",
+      "avgSaleSub": "выручка за продажу"
+    },
+    "loading": "Загрузка аналитики…",
+    "noSales": "Нет продаж за этот период",
+    "noSalesSub": "Попробуйте расширить диапазон дат",
+    "trend": {
+      "title": "Тренд выручки",
+      "overall": "Все",
+      "noData": "Недостаточно данных для графика.",
+      "revenue": "Выручка",
+      "transactions": "Транзакции"
+    },
+    "byBranch": {
+      "title": "По филиалам",
+      "noData": "Нет данных по филиалам.",
+      "revenue": "Выручка"
+    },
+    "categoryPie": {
+      "title": "Выручка по категориям",
+      "hint": "Нажмите на сектор для детализации",
+      "noData": "Нет данных по категориям"
+    },
+    "drilldown": {
+      "placeholder": "Выберите категорию",
+      "clear": "Очистить",
+      "hint": "Нажмите на сектор диаграммы",
+      "colNumber": "№",
+      "colProduct": "Товар",
+      "colUnits": "Продано (шт.)",
+      "colRevenue": "Выручка"
+    },
+    "topProducts": {
+      "title": "Топ товаров",
+      "subtitle": "по выручке · топ 10",
+      "colNumber": "№",
+      "colProduct": "Товар",
+      "colCategory": "Категория",
+      "colUnits": "Кол-во",
+      "colRevenue": "Выручка",
+      "colShare": "Доля"
+    },
+    "inventory": {
+      "title": "Стоимость запасов по локациям",
+      "subtitle": "Текущий остаток — сумма (количество × цена продажи)",
+      "noData": "Данные о запасах не найдены.",
+      "colLocation": "Локация",
+      "colType": "Тип",
+      "colUnits": "Всего единиц",
+      "colValue": "Стоимость запасов",
+      "colShare": "Доля",
+      "overallTotal": "Итого"
+    },
+    "logs": {
+      "noData": "Активность по заданным критериям не найдена.",
+      "colDate": "Дата",
+      "colLocation": "Локация",
+      "colType": "Тип",
+      "colItems": "Товары",
+      "sale": "Продажа",
+      "return": "Возврат",
+      "loan": "Займ"
+    },
+    "unauthorized": "Доступ запрещён. Только для владельца."
+  },
   "ownerBranchRequests": {
     "title": "Глобальные межфилиальные запросы",
     "subtitle": "Обзор всех запросов на перемещение запасов между складами и филиалами.",
@@ -1438,6 +1760,9 @@
     "transferTo": "Перемещение в {{name}}",
     "id": "ID",
     "from": "Из",
+    "requested": "Запрошено",
+    "closed": "Закрыто",
+    "sortBy": "Сортировка",
     "table": {
       "product": "Продукт",
       "requested": "Запрошено",
@@ -1451,6 +1776,82 @@
       "completed": "Завершено",
       "cancelled": "Отменено",
       "requestedItem": "Запрошенный товар"
+    }
+  },
+  "stockTransfers": {
+    "status": {
+      "pending": "Ожидает",
+      "accepted": "Принято",
+      "rejected": "Отклонено",
+      "cancelled": "Отменено",
+      "partial": "Частично"
+    },
+    "tabs": {
+      "send": "Отправить",
+      "outgoing": "Исходящие",
+      "incoming": "Входящие",
+      "history": "История"
+    },
+    "kind": {
+      "branch": "Филиал",
+      "warehouse": "Склад"
+    },
+    "send": {
+      "destinationLabel": "Получатель",
+      "productsAt": "Товары: {{name}}",
+      "searchPlaceholder": "Поиск по названию или SKU…",
+      "searching": "Поиск…",
+      "available": "доступно",
+      "addBtn": "Добавить",
+      "addedBtn": "Добавлено",
+      "noProducts": "Товары не найдены.",
+      "cartTitle": "Корзина перемещения",
+      "cartItems": "{{count}} позиций",
+      "emptyCart": "Товары ещё не добавлены.",
+      "maxQty": "макс {{max}}",
+      "notePlaceholder": "Примечание (необязательно)…",
+      "sendBtn": "Отправить",
+      "sending": "Отправка…",
+      "successMsg": "Перемещение успешно отправлено.",
+      "errNoDestination": "Выберите получателя.",
+      "errEmptyCart": "Добавьте хотя бы один товар.",
+      "errZeroQty": "Количество должно быть больше 0."
+    },
+    "outgoing": {
+      "summary": "{{count}} исходящих перемещений",
+      "empty": "Исходящих перемещений пока нет.",
+      "cancelBtn": "Отменить",
+      "cancelling": "Отмена…",
+      "refresh": "Обновить"
+    },
+    "incoming": {
+      "summary": "{{count}} ожидает",
+      "empty": "Входящих перемещений нет.",
+      "rejectBtn": "Отклонить",
+      "acceptBtn": "Принять",
+      "processing": "Обработка…",
+      "refresh": "Обновить"
+    },
+    "history": {
+      "filterAll": "Все",
+      "filterSent": "Отправленные",
+      "filterReceived": "Полученные",
+      "empty": "История перемещений пуста.",
+      "refresh": "Обновить",
+      "requested": "Запрошено",
+      "closed": "Закрыто",
+      "sortOpened": "Дата открытия",
+      "sortClosed": "Дата закрытия"
+    },
+    "card": {
+      "units": "{{count}} ед.",
+      "note": "Примечание: {{text}}",
+      "to": "→ {{name}}",
+      "from": "← от {{name}}",
+      "colProduct": "Товар",
+      "colSku": "Артикул",
+      "colQty": "Кол-во",
+      "colStatus": "Статус"
     }
   }
 }
