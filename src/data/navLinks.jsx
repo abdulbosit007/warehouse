@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Settings,
   Activity,
+  BarChart2,
 } from "lucide-react";
 
 /* -----------------------------

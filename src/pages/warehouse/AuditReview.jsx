@@ -46,132 +46,133 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
     setShowEdit(false);
   };
 
-  const cardStyles = {
-    pending: "bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md",
-    confirmed: "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200 shadow-sm",
-    rejected: "bg-gradient-to-br from-red-50 to-rose-50 border-red-200 shadow-sm",
-  };
+  const handleKeyDown = (e) => { if (e.key === "Enter") handleReject(); };
+
+  const diff = status === "rejected" && reportedQty != null ? reportedQty - currentQty : null;
+
+  // Left accent strip
+  const accentColor =
+    status === "confirmed" ? "bg-emerald-500" :
+    status === "rejected"  ? "bg-red-500"     : "bg-neutral-200";
+
+  // Row background
+  const rowBg =
+    status === "confirmed" ? "bg-emerald-50/60" :
+    status === "rejected"  ? "bg-red-50/60"     :
+    showEdit               ? "bg-blue-50/40"    : "bg-white hover:bg-neutral-50/80";
 
   return (
-    <div className={`rounded-2xl border p-5 transition-all duration-200 ${cardStyles[status] || cardStyles.pending}`}>
-      {/* Product Header */}
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className={`p-2.5 rounded-xl ${
-              status === "confirmed"
-                ? "bg-emerald-100 text-emerald-600"
-                : status === "rejected"
-                ? "bg-red-100 text-red-600"
-                : "bg-neutral-100 text-neutral-500"
-            }`}
-          >
-            <Package className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="font-semibold text-neutral-900 truncate">{product.name}</h4>
-            <p className="text-xs text-neutral-500 font-mono flex items-center gap-1">
-              <Hash className="w-3 h-3" /> {product.sku}
-            </p>
-          </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100">
-            <span className="text-xl font-bold text-neutral-900">{currentQty}</span>
-          </div>
-          <p className="mt-1 text-[10px] font-medium text-neutral-500 uppercase tracking-wider">
-            {t("warehouseAudit.labels.systemQty")}
-          </p>
-        </div>
-      </div>
+    <div className={`flex items-center gap-0 transition-all duration-150 ${rowBg}`}>
+      {/* Accent strip */}
+      <div className={`w-1 self-stretch shrink-0 ${accentColor}`} />
 
-      {/* Status Display */}
-      {status === "confirmed" ? (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-100/50 border border-emerald-200/50">
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
-            <CheckCircle2 className="w-5 h-5" />
-            {t("warehouseAudit.status.verifiedCorrect")}
+      {/* Row body */}
+      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3">
+
+        {/* Product name + SKU */}
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-neutral-900 text-sm leading-tight block truncate">
+            {product.name}
           </span>
-          <button
-            onClick={() => onEdit()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            {t("warehouseAudit.actions.undo")}
-          </button>
+          <span className="text-xs text-neutral-400 font-mono">{product.sku}</span>
         </div>
-      ) : status === "rejected" ? (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-red-100/50 border border-red-200/50">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-2 text-sm font-medium text-red-700">
-              <XCircle className="w-5 h-5" />
-              {t("warehouseAudit.status.discrepancyFound")}
-            </span>
-            <span className="px-2.5 py-1 text-xs font-bold text-red-800 bg-red-200 rounded-lg">
-              {t("warehouseAudit.labels.actual")}: {reportedQty}
-            </span>
+
+        {/* System qty */}
+        <div className="text-center shrink-0 w-14">
+          <div className="text-base font-bold text-neutral-800 leading-tight">{currentQty}</div>
+          <div className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider">
+            {t("warehouseAudit.labels.systemQty")}
           </div>
-          <button
-            onClick={() => {
-              onEdit();
-              setShowEdit(true);
-              setEditQty(reportedQty ?? "");
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-          >
-            {t("warehouseAudit.actions.edit")}
-          </button>
         </div>
-      ) : showEdit ? (
-        <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-          <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-            {t("warehouseAudit.labels.enterActualQty")}
-          </label>
-          <div className="space-y-3">
-            <input
-              type="number"
-              min="0"
-              value={editQty}
-              onChange={(e) => setEditQty(e.target.value)}
-              placeholder="0"
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              autoFocus
-            />
+
+        {/* Divider */}
+        <div className="w-px h-8 bg-neutral-200 shrink-0" />
+
+        {/* Action zone */}
+        <div className="shrink-0">
+          {status === "confirmed" ? (
             <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm font-semibold text-emerald-700">
+                {t("warehouseAudit.status.verifiedCorrect")}
+              </span>
+              <button
+                onClick={() => onEdit()}
+                className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                {t("warehouseAudit.actions.undo")}
+              </button>
+            </div>
+
+          ) : status === "rejected" ? (
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-red-500" />
+              <span className="text-sm font-semibold text-red-700">
+                {t("warehouseAudit.labels.actual")}: <b>{reportedQty}</b>
+              </span>
+              {diff !== null && (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  diff > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                }`}>
+                  {diff > 0 ? "+" : ""}{diff}
+                </span>
+              )}
+              <button
+                onClick={() => { onEdit(); setShowEdit(true); setEditQty(reportedQty ?? ""); }}
+                className="ml-1 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+              >
+                {t("warehouseAudit.actions.edit")}
+              </button>
+            </div>
+
+          ) : showEdit ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                value={editQty}
+                onChange={(e) => setEditQty(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="0"
+                className="w-20 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                autoFocus
+              />
               <button
                 onClick={handleReject}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 px-4 py-2.5 text-sm font-medium hover:bg-emerald-100 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold hover:bg-emerald-600 active:scale-95 transition-all"
               >
                 <Check className="w-4 h-4" />
                 {t("warehouseAudit.actions.save")}
               </button>
               <button
                 onClick={() => setShowEdit(false)}
-                className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-neutral-600 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
               >
                 {t("warehouseAudit.actions.cancel")}
               </button>
             </div>
-          </div>
+
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onConfirm}
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all"
+              >
+                <Check className="w-4 h-4" />
+                {t("warehouseAudit.actions.correct")}
+              </button>
+              <button
+                onClick={() => setShowEdit(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 px-3 py-1.5 text-sm font-semibold hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all"
+              >
+                <X className="w-4 h-4" />
+                {t("warehouseAudit.actions.wrong")}
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onConfirm}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-2.5 text-sm font-medium hover:bg-emerald-100 hover:border-emerald-300 transition-all"
-          >
-            <Check className="w-4 h-4" />
-            {t("warehouseAudit.actions.correct")}
-          </button>
-          <button
-            onClick={() => setShowEdit(true)}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 px-4 py-2.5 text-sm font-medium hover:bg-red-100 hover:border-red-300 transition-all"
-          >
-            <X className="w-4 h-4" />
-            {t("warehouseAudit.actions.wrong")}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -1132,30 +1133,57 @@ export default function WarehouseAuditReview({ asTab = false }) {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pb-24">
+          {/* Products List — 1 row per product */}
+          <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden pb-24">
+            {/* List header */}
+            <div className="flex items-center gap-3 px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
+              <div className="w-1 shrink-0" />
+              <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                {filteredProducts.length} products
+              </div>
+              <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                {t("warehouseAudit.labels.systemQty")}
+              </div>
+              <div className="w-px h-4 bg-neutral-200 shrink-0" />
+              <div className="w-56 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-1">
+                {t("warehouseAudit.actions.correct")} / {t("warehouseAudit.actions.wrong")}
+              </div>
+            </div>
+
             {filteredProducts.length === 0 ? (
-              <div className="col-span-full rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+              <div className="py-16 text-center">
                 <Filter className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
                 <p className="text-neutral-500">{t("warehouseAudit.empty.noMatch")}</p>
               </div>
             ) : (
-              filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  id={`product-${product.id}`}
-                  className={`transition-all duration-300 ${product.id === currentPendingId ? "ring-2 ring-blue-500 rounded-2xl" : ""}`}
-                >
-                  <ProductCard
-                    product={product}
-                    currentQty={getQtyAt(product.id)}
-                    status={reviews[product.id]?.status}
-                    reportedQty={reviews[product.id]?.reportedQty}
-                    onConfirm={() => handleConfirm(product.id)}
-                    onReject={(qty) => handleReject(product.id, qty)}
-                    onEdit={() => handleUndo(product.id)}
-                  />
-                </div>
-              ))
+              <div className="divide-y divide-neutral-100">
+                {filteredProducts.map((product, idx) => (
+                  <div
+                    key={product.id}
+                    id={`product-${product.id}`}
+                    className={`transition-all duration-200 ${
+                      product.id === currentPendingId ? "ring-2 ring-inset ring-blue-400" : ""
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1">
+                        <ProductCard
+                          product={product}
+                          currentQty={getQtyAt(product.id)}
+                          status={reviews[product.id]?.status}
+                          reportedQty={reviews[product.id]?.reportedQty}
+                          onConfirm={() => handleConfirm(product.id)}
+                          onReject={(qty) => handleReject(product.id, qty)}
+                          onEdit={() => handleUndo(product.id)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 

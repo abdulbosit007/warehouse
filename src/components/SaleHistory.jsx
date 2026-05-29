@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { DayPicker } from "react-day-picker";
-import { Calendar, Package, RotateCcw, X, Search, TrendingDown, Hash, ArrowUpDown } from "lucide-react";
+import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
+import ReturnDestModal from "./ReturnDestModal";
 
 export default function SaleHistory({
   nf,
@@ -11,16 +13,25 @@ export default function SaleHistory({
   loading,
   loadSaleHistory,
   commitSaleReturn,
+  salePendingRequests = [],
+  onAcceptTransfer,
+  // Return destination modal props
+  allLocations = [],
+  branchLocationId = null,
   // By-product search props (optional)
   searchProducts,
   searchProductHistory,
   getFirstSaleYear,
 }) {
+  const { t } = useTranslation();
   const [returnModal, setReturnModal] = useState(null);
   const [returnQty, setReturnQty] = useState(1);
+  const [retDestModal, setRetDestModal] = useState(null); // { items, onConfirm }
   const [filterQuery, setFilterQuery] = useState("");
   const [sortBy, setSortBy] = useState("name"); // "name" | "qty" | "returned"
   const [sortDir, setSortDir] = useState("asc");
+  const [highlightProductId, setHighlightProductId] = useState(null);
+  const highlightRowRef = useRef(null);
 
   // Product search state
   const [viewMode, setViewMode] = useState("date"); // "date" | "product"
@@ -67,35 +78,41 @@ export default function SaleHistory({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [productQuery, viewMode, searchProducts]);
 
-  // Group all items by product_id and sum quantities
-  const groupedMap = new Map();
-  for (const sale of saleHistory) {
-    for (const item of sale.items || []) {
-      const key = item.product_id;
-      if (groupedMap.has(key)) {
-        const existing = groupedMap.get(key);
-        existing.qty += item.qty;
-        existing.returned += item.returned || 0;
-        existing.remaining += item.remaining || 0;
-        existing.sales.push({ sale, item });
-      } else {
-        groupedMap.set(key, {
-          product_id: item.product_id,
-          name: item.name,
-          sku: item.sku,
-          qty: item.qty,
-          returned: item.returned || 0,
-          remaining: item.remaining || 0,
-          sales: [{ sale, item }],
-        });
+  // Group all items by product_id — all committed sales (direct + transfer-accepted).
+  // Transfer-accepted sales are now included in saleHistory directly, so no need
+  // to add them separately from salePendingRequests (which caused empty sales[] arrays
+  // making those items un-returnable). Pending/waiting items are shown via a separate
+  // table section below.
+  const groupedMap = useMemo(() => {
+    const map = new Map();
+    for (const sale of saleHistory) {
+      for (const item of sale.items || []) {
+        const key = item.product_id;
+        if (map.has(key)) {
+          const existing = map.get(key);
+          existing.qty += item.qty;
+          existing.returned += item.returned || 0;
+          existing.remaining += item.remaining || 0;
+          existing.sales.push({ sale, item });
+        } else {
+          map.set(key, {
+            product_id: item.product_id,
+            name: item.name,
+            sku: item.sku,
+            qty: item.qty,
+            returned: item.returned || 0,
+            remaining: item.remaining || 0,
+            sales: [{ sale, item }],
+          });
+        }
       }
     }
-  }
+    return map;
+  }, [saleHistory]);
 
   // Convert to array, filter and sort
   const groupedItems = useMemo(() => {
     let items = Array.from(groupedMap.values());
-    // Filter
     const fq = filterQuery.trim().toLowerCase();
     if (fq) {
       items = items.filter(
@@ -104,7 +121,6 @@ export default function SaleHistory({
           (i.sku || "").toLowerCase().includes(fq)
       );
     }
-    // Sort
     items.sort((a, b) => {
       let cmp = 0;
       if (sortBy === "name") cmp = (a.name || "").localeCompare(b.name || "");
@@ -112,8 +128,22 @@ export default function SaleHistory({
       else if (sortBy === "returned") cmp = a.returned - b.returned;
       return sortDir === "asc" ? cmp : -cmp;
     });
+    if (highlightProductId) {
+      const hIdx = items.findIndex((i) => i.product_id === highlightProductId);
+      if (hIdx > 0) {
+        const [pinned] = items.splice(hIdx, 1);
+        items.unshift(pinned);
+      }
+    }
     return items;
-  }, [filterQuery, sortBy, sortDir, saleHistory]);
+  }, [groupedMap, filterQuery, sortBy, sortDir, highlightProductId]);
+
+  // Scroll highlighted row into view
+  useEffect(() => {
+    if (highlightProductId && highlightRowRef.current) {
+      highlightRowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightProductId, groupedItems]);
 
   const handleSort = (col) => {
     if (sortBy === col) {
@@ -132,9 +162,33 @@ export default function SaleHistory({
     }
   };
 
-  const handleReturnSubmit = async () => {
-    if (!returnModal || !commitSaleReturn) return;
-    await commitSaleReturn(returnModal.sale, returnModal.item, returnQty);
+  const handleReturnSubmit = () => {
+    if (!returnModal || returnQty <= 0 || returnQty > returnModal.item.remaining) return;
+    if (!commitSaleReturn) return;
+
+    // Capture values before closing the qty modal
+    const { sale, item, grouped } = returnModal;
+    const qty = returnQty;
+
+    const returnItem = {
+      product_id: item.product_id,
+      name: grouped.name,
+      sku: grouped.sku || "",
+      qty,
+      return_kind: "sale_return",
+      parent_tx_id: sale.id,
+    };
+
+    // Open destination modal (self-contained in this component)
+    setRetDestModal({
+      items: [returnItem],
+      onConfirm: async (destinations, retNote) => {
+        await commitSaleReturn(sale, item, qty, destinations, retNote);
+        setRetDestModal(null);
+      },
+    });
+
+    // Close the qty modal now
     setReturnModal(null);
   };
 
@@ -145,7 +199,6 @@ export default function SaleHistory({
     const currentYear = new Date().getFullYear();
     const yr = year || currentYear;
     setSelectedYear(yr);
-    // Fetch first sale year
     if (getFirstSaleYear) {
       getFirstSaleYear(product.id).then((fy) => setFirstYear(fy));
     }
@@ -183,15 +236,18 @@ export default function SaleHistory({
     setProductSuggestions([]);
     setSelectedYear(new Date().getFullYear());
     setFirstYear(new Date().getFullYear());
+    setHighlightProductId(null);
   };
 
-  // Sort indicator
   const SortIcon = ({ col }) => {
     if (sortBy !== col) return <ArrowUpDown className="w-3 h-3 text-neutral-400" />;
     return (
       <ArrowUpDown className={`w-3 h-3 ${sortDir === "asc" ? "text-emerald-600" : "text-emerald-600 rotate-180"}`} />
     );
   };
+
+  const totalSold = groupedItems.reduce((s, i) => s + i.qty, 0);
+  const totalUnits = groupedItems.reduce((s, i) => s + i.qty, 0);
 
   return (
     <>
@@ -200,9 +256,9 @@ export default function SaleHistory({
         {searchProducts && (
           <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
             {[
-              { key: "date", label: "By Date", icon: Calendar },
-              { key: "product", label: "By Product", icon: Search },
-            ].map(({ key, label, icon: Icon }) => (
+              { key: "date", labelKey: "byDate", icon: Calendar },
+              { key: "product", labelKey: "byProduct", icon: Search },
+            ].map(({ key, labelKey, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => {
@@ -216,7 +272,7 @@ export default function SaleHistory({
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {label}
+                {t(`branchOperations.saleHistory.${labelKey}`)}
               </button>
             ))}
           </div>
@@ -229,7 +285,9 @@ export default function SaleHistory({
             <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-white" />
-                <span className="text-sm font-semibold text-white">Select Date</span>
+                <span className="text-sm font-semibold text-white">
+                  {t("branchOperations.saleHistory.selectDate")}
+                </span>
               </div>
               <div className="p-3">
                 <style>{`
@@ -259,6 +317,7 @@ export default function SaleHistory({
                     if (!d) return;
                     setSelectedDay(d);
                     loadSaleHistory(d);
+                    setHighlightProductId(null);
                   }}
                   defaultMonth={selectedDay}
                   showOutsideDays
@@ -266,25 +325,34 @@ export default function SaleHistory({
                 />
                 <button
                   onClick={() => {
-                    const t = new Date();
-                    setSelectedDay(t);
-                    loadSaleHistory(t);
+                    const today = new Date();
+                    setSelectedDay(today);
+                    loadSaleHistory(today);
+                    setHighlightProductId(null);
                   }}
                   className="w-full mt-2 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
-                  Today
+                  {t("branchOperations.saleHistory.today")}
                 </button>
               </div>
             </div>
 
-            {/* Results */}
+            {/* Results panel */}
             <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-semibold text-white">
                   {ymd(selectedDay)}
                 </span>
                 <span className="text-xs text-emerald-200">
-                  {groupedItems.length} product{groupedItems.length !== 1 ? "s" : ""} · {groupedItems.reduce((s, i) => s + i.qty, 0)} units
+                  {groupedItems.length === 1
+                    ? t("branchOperations.saleHistory.headerCount", {
+                        products: groupedItems.length,
+                        units: totalUnits,
+                      })
+                    : t("branchOperations.saleHistory.headerCountMany", {
+                        products: groupedItems.length,
+                        units: totalUnits,
+                      })}
                 </span>
               </div>
 
@@ -296,7 +364,7 @@ export default function SaleHistory({
                     <input
                       value={filterQuery}
                       onChange={(e) => setFilterQuery(e.target.value)}
-                      placeholder="Filter by name or SKU..."
+                      placeholder={t("branchOperations.saleHistory.filterPlaceholder")}
                       className="w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-9 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     />
                     {filterQuery && (
@@ -314,20 +382,24 @@ export default function SaleHistory({
               {loading ? (
                 <div className="flex flex-col items-center py-12">
                   <div className="w-6 h-6 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                  <p className="text-sm text-neutral-500 mt-2">Loading...</p>
+                  <p className="text-sm text-neutral-500 mt-2">
+                    {t("branchOperations.saleHistory.loading")}
+                  </p>
                 </div>
-              ) : groupedItems.length === 0 ? (
+              ) : groupedItems.length === 0 && salePendingRequests.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
                   <Package className="w-10 h-10 text-neutral-300 mb-2" />
                   <p className="text-sm text-neutral-500">
-                    {filterQuery ? "No matching products" : "No sales on this date"}
+                    {filterQuery
+                      ? t("branchOperations.saleHistory.noMatch")
+                      : t("branchOperations.saleHistory.noSales")}
                   </p>
                   {filterQuery && (
                     <button
                       onClick={() => setFilterQuery("")}
                       className="mt-2 text-xs text-emerald-600 hover:underline"
                     >
-                      Clear filter
+                      {t("branchOperations.saleHistory.clearFilter")}
                     </button>
                   )}
                 </div>
@@ -341,7 +413,7 @@ export default function SaleHistory({
                           onClick={() => handleSort("name")}
                         >
                           <span className="inline-flex items-center gap-1">
-                            Product <SortIcon col="name" />
+                            {t("branchOperations.saleHistory.colProduct")} <SortIcon col="name" />
                           </span>
                         </th>
                         <th
@@ -349,7 +421,7 @@ export default function SaleHistory({
                           onClick={() => handleSort("qty")}
                         >
                           <span className="inline-flex items-center gap-1">
-                            Sold <SortIcon col="qty" />
+                            {t("branchOperations.saleHistory.colSold")} <SortIcon col="qty" />
                           </span>
                         </th>
                         <th
@@ -357,66 +429,184 @@ export default function SaleHistory({
                           onClick={() => handleSort("returned")}
                         >
                           <span className="inline-flex items-center gap-1">
-                            Returned <SortIcon col="returned" />
+                            {t("branchOperations.saleHistory.colReturned")} <SortIcon col="returned" />
                           </span>
                         </th>
-                        <th className="px-4 py-2.5 text-center">Remaining</th>
-                        <th className="px-4 py-2.5 text-center w-24"></th>
+                        <th className="px-4 py-2.5 text-center">
+                          {t("branchOperations.saleHistory.colRemaining")}
+                        </th>
+                        <th className="px-4 py-2.5 text-center w-28"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
-                      {groupedItems.map((item) => (
-                        <tr key={item.product_id} className="hover:bg-emerald-50/30 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-neutral-800">{item.name}</div>
-                            <div className="text-xs text-neutral-400">{item.sku || "—"}</div>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="font-bold text-emerald-600">
-                              {nf.format(item.qty)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {item.returned > 0 ? (
-                              <span className="font-medium text-amber-600">
-                                {nf.format(item.returned)}
+                      {/* ── Committed sale rows ── */}
+                      {groupedItems.map((item) => {
+                        const isHighlighted = item.product_id === highlightProductId;
+                        return (
+                          <tr
+                            key={item.product_id}
+                            ref={isHighlighted ? highlightRowRef : null}
+                            className={`transition-colors ${
+                              isHighlighted
+                                ? "bg-emerald-50 ring-1 ring-inset ring-emerald-300"
+                                : "hover:bg-emerald-50/30"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-neutral-800">{item.name}</span>
+                                {isHighlighted && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white leading-none shrink-0">
+                                    ★
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-neutral-400">{item.sku || "—"}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="font-bold text-emerald-600">
+                                {nf.format(item.qty)}
                               </span>
-                            ) : (
-                              <span className="text-neutral-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="font-medium text-neutral-700">
-                              {nf.format(item.remaining)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {item.remaining > 0 && commitSaleReturn && (
-                              <button
-                                onClick={() => handleReturnClick(item)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 transition-colors"
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {item.returned > 0 ? (
+                                <span className="font-medium text-amber-600">
+                                  {nf.format(item.returned)}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="font-medium text-neutral-700">
+                                {nf.format(item.remaining)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {item.remaining > 0 && commitSaleReturn && (
+                                <button
+                                  onClick={() => handleReturnClick(item)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 transition-colors"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  {t("branchOperations.saleHistory.returnBtn")}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* ── Transfer request rows (pending / waiting / ready to accept) ── */}
+                      {/* Fulfilled items are merged into the sold table above — no row here */}
+                      {salePendingRequests.flatMap((req) =>
+                        (req.items || [])
+                          .filter((it) => it.status !== "fulfilled")
+                          .map((it) => {
+                            const canAccept =
+                              onAcceptTransfer &&
+                              (req.status === "approved" ||
+                                req.status === "closed" ||
+                                req.status === "completed" ||
+                                it.status === "approved");
+                            const isRejected = it.status === "rejected" || req.status === "rejected";
+                            const acceptQty = it.approved_qty ?? it.requested_qty;
+
+                            return (
+                              <tr
+                                key={`req-${it.id}`}
+                                className={`transition-colors ${
+                                  canAccept
+                                    ? "bg-emerald-50/60 hover:bg-emerald-50"
+                                    : isRejected
+                                    ? "bg-red-50/40"
+                                    : "bg-amber-50/40 hover:bg-amber-50/60"
+                                }`}
                               >
-                                <RotateCcw className="w-3 h-3" />
-                                Return
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-neutral-800">
+                                    {it.product?.name || "—"}
+                                  </div>
+                                  <div className="text-xs text-neutral-400 font-mono">
+                                    {it.product?.sku || ""}
+                                  </div>
+                                  {it.source_location?.location_name && (
+                                    <div className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
+                                      <Warehouse className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.fromLocation", {
+                                        name: it.source_location.location_name,
+                                      })}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {isRejected ? (
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                      <X className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.statusRejected")}
+                                    </span>
+                                  ) : canAccept ? (
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.statusReady")}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                      <Clock className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.statusWaiting")}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="text-neutral-300">—</span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="text-sm font-semibold text-neutral-600">
+                                    {nf.format(it.requested_qty)}
+                                    {it.approved_qty != null && it.approved_qty !== it.requested_qty && (
+                                      <span className="ml-1 text-xs text-emerald-600">
+                                        {t("branchOperations.saleHistory.approvedQty", {
+                                          count: nf.format(it.approved_qty),
+                                        })}
+                                      </span>
+                                    )}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {canAccept && (
+                                    <button
+                                      onClick={() => onAcceptTransfer(req, it, acceptQty)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.acceptBtn")}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
                     </tbody>
                   </table>
                 </div>
               )}
 
               {/* Footer */}
-              {!loading && groupedItems.length > 0 && (
+              {!loading && (groupedItems.length > 0 || salePendingRequests.length > 0) && (
                 <div className="border-t border-neutral-200 px-4 py-2 bg-neutral-50 text-xs text-neutral-500 flex items-center justify-between">
                   <span>
-                    Total: {groupedItems.reduce((s, i) => s + i.qty, 0)} sold · {groupedItems.reduce((s, i) => s + i.returned, 0)} returned
+                    {t("branchOperations.saleHistory.footerTotal", {
+                      sold: groupedItems.reduce((s, i) => s + i.qty, 0),
+                      returned: groupedItems.reduce((s, i) => s + i.returned, 0),
+                    })}
                   </span>
                   {filterQuery && (
                     <span className="text-emerald-600">
-                      Showing {groupedItems.length} of {groupedMap.size}
+                      {t("branchOperations.saleHistory.footerShowing", {
+                        count: groupedItems.length,
+                        total: groupedMap.size,
+                      })}
                     </span>
                   )}
                 </div>
@@ -431,7 +621,7 @@ export default function SaleHistory({
             {/* Product Search */}
             <div className="relative max-w-md" ref={inputRef}>
               <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide mb-1.5">
-                Search Product
+                {t("branchOperations.saleHistory.searchLabel")}
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 z-10" />
@@ -442,7 +632,7 @@ export default function SaleHistory({
                     setSelectedProduct(null);
                   }}
                   onFocus={() => productSuggestions.length > 0 && setShowSuggestions(true)}
-                  placeholder="Search by name or SKU..."
+                  placeholder={t("branchOperations.saleHistory.searchPlaceholder")}
                   className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-10 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition-all"
                 />
                 {productQuery && (
@@ -480,7 +670,9 @@ export default function SaleHistory({
               <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">
-                    {selectedProduct ? selectedProduct.name : "Sale History by Product"}
+                    {selectedProduct
+                      ? selectedProduct.name
+                      : t("branchOperations.saleHistory.byProductTitle")}
                   </span>
                   {selectedProduct && (
                     <span className="text-xs text-emerald-200 bg-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -516,38 +708,54 @@ export default function SaleHistory({
               {productHistLoading ? (
                 <div className="flex flex-col items-center py-12">
                   <div className="w-6 h-6 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                  <p className="text-sm text-neutral-500 mt-2">Loading history...</p>
+                  <p className="text-sm text-neutral-500 mt-2">
+                    {t("branchOperations.saleHistory.loadingHistory")}
+                  </p>
                 </div>
               ) : !selectedProduct ? (
                 <div className="flex flex-col items-center py-12">
                   <Search className="w-10 h-10 text-neutral-300 mb-2" />
-                  <p className="text-sm text-neutral-500">Search for a product above</p>
-                  <p className="text-xs text-neutral-400 mt-1">View complete sell history for any item</p>
+                  <p className="text-sm text-neutral-500">
+                    {t("branchOperations.saleHistory.searchPrompt")}
+                  </p>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    {t("branchOperations.saleHistory.searchPromptSub")}
+                  </p>
                 </div>
               ) : productHistory.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
                   <Package className="w-10 h-10 text-neutral-300 mb-2" />
-                  <p className="text-sm text-neutral-500">No sales in {selectedYear}</p>
-                  <p className="text-xs text-neutral-400 mt-1">Try selecting a different year</p>
+                  <p className="text-sm text-neutral-500">
+                    {t("branchOperations.saleHistory.noSalesInYear", { year: selectedYear })}
+                  </p>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    {t("branchOperations.saleHistory.noSalesInYearSub")}
+                  </p>
                 </div>
               ) : (
                 <div className="max-h-[500px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   {/* Summary Card */}
                   <div className="px-4 py-3 bg-emerald-50/50 border-b border-neutral-100 grid grid-cols-3 gap-3">
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Total Sold</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">
+                        {t("branchOperations.saleHistory.summaryTotalSold")}
+                      </div>
                       <div className="text-lg font-bold text-emerald-600">
                         {nf.format(productHistory.reduce((s, r) => s + (r.type === "sale" ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Returned</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">
+                        {t("branchOperations.saleHistory.summaryReturned")}
+                      </div>
                       <div className="text-lg font-bold text-amber-600">
                         {nf.format(productHistory.reduce((s, r) => s + (r.type === "sale_return" ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Transactions</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">
+                        {t("branchOperations.saleHistory.summaryTransactions")}
+                      </div>
                       <div className="text-lg font-bold text-neutral-700">
                         {productHistory.length}
                       </div>
@@ -558,9 +766,15 @@ export default function SaleHistory({
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-neutral-100 z-10">
                       <tr className="text-neutral-600 text-xs font-semibold uppercase">
-                        <th className="px-4 py-2.5 text-left">Date</th>
-                        <th className="px-4 py-2.5 text-left">Type</th>
-                        <th className="px-4 py-2.5 text-center">Qty</th>
+                        <th className="px-4 py-2.5 text-left">
+                          {t("branchOperations.saleHistory.colDate")}
+                        </th>
+                        <th className="px-4 py-2.5 text-left">
+                          {t("branchOperations.saleHistory.colType")}
+                        </th>
+                        <th className="px-4 py-2.5 text-center">
+                          {t("branchOperations.saleHistory.colQty")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
@@ -572,6 +786,7 @@ export default function SaleHistory({
                                 const d = new Date(row.day + "T12:00:00");
                                 setSelectedDay(d);
                                 loadSaleHistory(d);
+                                setHighlightProductId(selectedProduct?.id ?? null);
                                 setViewMode("date");
                               }}
                               className="text-emerald-600 hover:text-emerald-800 hover:underline font-medium transition-colors"
@@ -585,7 +800,9 @@ export default function SaleHistory({
                                 ? "bg-emerald-100 text-emerald-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}>
-                              {row.type === "sale" ? "Sale" : "Return"}
+                              {row.type === "sale"
+                                ? t("branchOperations.saleHistory.typeSale")
+                                : t("branchOperations.saleHistory.typeReturn")}
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-center">
@@ -617,8 +834,13 @@ export default function SaleHistory({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-neutral-800">Return Items</h3>
-              <button onClick={() => setReturnModal(null)} className="text-neutral-400 hover:text-neutral-600">
+              <h3 className="font-semibold text-neutral-800">
+                {t("branchOperations.saleHistory.returnModalTitle")}
+              </h3>
+              <button
+                onClick={() => setReturnModal(null)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -630,7 +852,9 @@ export default function SaleHistory({
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-neutral-600 mb-1.5">
-                Quantity to return (max: {returnModal.item.remaining})
+                {t("branchOperations.saleHistory.returnQtyLabel", {
+                  max: returnModal.item.remaining,
+                })}
               </label>
               <input
                 type="text"
@@ -657,17 +881,29 @@ export default function SaleHistory({
                 onClick={() => setReturnModal(null)}
                 className="flex-1 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 font-medium hover:bg-neutral-50 transition-colors"
               >
-                Cancel
+                {t("branchOperations.saleHistory.cancel")}
               </button>
               <button
                 onClick={handleReturnSubmit}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors"
+                disabled={returnQty <= 0}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Return
+                {t("branchOperations.saleHistory.returnBtn")}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Return Destination Modal — self-contained, no cross-component state */}
+      {retDestModal && (
+        <ReturnDestModal
+          items={retDestModal.items}
+          allLocations={allLocations}
+          branchLocationId={branchLocationId}
+          onConfirm={retDestModal.onConfirm}
+          onClose={() => setRetDestModal(null)}
+        />
       )}
     </>
   );

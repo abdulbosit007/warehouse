@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { DayPicker } from "react-day-picker";
 import { Calendar, Package, X, Search } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
@@ -15,6 +16,7 @@ export default function LoanHistory({
   searchProductHistory,
   getFirstLoanYear,
 }) {
+  const { t } = useTranslation();
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Product search state
@@ -92,9 +94,9 @@ export default function LoanHistory({
   const getStatus = (item) => {
     const totalResolved = item.returned + item.sold;
     const percent = item.qty > 0 ? Math.round((totalResolved / item.qty) * 100) : 0;
-    if (item.remaining <= 0) return { label: "Done", color: "text-emerald-600 bg-emerald-100", percent: 100 };
+    if (item.remaining <= 0) return { label: t("branchOperations.loanHistory.statusDone"), color: "text-emerald-600 bg-emerald-100", percent: 100 };
     if (totalResolved > 0) return { label: `${percent}%`, color: "text-amber-600 bg-amber-100", percent };
-    return { label: "Active", color: "text-neutral-500 bg-neutral-100", percent: 0 };
+    return { label: t("branchOperations.loanHistory.statusActive"), color: "text-neutral-500 bg-neutral-100", percent: 0 };
   };
 
   const handleSelectProduct = async (product) => {
@@ -142,6 +144,11 @@ export default function LoanHistory({
     setFirstYear(new Date().getFullYear());
   };
 
+  const itemsLabel = (count) =>
+    count === 1
+      ? t("branchOperations.loanHistory.itemsOne", { count })
+      : t("branchOperations.loanHistory.itemsMany", { count });
+
   return (
     <>
       <div className="space-y-4">
@@ -149,8 +156,8 @@ export default function LoanHistory({
         {searchProducts && (
           <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
             {[
-              { key: "date", label: "By Date", icon: Calendar },
-              { key: "product", label: "By Product", icon: Search },
+              { key: "date", label: t("branchOperations.loanHistory.viewByDate"), icon: Calendar },
+              { key: "product", label: t("branchOperations.loanHistory.viewByProduct"), icon: Search },
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -178,7 +185,7 @@ export default function LoanHistory({
             <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-amber-600 to-orange-700 px-4 py-3 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-white" />
-                <span className="text-sm font-semibold text-white">Select Date</span>
+                <span className="text-sm font-semibold text-white">{t("branchOperations.loanHistory.selectDate")}</span>
               </div>
               <div className="p-3">
                 <style>{`
@@ -215,13 +222,13 @@ export default function LoanHistory({
                 />
                 <button
                   onClick={() => {
-                    const t = new Date();
-                    setSelectedDay(t);
-                    loadLoanHistory(t);
+                    const today = new Date();
+                    setSelectedDay(today);
+                    loadLoanHistory(today);
                   }}
                   className="w-full mt-2 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
-                  Today
+                  {t("branchOperations.loanHistory.today")}
                 </button>
               </div>
             </div>
@@ -230,30 +237,28 @@ export default function LoanHistory({
             <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-amber-600 to-orange-700 px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-semibold text-white">{ymd(selectedDay)}</span>
-                <span className="text-xs text-amber-200">
-                  {flatItems.length} item{flatItems.length !== 1 ? "s" : ""}
-                </span>
+                <span className="text-xs text-amber-200">{itemsLabel(flatItems.length)}</span>
               </div>
 
               {loading ? (
                 <div className="flex flex-col items-center py-12">
                   <div className="w-6 h-6 border-3 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
-                  <p className="text-sm text-neutral-500 mt-2">Loading...</p>
+                  <p className="text-sm text-neutral-500 mt-2">{t("common.loading")}</p>
                 </div>
               ) : flatItems.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
                   <Package className="w-10 h-10 text-neutral-300 mb-2" />
-                  <p className="text-sm text-neutral-500">No loans on this date</p>
+                  <p className="text-sm text-neutral-500">{t("branchOperations.loanHistory.noLoans")}</p>
                 </div>
               ) : (
                 <div className="max-h-[450px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-neutral-100 z-10">
                       <tr className="text-neutral-600 text-xs font-semibold uppercase">
-                        <th className="px-4 py-2.5 text-left">Product</th>
-                        <th className="px-4 py-2.5 text-left">Borrower</th>
-                        <th className="px-4 py-2.5 text-center">Qty</th>
-                        <th className="px-4 py-2.5 text-right">Status</th>
+                        <th className="px-4 py-2.5 text-left">{t("branchOperations.loanHistory.colProduct")}</th>
+                        <th className="px-4 py-2.5 text-left">{t("branchOperations.loanHistory.colBorrower")}</th>
+                        <th className="px-4 py-2.5 text-center">{t("branchOperations.loanHistory.colQty")}</th>
+                        <th className="px-4 py-2.5 text-right">{t("branchOperations.loanHistory.colStatus")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
@@ -301,7 +306,7 @@ export default function LoanHistory({
             {/* Product Search */}
             <div className="relative max-w-md" ref={inputRef}>
               <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wide mb-1.5">
-                Search Product
+                {t("branchOperations.loanHistory.searchLabel")}
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 z-10" />
@@ -312,7 +317,7 @@ export default function LoanHistory({
                     setSelectedProduct(null);
                   }}
                   onFocus={() => productSuggestions.length > 0 && setShowSuggestions(true)}
-                  placeholder="Search by name or SKU..."
+                  placeholder={t("branchOperations.loanHistory.searchPlaceholder")}
                   className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-10 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white focus:border-transparent transition-all"
                 />
                 {productQuery && (
@@ -350,7 +355,7 @@ export default function LoanHistory({
               <div className="bg-gradient-to-r from-amber-600 to-orange-700 px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">
-                    {selectedProduct ? selectedProduct.name : "Loan History by Product"}
+                    {selectedProduct ? selectedProduct.name : t("branchOperations.loanHistory.productHistoryTitle")}
                   </span>
                   {selectedProduct && (
                     <span className="text-xs text-amber-200 bg-amber-500/30 px-2 py-0.5 rounded-full">
@@ -386,38 +391,38 @@ export default function LoanHistory({
               {productHistLoading ? (
                 <div className="flex flex-col items-center py-12">
                   <div className="w-6 h-6 border-3 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
-                  <p className="text-sm text-neutral-500 mt-2">Loading history...</p>
+                  <p className="text-sm text-neutral-500 mt-2">{t("branchOperations.loanHistory.loadingHistory")}</p>
                 </div>
               ) : !selectedProduct ? (
                 <div className="flex flex-col items-center py-12">
                   <Search className="w-10 h-10 text-neutral-300 mb-2" />
-                  <p className="text-sm text-neutral-500">Search for a product above</p>
-                  <p className="text-xs text-neutral-400 mt-1">View complete loan history for any item</p>
+                  <p className="text-sm text-neutral-500">{t("branchOperations.loanHistory.searchPrompt")}</p>
+                  <p className="text-xs text-neutral-400 mt-1">{t("branchOperations.loanHistory.searchPromptSub")}</p>
                 </div>
               ) : productHistory.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
                   <Package className="w-10 h-10 text-neutral-300 mb-2" />
-                  <p className="text-sm text-neutral-500">No loans in {selectedYear}</p>
-                  <p className="text-xs text-neutral-400 mt-1">Try selecting a different year</p>
+                  <p className="text-sm text-neutral-500">{t("branchOperations.loanHistory.noLoansInYear", { year: selectedYear })}</p>
+                  <p className="text-xs text-neutral-400 mt-1">{t("branchOperations.loanHistory.noLoansHint")}</p>
                 </div>
               ) : (
                 <div className="max-h-[500px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   {/* Summary Card */}
                   <div className="px-4 py-3 bg-amber-50/50 border-b border-neutral-100 grid grid-cols-3 gap-3">
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Loaned</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryLoaned")}</div>
                       <div className="text-lg font-bold text-amber-600">
                         {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan" ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Returned</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryReturned")}</div>
                       <div className="text-lg font-bold text-teal-600">
                         {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan_return" ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">Transactions</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryTransactions")}</div>
                       <div className="text-lg font-bold text-neutral-700">
                         {productHistory.length}
                       </div>
@@ -428,12 +433,12 @@ export default function LoanHistory({
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-neutral-100 z-10">
                       <tr className="text-neutral-600 text-xs font-semibold uppercase">
-                        <th className="px-3 py-2.5 text-left">Date</th>
-                        <th className="px-3 py-2.5 text-left">Type</th>
-                        <th className="px-3 py-2.5 text-center">Qty</th>
-                        <th className="px-3 py-2.5 text-left">Borrower</th>
-                        <th className="px-3 py-2.5 text-center">Status</th>
-                        <th className="px-3 py-2.5 text-left">Returned</th>
+                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colDate")}</th>
+                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colType")}</th>
+                        <th className="px-3 py-2.5 text-center">{t("branchOperations.loanHistory.colQty")}</th>
+                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colBorrower")}</th>
+                        <th className="px-3 py-2.5 text-center">{t("branchOperations.loanHistory.colStatus")}</th>
+                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colReturned")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
@@ -458,7 +463,9 @@ export default function LoanHistory({
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-teal-100 text-teal-700"
                             }`}>
-                              {row.type === "loan" ? "Loan" : "Return"}
+                              {row.type === "loan"
+                                ? t("branchOperations.loanHistory.typeLoan")
+                                : t("branchOperations.loanHistory.typeReturn")}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
@@ -480,7 +487,11 @@ export default function LoanHistory({
                                     ? "bg-amber-100 text-amber-700"
                                     : "bg-red-100 text-red-600"
                               }`}>
-                                {row.status === "closed" ? "Closed" : row.status === "partial" ? `${Math.round((row.returned / row.qty) * 100)}%` : "Active"}
+                                {row.status === "closed"
+                                  ? t("branchOperations.loanHistory.statusClosed")
+                                  : row.status === "partial"
+                                    ? `${Math.round((row.returned / row.qty) * 100)}%`
+                                    : t("branchOperations.loanHistory.statusActive")}
                               </span>
                             )}
                             {row.type === "loan_return" && (
@@ -490,8 +501,6 @@ export default function LoanHistory({
                           <td className="px-3 py-2.5 text-sm">
                             {row.returnDate ? (
                               <span className="text-teal-600 font-medium">{row.returnDate}</span>
-                            ) : row.type === "loan" && row.status === "active" ? (
-                              <span className="text-neutral-300">—</span>
                             ) : (
                               <span className="text-neutral-300">—</span>
                             )}
@@ -527,7 +536,7 @@ export default function LoanHistory({
             {/* Progress Bar */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-neutral-500">Progress</span>
+                <span className="text-xs text-neutral-500">{t("branchOperations.loanHistory.detailProgress")}</span>
                 <span className="text-xs font-semibold text-emerald-600">
                   {Math.round(((selectedItem.returned + selectedItem.sold) / selectedItem.qty) * 100)}%
                 </span>
@@ -550,14 +559,14 @@ export default function LoanHistory({
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-2 border-b border-neutral-100">
-                <span className="text-neutral-500">Total Loaned</span>
+                <span className="text-neutral-500">{t("branchOperations.loanHistory.detailTotalLoaned")}</span>
                 <span className="font-semibold">{nf.format(selectedItem.qty)}</span>
               </div>
               {selectedItem.returned > 0 && (
                 <div className="flex justify-between py-2 border-b border-neutral-100">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
-                    <span className="text-neutral-700">Returned</span>
+                    <span className="text-neutral-700">{t("branchOperations.loanHistory.detailReturned")}</span>
                   </div>
                   <span className="font-semibold text-teal-600">{nf.format(selectedItem.returned)}</span>
                 </div>
@@ -566,7 +575,7 @@ export default function LoanHistory({
                 <div className="flex justify-between py-2 border-b border-neutral-100">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="text-neutral-700">Sold</span>
+                    <span className="text-neutral-700">{t("branchOperations.loanHistory.detailSold")}</span>
                   </div>
                   <span className="font-semibold text-emerald-600">{nf.format(selectedItem.sold)}</span>
                 </div>
@@ -575,7 +584,7 @@ export default function LoanHistory({
                 <div className="flex justify-between py-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                    <span className="text-neutral-700">Remaining</span>
+                    <span className="text-neutral-700">{t("branchOperations.loanHistory.detailRemaining")}</span>
                   </div>
                   <span className="font-semibold text-amber-600">{nf.format(selectedItem.remaining)}</span>
                 </div>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligent Warehouse Management System — A2 Research Poster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  :root {
+    --blue:      #0C1F4A;
+    --blue-mid:  #162B5E;
+    --blue-soft: #1E3A7A;
+    --blue-pale: #EBF0FB;
+    --amber:     #F59E0B;
+    --amber-drk: #D97706;
+    --amber-pal: #FFFBEB;
+    --white:     #FFFFFF;
+    --paper:     #F8F9FC;
+    --ink:       #0F172A;
+    --ink-mid:   #334155;
+    --ink-muted: #64748B;
+    --divider:   #E2E8F0;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-ui:      'Jost', sans-serif;
+    --font-mono:    'DM Mono', monospace;
+  }
+
+  @page {
+    size: 420mm 594mm;
+    margin: 0;
+  }
+
+  html, body {
+    width: 420mm;
+    height: 594mm;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .poster {
+    width: 420mm;
+    height: 594mm;
+    background: var(--paper);
+    font-family: var(--font-ui); color: var(--ink);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .rule-top    { height: 10px; background: var(--amber); flex-shrink: 0; }
+  .rule-bottom { height: 10px; background: var(--blue);  flex-shrink: 0; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--blue);
+    display: grid; grid-template-columns: 52px 1fr auto;
+    align-items: stretch; flex-shrink: 0;
+  }
+  .header-sidebar {
+    background: rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid rgba(255,255,255,.07);
+  }
+  .header-sidebar span {
+    writing-mode: vertical-lr;
+    font-family: var(--font-mono); font-size: 13px;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--amber);
+    text-rendering: geometricPrecision;
+  }
+  .header-main { padding: 42px 44px 38px; display: flex; flex-direction: column; justify-content: space-between; }
+  .header-tag {
+    font-family: var(--font-mono); font-size: 15px;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: rgba(255,255,255,.45); margin-bottom: 14px;
+  }
+  .header-title {
+    font-family: var(--font-display); font-size: 70px; font-weight: 700;
+    line-height: 1.07; color: var(--white); letter-spacing: -.4px;
+  }
+  .header-title em { font-weight: 300; font-style: italic; color: var(--amber); }
+  .header-divider { width: 72px; height: 4px; background: var(--amber); margin: 16px 0; }
+  .header-authors { display: flex; gap: 48px; }
+  .author-name { font-size: 21px; font-weight: 600; color: var(--white); }
+  .author-sub  { font-size: 18px; font-weight: 300; color: rgba(255,255,255,.5); margin-top: 2px; }
+  .header-meta {
+    padding: 70px 36px 38px 0;
+    display: flex; flex-direction: column;
+    justify-content: flex-start; align-items: flex-end; min-width: 340px;
+    gap: 32px;
+  }
+  .logo-box {
+    width: 240px; height: 240px;
+    border: 2px solid var(--amber); border-radius: 5px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.08);
+    margin-top: 10px;
+  }
+  .logo-box img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .header-ref { text-align: right; }
+  .header-ref div {
+    font-family: var(--font-mono); font-size: 14px;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: rgba(255,255,255,.35); line-height: 1.9;
+  }
+  .header-ref .hi { color: var(--amber); }
+
+  /* ── ABSTRACT BAND ── */
+  .abstract-band {
+    background: var(--blue-mid); padding: 18px 44px 18px 132px;
+    border-top: 6px solid var(--amber); flex-shrink: 0;
+  }
+  .abstract-label {
+    font-family: var(--font-mono); font-size: 20px;
+    letter-spacing: .22em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 10px;
+  }
+  .abstract-text { font-size: 22px; font-weight: 300; line-height: 1.65; color: rgba(255,255,255,.78); }
+
+  /* ── BODY ── */
+  .body-cols {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    border-top: 8px solid var(--blue);
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  .col { padding: 28px 30px 20px; overflow: hidden; background: var(--paper); }
+  .col:nth-child(2) { background: var(--white); border-left: 2px solid var(--divider); border-right: 2px solid var(--divider); }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 22px; }
+  .section + .section { padding-top: 20px; border-top: 2px solid var(--divider); }
+  .section-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .section-num {
+    font-family: var(--font-display); font-size: 72px; font-weight: 700;
+    color: var(--amber); line-height: 1; flex-shrink: 0; letter-spacing: -2px;
+  }
+  .section-title-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .section-title {
+    font-family: var(--font-ui); font-size: 17px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--blue);
+  }
+  .section-rule { width: 40px; height: 4px; background: var(--amber); }
+
+  /* ── TEXT ── */
+  .text-block { font-size: 20px; font-weight: 300; line-height: 1.65; color: var(--ink); }
+  .text-block p + p { margin-top: 10px; }
+  .text-block strong { font-weight: 600; color: var(--blue); }
+
+  /* ── OBJECTIVE ROWS ── */
+  .obj-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .obj-item { display: flex; align-items: flex-start; gap: 16px; }
+  .obj-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--blue); color: var(--amber);
+    font-family: var(--font-mono); font-size: 16px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .obj-text { font-size: 20px; font-weight: 300; line-height: 1.55; color: var(--ink); }
+  .obj-text strong { font-weight: 600; color: var(--blue); display: block; font-size: 19px; }
+
+  /* ── METHODOLOGY CALLOUTS ── */
+  .callout {
+    border-left: 6px solid var(--blue-soft); background: var(--blue-pale);
+    padding: 12px 18px; margin: 12px 0; border-radius: 0 6px 6px 0;
+  }
+  .callout-label {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--blue-soft); font-weight: 500; margin-bottom: 6px;
+  }
+  .callout-content { font-size: 19px; font-weight: 400; color: var(--ink-mid); line-height: 1.5; }
+
+  /* ── AMBER CALLOUT ── */
+  .callout-amber {
+    border-left: 6px solid var(--amber-drk); background: var(--amber-pal);
+    padding: 14px 20px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .callout-amber .callout-label { color: var(--amber-drk); }
+  .callout-amber .callout-content {
+    font-family: var(--font-display); font-size: 24px; font-weight: 400;
+    color: var(--ink); line-height: 1.45;
+  }
+
+  /* ── FUTURE WORK VISUAL LIST ── */
+  .fw-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+  .fw-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--blue-pale); border-radius: 8px; padding: 14px 18px;
+    border-left: 6px solid var(--blue-soft);
+  }
+  .fw-icon {
+    font-size: 28px; flex-shrink: 0; line-height: 1.2;
+  }
+  .fw-body {}
+  .fw-title { font-size: 19px; font-weight: 700; color: var(--blue); margin-bottom: 2px; }
+  .fw-desc  { font-size: 18px; font-weight: 300; color: var(--ink-mid); line-height: 1.5; }
+
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="rule-top"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-sidebar"><span>Graduation Project · 2026</span></div>
+    <div class="header-main">
+      <div>
+        <div class="header-tag">Computer Science &nbsp;·&nbsp; Stock Management &nbsp;·&nbsp; Predictive Analytics</div>
+        <h1 class="header-title">
+          Intelligent Stock Management with<br>
+          <em>Predictive Product Selection for Profit Maximization</em>
+        </h1>
+        <div class="header-divider"></div>
+      </div>
+      <div class="header-authors">
+        <div>
+          <div class="author-name">Abdulbosit Mukhitdinov &nbsp;·&nbsp; Nurmuhammad Turgunov</div>
+          <div class="author-sub">Supervisor: Ibragim Atadjanov</div>
+        </div>
+        <div>
+          <div class="author-name">Central Asian University</div>
+          <div class="author-sub">School of Engineering &nbsp;·&nbsp; Computer Science</div>
+        </div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="logo-box"><img src="cau_logo.jpg" alt="CAU Logo"></div>
+      <div class="header-ref">
+        <div>Tashkent · Uzbekistan</div>
+        <div class="hi">May 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABSTRACT -->
+  <div class="abstract-band">
+    <div class="abstract-label">Abstract</div>
+    <div class="abstract-text">
+      A full-stack, role-based stock management platform for multi-location retail operations, enhanced with an
+      XGBoost predictive engine for product selection and profit maximization. The system replaces manual
+      spreadsheet-based tracking with real-time digital workflows across three dedicated role dashboards —
+      Owner, Warehouse Staff, and Branch Staff — secured by PostgreSQL Row Level Security and Google OAuth.
+      It covers the complete stock lifecycle including intake, transfers, point-of-sale, loans, returns, and auditing.
+      The ML model, trained on 26 engineered features, predicts optimal product demand per location, enabling
+      data-driven restocking decisions that minimize overstock costs and maximize revenue potential.
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body-cols">
+
+    <!-- COL 1 -->
+    <div class="col">
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">01</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Introduction</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="text-block">
+          <p>Multi-branch retail businesses rely on spreadsheets and manual processes, causing stock discrepancies, data loss, and delayed decisions. Existing systems lack role-specific access and use naive forecasting — leading to simultaneous overstock and stockouts.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">02</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Project Objectives</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="obj-list">
+          <div class="obj-item">
+            <div class="obj-dot">1</div>
+            <div class="obj-text"><strong>Role-Based Access</strong>Dedicated dashboards for Owner, Warehouse &amp; Branch Staff with RLS-enforced data boundaries.</div>
+          </div>
+          <div class="obj-item">
+            <div class="obj-dot">2</div>
+            <div class="obj-text"><strong>Full Inventory Lifecycle</strong>Intake, transfers, POS, loans, returns, corrections &amp; auditing in one unified system.</div>
+          </div>
+          <div class="obj-item">
+            <div class="obj-dot">3</div>
+            <div class="obj-text"><strong>ML Demand Forecasting</strong>XGBoost model outperforming the WMA baseline with per-product, per-location predictions.</div>
+          </div>
+          <div class="obj-item">
+            <div class="obj-dot">4</div>
+            <div class="obj-text"><strong>Real-Time &amp; Multilingual</strong>Live Supabase updates with EN, RU, UZ-Latin &amp; UZ-Cyrillic interfaces.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">03</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Methodology</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Phase 1 — Design &amp; Database</div>
+          <div class="callout-content">Field analysis of retail workflows. PostgreSQL schema with RLS, Google OAuth &amp; atomic stored procedures to prevent race conditions.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Phase 2 — Core System &amp; Dashboards</div>
+          <div class="callout-content">Full transaction lifecycle, inter-branch approval workflows, three role dashboards, analytics, auditing &amp; four-language support.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Phase 3 — ML Integration</div>
+          <div class="callout-content">XGBoost trained on 26 engineered features, served via FastAPI with vectorized batch inference &amp; WMA/ML toggle.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Phase 4 — Advanced Features</div>
+          <div class="callout-content">Inventory audit system, Smart Restock engine, real-time analytics with branch comparison charts &amp; automated Excel report generation.</div>
+        </div>
+      </div>
+
+    </div><!-- /col 1 -->
+
+    <!-- COL 2 -->
+    <div class="col">
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">04</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Results</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+
+        <div class="callout-amber">
+          <div class="callout-label">Key Achievement</div>
+          <div class="callout-content">A reactive, paper-based operation becomes a proactive, data-driven business — real-time inventory control and ML-guided restocking, available to every role, in every language.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">05</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Project Output</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Web Application</div>
+          <div class="callout-content">Production-ready SPA with three role dashboards — Owner, Warehouse Staff, Branch Staff — secured by PostgreSQL Row Level Security and deployed on Vercel.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">ML Prediction Server</div>
+          <div class="callout-content">FastAPI + XGBoost inference engine with vectorized batch predictions and automatic WMA fallback when offline.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Inventory Management System</div>
+          <div class="callout-content">Seven transaction types covering the full lifecycle: intake, sale, return, loan, loan return, transfer, and correction.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">06</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Key Challenges</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Race Conditions in Stock Operations</div>
+          <div class="callout-content">Resolved with PostgreSQL stored procedures using <em>SELECT ... FOR UPDATE</em> row-level locking, ensuring atomic deduct &amp; add operations under concurrent users.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">Supabase 1,000-Row API Limit</div>
+          <div class="callout-content">Built a custom <em>fetchAll()</em> utility that auto-paginates via <em>.range()</em>, fetching all records in batches and concatenating results seamlessly.</div>
+        </div>
+        <div class="callout">
+          <div class="callout-label">ML Batch Prediction Timeout</div>
+          <div class="callout-content">Refactored from per-product loops to vectorized single-call inference — reducing prediction time from 30+ seconds to ~3 seconds for all products.</div>
+        </div>
+      </div>
+
+    </div><!-- /col 2 -->
+
+    <!-- COL 3 -->
+    <div class="col">
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">07</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Conclusion</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="text-block">
+          <p>This project delivers a full-stack, role-based WMS that replaces manual workflows at a real multi-branch retail business in Uzbekistan with a real-time digital platform.</p>
+          <p>Role-enforced access control secures financial data while the ML forecasting layer transforms restocking from reactive to proactive — reducing stockouts and overstock simultaneously.</p>
+        </div>
+        <div class="callout-amber">
+          <div class="callout-label">Core Contribution</div>
+          <div class="callout-content">A unified platform covering the complete warehouse lifecycle, with role-based data security and intelligent demand forecasting — purpose-built for real multi-branch retail operations.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">08</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Recommendation &amp; Future Work</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="fw-list">
+          <div class="fw-item">
+            <div class="fw-icon">📱</div>
+            <div class="fw-body">
+              <div class="fw-title">Mobile Application</div>
+              <div class="fw-desc">Native app with barcode &amp; QR scanning for floor-level stock counts and sales operations.</div>
+            </div>
+          </div>
+          <div class="fw-item">
+            <div class="fw-icon">🔄</div>
+            <div class="fw-body">
+              <div class="fw-title">Supplier Auto-Reordering</div>
+              <div class="fw-desc">Auto-generate purchase orders when ML predicts stock below threshold — closing the prediction-to-procurement loop.</div>
+            </div>
+          </div>
+          <div class="fw-item">
+            <div class="fw-icon">📊</div>
+            <div class="fw-body">
+              <div class="fw-title">Advanced Analytics</div>
+              <div class="fw-desc">Dead stock identification, ABC classification, seasonal heatmaps &amp; scheduled email report delivery.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">09</span>
+          <div class="section-title-wrap">
+            <span class="section-title">Acknowledgment</span>
+            <div class="section-rule"></div>
+          </div>
+        </div>
+        <div class="text-block">
+          <p>We sincerely thank our graduation project supervisor for their continuous guidance and support throughout the development process.</p>
+          <p>Special thanks to the retail business that served as our pilot site, and to the open-source communities behind React, Supabase, XGBoost, and FastAPI.</p>
+        </div>
+      </div>
+
+    </div><!-- /col 3 -->
+
+  </div><!-- /body-cols -->
+
+</div>
+</body>
+</html>

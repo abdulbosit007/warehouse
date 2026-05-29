@@ -28,6 +28,7 @@ import {
   Filter,
   SlidersHorizontal,
 } from "lucide-react";
+import TransfersSection from "../../components/TransfersSection";
 
 /* -------------------------------------------------------------------------- */
 /*                              STATUS CONFIG                                  */
@@ -127,6 +128,7 @@ export default function BranchRequests() {
 
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mode, setMode] = useState("requests"); // "requests" | "transfers"
   const [activeTab, setActiveTab] = useState("new");
   const [toast, setToast] = useState(null);
   const [tabBadges, setTabBadges] = useState({ outgoing: 0, incoming: 0, history: 0 });
@@ -379,7 +381,7 @@ export default function BranchRequests() {
 
   return (
     <div className="space-y-6">
-      {/* Clean Header - Blue theme */}
+      {/* Header — title left, warehouse selector right */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 to-blue-900 p-6 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(59,130,246,0.15),transparent_50%)]" />
         <div className="relative flex items-center justify-between">
@@ -397,7 +399,7 @@ export default function BranchRequests() {
             </div>
           </div>
 
-          {/* Warehouse selector */}
+          {/* Warehouse selector only */}
           {locations.length > 1 && (
             <div className="flex items-center gap-2">
               {locations.map((loc) => (
@@ -421,49 +423,82 @@ export default function BranchRequests() {
         </div>
       </div>
 
-      {/* Modern Pill Tabs - Blue theme */}
-      <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveTab(tab.key);
-                if (tab.key === "history") markHistorySeen();
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? "bg-white text-neutral-900 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : ""}`} />
-              {tab.label}
-              {tab.badge > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
-                  {tab.badge > 99 ? "99+" : tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Navigation — stacks vertically */}
+      <div className="flex flex-col gap-3">
+        {/* Row 1: Mode toggle */}
+        <div>
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+            {[
+              { key: "requests",  label: t("branchRequests.modeToggle.requests") },
+              { key: "transfers", label: t("branchRequests.modeToggle.transfers") },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMode(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  mode === key
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2: Subtabs — only in requests mode */}
+        {mode === "requests" && (
+          <div>
+            <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setActiveTab(tab.key);
+                      if (tab.key === "history") markHistorySeen();
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-white text-neutral-900 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : ""}`} />
+                    {tab.label}
+                    {tab.badge > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                        {tab.badge > 99 ? "99+" : tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Tab Content */}
-      <div className="min-h-[400px]">
-        {activeTab === "new" && (
-          <NewRequestTab t={t} location={selectedLocation} showToast={showToast} />
-        )}
-        {activeTab === "outgoing" && (
-          <OutgoingTab t={t} location={selectedLocation} showToast={showToast} />
-        )}
-        {activeTab === "incoming" && (
-          <IncomingTab t={t} location={selectedLocation} showToast={showToast} />
-        )}
-        {activeTab === "history" && <HistoryTab t={t} location={selectedLocation} />}
-      </div>
+      {/* Content */}
+      {mode === "transfers" && selectedLocation && <TransfersSection location={selectedLocation} />}
+
+      {mode === "requests" && (
+        <div className="min-h-[400px]">
+          {activeTab === "new" && (
+            <NewRequestTab t={t} location={selectedLocation} showToast={showToast} />
+          )}
+          {activeTab === "outgoing" && (
+            <OutgoingTab t={t} location={selectedLocation} showToast={showToast} />
+          )}
+          {activeTab === "incoming" && (
+            <IncomingTab t={t} location={selectedLocation} showToast={showToast} />
+          )}
+          {activeTab === "history" && <HistoryTab t={t} location={selectedLocation} />}
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
@@ -1952,6 +1987,7 @@ function HistoryTab({ t, location }) {
   const [direction, setDirection] = useState("outgoing");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("closed"); // "opened" | "closed"
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -1969,7 +2005,7 @@ function HistoryTab({ t, location }) {
       const { data, error } = await supabase
         .from("branch_requests")
         .select(`
-        id, status, created_at, to_location_id,
+        id, status, created_at, warehouse_decided_at, to_location_id,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
@@ -1977,9 +2013,10 @@ function HistoryTab({ t, location }) {
           source_location:source_location_id (id, name, location_name)
         )
       `)
-        .in("status", ["completed", "cancelled", "rejected"])
+        .in("status", ["completed", "cancelled", "rejected", "closed"])
         .gte("created_at", `${dateFrom}T00:00:00`)
         .lte("created_at", `${dateTo}T23:59:59`)
+        .order(sortBy === "closed" ? "warehouse_decided_at" : "created_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -2003,7 +2040,7 @@ function HistoryTab({ t, location }) {
       setLoading(false);
       setLoadingMore(false);
     },
-    [location.id, dateFrom, dateTo]
+    [location.id, dateFrom, dateTo, sortBy]
   );
 
   useEffect(() => {
@@ -2150,6 +2187,26 @@ function HistoryTab({ t, location }) {
               </button>
             ))}
           </div>
+
+          {/* Sort toggle */}
+          <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 ml-auto">
+            <button
+              onClick={() => setSortBy("opened")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "opened" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("warehouseRequests.history.sortOpened")}
+            </button>
+            <button
+              onClick={() => setSortBy("closed")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                sortBy === "closed" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              ↑ {t("warehouseRequests.history.sortClosed")}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2206,11 +2263,18 @@ function HistoryTab({ t, location }) {
                           {label}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-500">
-                        {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
-                        {" · "}{t("warehouseRequests.table.qty")}: {totalQty}
-                        {" · "}{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                        {new Date(req.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      <p className="text-xs text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>{req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}</span>
+                        <span>·</span>
+                        <span>{t("warehouseRequests.table.qty")}: {totalQty}</span>
+                        <span>·</span>
+                        <span>{t("warehouseRequests.history.requested")}: {new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}{new Date(req.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                        {req.warehouse_decided_at && (
+                          <>
+                            <span>·</span>
+                            <span className="text-emerald-600 font-medium">{t("warehouseRequests.history.closed")}: {new Date(req.warehouse_decided_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}{new Date(req.warehouse_decided_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>

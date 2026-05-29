@@ -4,12 +4,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
-import { Package } from "lucide-react";
+// lucide-react icons are used via child components (SaleSection, LoanSection, ReturnDestModal)
 import { useTranslation } from "react-i18next";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
 import DebugPanel from "../../components/DebugPanel";
+import ReturnDestModal from "../../components/ReturnDestModal";
 
 // tab sections
 import SaleSection from "../../components/ops/SaleSection";
@@ -67,7 +68,9 @@ export default function BranchOperations() {
   const [tab, setTab] = useState("sale"); // "sale" | "loan"
 
   // catalog
-  const [catalog, setCatalog] = useState([]); // [{row_id,product_id,name,sku,category,available,display_price}]
+  const [catalog, setCatalog] = useState([]); // [{product_id,name,sku,category,display_price,sources,branchQty,overallQty}]
+  const [warehouseLocations, setWarehouseLocations] = useState([]); // [{id, location_name}]
+  const [branchLocationId, setBranchLocationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
@@ -78,17 +81,22 @@ export default function BranchOperations() {
     setTimeout(() => setOk(""), 3000);
   };
 
+  // source picker: shown when a product has stock at multiple locations
+  const [sourcePicker, setSourcePicker] = useState(null); // {row, sources} | null
+
   // search + cart
   const [q, setQ] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(""); // "" = all
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem("branch_ops_cart");
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      // Drop old cart items without source tracking (backward compat)
+      return parsed.filter(item => item.cart_key && item.source_location_id);
     } catch {
       return [];
     }
-  }); // [{product_id,name,sku,maxQty,qty}]
+  }); // [{cart_key,product_id,source_location_id,source_label,name,sku,maxQty,qty}]
 
   useEffect(() => {
     try {
@@ -144,6 +152,17 @@ export default function BranchOperations() {
   const [saleHistoryDay, setSaleHistoryDay] = useState(new Date());
   const [saleHistory, setSaleHistory] = useState([]);
   const [saleHistoryLoading, setSaleHistoryLoading] = useState(false);
+  const [salePendingRequests, setSalePendingRequests] = useState([]);
+  // count of approved-but-not-yet-accepted sale transfers (drives the red badge)
+  const [pendingSaleTransfers, setPendingSaleTransfers] = useState(0);
+
+  // loan pending requests (approved by warehouse, waiting for branch to create loan)
+  const [loanPendingRequests, setLoanPendingRequests] = useState([]);
+  const [pendingLoanTransfers, setPendingLoanTransfers] = useState(0);
+
+  // Return destination modal state
+  const [allLocations, setAllLocations] = useState([]);
+  const [retDestModal, setRetDestModal] = useState(null); // null | { items, note, onConfirm }
 
   /* -------------------------------- MEMOS -------------------------------- */
   const categories = useMemo(() => {
@@ -216,57 +235,114 @@ export default function BranchOperations() {
     return loc;
   }
 
-  /* ----------------------- LOAD CATALOG (AVAILABLE ONLY) ------------------ */
-  // Reusable function to fetch catalog — called on mount, after commits, and by Realtime/polling
+  /* ----------------------- LOAD CATALOG (BRANCH + WAREHOUSE) -------------- */
   const refreshCatalog = useCallback(async (opts = {}) => {
-    const { silent = false } = opts; // silent = don't set loading spinner
+    const { silent = false } = opts;
     if (!isBranch || !locationName) return;
     if (!silent) setLoading(true);
     try {
-      const loc = await getBranchLocation();
+      const branchLoc = await getBranchLocation();
+      setBranchLocationId(branchLoc.id);
 
+      // Fetch ALL locations (warehouse + other branches)
+      const { data: allLocs, error: locsErr } = await supabase
+        .from("locations")
+        .select("id, location_name, kind");
+      if (locsErr) throw locsErr;
+      const otherLocs = (allLocs || []).filter((l) => l.id !== branchLoc.id);
+      setWarehouseLocations(otherLocs.filter((l) => l.kind === "warehouse"));
+      setAllLocations(allLocs || []);
+
+      const allLocationIds = [branchLoc.id, ...otherLocs.map((l) => l.id)];
+
+      // Single query across all locations
       const { data: pl, error: plErr } = await fetchAll(() =>
         supabase
           .from("product_list")
-          .select(`id, product_id, quantity, status,
-            product:products (id, name, sku, category_id, sale_price, price,
-              category:categories (id, name)
+          .select(`product_id, quantity, location_id,
+            product:products (id, name, sku, sale_price, price,
+              category:categories (name)
             )`)
-          .eq("location_id", loc.id)
+          .in("location_id", allLocationIds)
           .eq("status", "available")
           .gt("quantity", 0)
-          .order("id", { ascending: true })
       );
       if (plErr) throw plErr;
 
-      const rows = (pl || []).map((r) => {
-        const p = r.product || {};
-        return {
-          row_id: r.id,
-          product_id: r.product_id,
-          name: p.name || "",
-          sku: p.sku || "",
-          category: p.category?.name || "",
-          available: r.quantity ?? 0,
-          display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
-        };
-      });
+      // Build location lookup map — own branch first, then all others
+      const locNameMap = new Map([
+        [branchLoc.id, { name: branchLoc.location_name, kind: "branch" }],
+        ...(allLocs || [])
+          .filter((l) => l.id !== branchLoc.id)
+          .map((l) => [l.id, { name: l.location_name, kind: l.kind || "other" }]),
+      ]);
 
+      // Merge all rows by product_id
+      const productMap = new Map();
+      for (const r of pl || []) {
+        const p = r.product || {};
+        const pid = r.product_id;
+        const locInfo = locNameMap.get(r.location_id) || { name: "Unknown", kind: "other" };
+
+        if (!productMap.has(pid)) {
+          productMap.set(pid, {
+            product_id: pid,
+            name: p.name || "",
+            sku: p.sku || "",
+            category: p.category?.name || "",
+            display_price: p.sale_price != null ? p.sale_price : p.price ?? null,
+            sources: [],
+            branchQty: 0,
+            overallQty: 0,
+          });
+        }
+
+        const entry = productMap.get(pid);
+        const qty = r.quantity ?? 0;
+
+        const isOwnBranch = r.location_id === branchLoc.id;
+
+        entry.sources.push({
+          locationId: r.location_id,
+          locationName: locInfo.name,
+          kind: locInfo.kind,
+          qty,
+          isOwn: isOwnBranch,
+          needsApproval: !isOwnBranch,
+        });
+
+        if (isOwnBranch) entry.branchQty += qty;
+        entry.overallQty += qty;
+      }
+
+      // Sort sources: own branch first, then warehouses, then other branches
+      for (const entry of productMap.values()) {
+        entry.sources.sort((a, b) => {
+          if (a.isOwn) return -1;
+          if (b.isOwn) return 1;
+          if (a.kind === "warehouse" && b.kind !== "warehouse") return -1;
+          if (b.kind === "warehouse" && a.kind !== "warehouse") return 1;
+          return a.locationName.localeCompare(b.locationName);
+        });
+      }
+
+      const rows = Array.from(productMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
       setCatalog(rows);
 
-      // Sync localStorage cart maxQty with fresh data (Solution 5)
-      const stockMap = new Map(rows.map((r) => [r.product_id, r.available]));
+      // Sync cart with fresh source quantities
+      const stockMap = new Map(rows.map((r) => [r.product_id, r]));
       setCart((prev) => {
         if (prev.length === 0) return prev;
         return prev
           .map((item) => {
-            const available = stockMap.get(item.product_id);
-            if (available === undefined || available <= 0) return null; // product no longer available
-            return {
-              ...item,
-              maxQty: available,
-              qty: Math.min(item.qty, available),
-            };
+            if (!item.cart_key || !item.source_location_id) return null;
+            const row = stockMap.get(item.product_id);
+            if (!row) return null;
+            const src = row.sources.find((s) => s.locationId === item.source_location_id);
+            if (!src || src.qty <= 0) return null;
+            return { ...item, maxQty: src.qty, qty: Math.min(item.qty, src.qty) };
           })
           .filter(Boolean);
       });
@@ -289,6 +365,14 @@ export default function BranchOperations() {
     refreshCatalog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshCatalog]);
+
+  // Load pending sale-transfer count on mount (drives the red badge on Sale tab)
+  useEffect(() => {
+    if (!isBranch || !locationName) return;
+    loadPendingSaleTransfers();
+    loadLoanPendingRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBranch, locationName]);
 
   /* -------------------- REALTIME SUBSCRIPTION + POLLING ------------------- */
   useEffect(() => {
@@ -832,88 +916,145 @@ export default function BranchOperations() {
   }
 
   /* --------------------------- CART / UI LOGIC --------------------------- */
-  function addToCart(row) {
+
+  // Called internally once source + qty is confirmed
+  function addToCart(row, sourceLocationId, sourceLocationName, maxQty, initialQty, needsApproval) {
+    const cartKey = `${row.product_id}:${sourceLocationId}`;
     setCart((curr) => {
-      const i = curr.findIndex((x) => x.product_id === row.product_id);
+      const i = curr.findIndex((x) => x.cart_key === cartKey);
       if (i >= 0) {
         const next = [...curr];
-        next[i] = {
-          ...next[i],
-          maxQty: row.available,
-          qty: Math.min(next[i].qty + 1, row.available),
-        };
+        const merged = Math.min(next[i].qty + (initialQty ?? 1), maxQty);
+        next[i] = { ...next[i], maxQty, qty: merged };
         return next;
       }
       return [
         ...curr,
         {
+          cart_key: cartKey,
           product_id: row.product_id,
+          source_location_id: sourceLocationId,
+          source_label: sourceLocationName,
+          needs_approval: !!needsApproval,
           name: row.name,
           sku: row.sku,
-          maxQty: row.available,
-          qty: 1,
+          maxQty,
+          qty: initialQty ?? 1,
         },
       ];
     });
   }
-  function setCartQty(product_id, qty) {
+
+  // Called by the product table's Add button — always shows qty input modal
+  function handleAddProduct(row) {
+    const sources = (row.sources || []).filter((s) => s.qty > 0);
+    if (sources.length === 0) return;
+    setSourcePicker({ row, sources });
+  }
+
+  function setCartQty(cartKey, qty) {
     setCart((curr) =>
       curr.map((l) =>
-        l.product_id === product_id
+        l.cart_key === cartKey
           ? { ...l, qty: Math.max(0, Math.min(qty, l.maxQty ?? qty)) }
           : l
       )
     );
   }
-  function removeFromCart(product_id) {
-    setCart((curr) => curr.filter((l) => l.product_id !== product_id));
+
+  function removeFromCart(cartKey) {
+    setCart((curr) => curr.filter((l) => l.cart_key !== cartKey));
   }
 
   async function commitSale() {
     try {
       if (!cartValid) throw new Error(t("branchOperations.errors.checkQuantities"));
 
-      // Pre-commit stock validation (Solution 2)
-      const loc = await getBranchLocation();
-      const productIds = cart.map((l) => l.product_id);
-      const { data: freshStock, error: stockErr } = await supabase
-        .from("product_list")
-        .select("product_id, quantity")
-        .eq("location_id", loc.id)
-        .eq("status", "available")
-        .in("product_id", productIds);
-      if (stockErr) throw stockErr;
+      const ownItems      = cart.filter((l) => !l.needs_approval);
+      const approvalItems = cart.filter((l) => l.needs_approval);
 
-      const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
-      const issues = [];
-      for (const item of cart) {
-        const available = stockMap.get(item.product_id) ?? 0;
-        if (item.qty > available) {
-          issues.push(`${item.name}: only ${available} available (requested ${item.qty})`);
+      // ── Pre-commit stock validation (own branch items only) ──
+      if (ownItems.length > 0) {
+        const { data: freshStock, error: stockErr } = await supabase
+          .from("product_list")
+          .select("product_id, quantity")
+          .eq("location_id", branchLocationId)
+          .eq("status", "available")
+          .in("product_id", ownItems.map((l) => l.product_id));
+        if (stockErr) throw stockErr;
+
+        const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
+        const issues = [];
+        for (const item of ownItems) {
+          const available = stockMap.get(item.product_id) ?? 0;
+          if (item.qty > available) {
+            issues.push(t("branchOperations.errors.stockItemIssue", { name: item.name, available, qty: item.qty }));
+          }
+        }
+        if (issues.length > 0) throw new Error(t("branchOperations.errors.stockChanged") + ":\n" + issues.join("\n"));
+
+        const payload = {
+          note,
+          items: ownItems.map((l) => ({
+            product_id: l.product_id,
+            qty: l.qty,
+            source_location_id: l.source_location_id,
+          })),
+        };
+        const { error } = await supabase.rpc("fn_branch_commit_sale", { p: payload });
+        if (error) throw error;
+      }
+
+      // ── Create branch requests for approval-needed items ──
+      if (approvalItems.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Group by source location — one request per source
+        const bySource = new Map();
+        for (const item of approvalItems) {
+          if (!bySource.has(item.source_location_id)) bySource.set(item.source_location_id, []);
+          bySource.get(item.source_location_id).push(item);
+        }
+
+        for (const [sourceId, items] of bySource.entries()) {
+          const { data: request, error: reqErr } = await supabase
+            .from("branch_requests")
+            .insert({
+              to_location_id: branchLocationId,
+              status: "sent",
+              purpose: "sale",
+              created_by: user?.id,
+            })
+            .select("id")
+            .single();
+          if (reqErr) throw reqErr;
+
+          const { error: itemErr } = await supabase
+            .from("branch_request_items")
+            .insert(
+              items.map((item) => ({
+                request_id: request.id,
+                product_id: item.product_id,
+                source_location_id: sourceId,
+                requested_qty: item.qty,
+                status: "requested",
+              }))
+            );
+          if (itemErr) throw itemErr;
         }
       }
-      if (issues.length > 0) {
-        // Auto-correct cart with fresh data
-        setCart((prev) =>
-          prev.map((item) => ({
-            ...item,
-            maxQty: stockMap.get(item.product_id) ?? 0,
-            qty: Math.min(item.qty, stockMap.get(item.product_id) ?? 0),
-          }))
-        );
-        throw new Error("Stock changed since you loaded the page:\n" + issues.join("\n"));
+
+      // ── Feedback ──
+      if (ownItems.length > 0 && approvalItems.length > 0) {
+        showOk(t("branchOperations.success.salePlusBranchRequest", { sold: ownItems.length, requested: approvalItems.length }));
+      } else if (ownItems.length > 0) {
+        showOk(t("branchOperations.success.saleCommittedSimple"));
+      } else {
+        showOk(t("branchOperations.success.approvalRequestSent", { count: approvalItems.length }));
       }
 
-      const payload = {
-        note,
-        items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
-      };
-      const { data, error } = await supabase.rpc("fn_branch_commit_sale", { p: payload });
-      if (error) throw error;
-      showOk(`Sale committed. TX: ${data}`);
       setCart([]);
       setNote("");
-      // Refresh catalog with fresh quantities after commit (Solution 6)
       await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
@@ -924,47 +1065,100 @@ export default function BranchOperations() {
     try {
       if (!loanValid) throw new Error(t("branchOperations.errors.borrowerAndQtyRequired"));
 
-      // Pre-commit stock validation (Solution 2)
-      const loc = await getBranchLocation();
-      const productIds = cart.map((l) => l.product_id);
-      const { data: freshStock, error: stockErr } = await supabase
-        .from("product_list")
-        .select("product_id, quantity")
-        .eq("location_id", loc.id)
-        .eq("status", "available")
-        .in("product_id", productIds);
-      if (stockErr) throw stockErr;
+      const ownItems      = cart.filter((l) => !l.needs_approval);
+      const approvalItems = cart.filter((l) => l.needs_approval);
 
-      const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
-      const issues = [];
-      for (const item of cart) {
-        const available = stockMap.get(item.product_id) ?? 0;
-        if (item.qty > available) {
-          issues.push(`${item.name}: only ${available} available (requested ${item.qty})`);
+      // ── Commit own branch loan items immediately ──
+      if (ownItems.length > 0) {
+        const { data: freshStock, error: stockErr } = await supabase
+          .from("product_list")
+          .select("product_id, quantity")
+          .eq("location_id", branchLocationId)
+          .eq("status", "available")
+          .in("product_id", ownItems.map((l) => l.product_id));
+        if (stockErr) throw stockErr;
+
+        const stockMap = new Map((freshStock || []).map((r) => [r.product_id, r.quantity]));
+        const issues = [];
+        for (const item of ownItems) {
+          const available = stockMap.get(item.product_id) ?? 0;
+          if (item.qty > available) {
+            issues.push(t("branchOperations.errors.stockItemIssue", { name: item.name, available, qty: item.qty }));
+          }
+        }
+        if (issues.length > 0) throw new Error(t("branchOperations.errors.stockChanged") + ":\n" + issues.join("\n"));
+
+        const payload = {
+          note,
+          borrower_name: borrower.borrower_name,
+          borrower_phone: borrower.borrower_phone || null,
+          borrower_store_no: borrower.borrower_store_no || null,
+          due_date: borrower.due_date,
+          items: ownItems.map((l) => ({
+            product_id: l.product_id,
+            qty: l.qty,
+            source_location_id: l.source_location_id,
+          })),
+        };
+        const { error } = await supabase.rpc("fn_branch_commit_loan", { p: payload });
+        if (error) throw error;
+      }
+
+      // ── Create branch requests for approval-needed loan items ──
+      if (approvalItems.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const bySource = new Map();
+        for (const item of approvalItems) {
+          if (!bySource.has(item.source_location_id)) bySource.set(item.source_location_id, []);
+          bySource.get(item.source_location_id).push(item);
+        }
+
+        for (const [sourceId, items] of bySource.entries()) {
+          const { data: request, error: reqErr } = await supabase
+            .from("branch_requests")
+            .insert({
+              to_location_id: branchLocationId,
+              status: "sent",
+              purpose: "loan",
+              created_by: user?.id,
+              // Store borrower info so it can be used when the branch accepts
+              note: JSON.stringify({
+                borrower_name:     borrower.borrower_name,
+                borrower_phone:    borrower.borrower_phone     || null,
+                borrower_store_no: borrower.borrower_store_no  || null,
+                due_date:          borrower.due_date            || null,
+                tx_note:           note                         || null,
+              }),
+            })
+            .select("id")
+            .single();
+          if (reqErr) throw reqErr;
+
+          const { error: itemErr } = await supabase
+            .from("branch_request_items")
+            .insert(
+              items.map((item) => ({
+                request_id: request.id,
+                product_id: item.product_id,
+                source_location_id: sourceId,
+                requested_qty: item.qty,
+                status: "requested",
+              }))
+            );
+          if (itemErr) throw itemErr;
         }
       }
-      if (issues.length > 0) {
-        setCart((prev) =>
-          prev.map((item) => ({
-            ...item,
-            maxQty: stockMap.get(item.product_id) ?? 0,
-            qty: Math.min(item.qty, stockMap.get(item.product_id) ?? 0),
-          }))
-        );
-        throw new Error("Stock changed since you loaded the page:\n" + issues.join("\n"));
+
+      // ── Feedback ──
+      if (ownItems.length > 0 && approvalItems.length > 0) {
+        showOk(t("branchOperations.success.loanPlusBranchRequest", { loaned: ownItems.length, requested: approvalItems.length }));
+      } else if (ownItems.length > 0) {
+        showOk(t("branchOperations.success.loanCommittedSimple"));
+      } else {
+        showOk(t("branchOperations.success.approvalRequestSent", { count: approvalItems.length }));
       }
 
-      const payload = {
-        note,
-        borrower_name: borrower.borrower_name,
-        borrower_phone: borrower.borrower_phone || null,
-        borrower_store_no: borrower.borrower_store_no || null,
-        due_date: borrower.due_date,
-        items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
-      };
-      const { data, error } = await supabase.rpc("fn_branch_commit_loan", { p: payload });
-      if (error) throw error;
-      showOk(`Loan committed. TX: ${data}`);
       setCart([]);
       setNote("");
       setBorrower({
@@ -973,8 +1167,9 @@ export default function BranchOperations() {
         borrower_store_no: "",
         due_date: todayPlus(3),
       });
-      // Refresh catalog with fresh quantities after commit (Solution 6)
       await refreshCatalog({ silent: true });
+      // Refresh pending so the new request appears in the Pending tab immediately
+      if (approvalItems.length > 0) loadLoanPendingRequests();
     } catch (e) {
       setErr(e.message || String(e));
     }
@@ -1070,7 +1265,7 @@ export default function BranchOperations() {
         p_note: newNote,
       });
       if (error) throw error;
-      showOk("Note updated");
+      showOk(t("branchOperations.success.noteUpdated"));
       loadActiveLoans(); // Refresh
     } catch (e) {
       setErr(e.message || String(e));
@@ -1085,7 +1280,7 @@ export default function BranchOperations() {
         p_due_date: newDueDate,
       });
       if (error) throw error;
-      showOk("Due date updated");
+      showOk(t("branchOperations.success.dueDateUpdated"));
       loadActiveLoans(); // Refresh
     } catch (e) {
       setErr(e.message || String(e));
@@ -1149,6 +1344,142 @@ export default function BranchOperations() {
     }
   }
 
+  /* ── Loan pending requests ─────────────────────────────────────────────── */
+  async function loadLoanPendingRequests() {
+    try {
+      const loc = await getBranchLocation();
+      const { data: reqs, error } = await supabase
+        .from("branch_requests")
+        .select(`
+          id, status, created_at, note,
+          items:branch_request_items (
+            id, requested_qty, approved_qty, status,
+            product:product_id ( id, name, sku ),
+            source_location:source_location_id ( id, location_name )
+          )
+        `)
+        .eq("to_location_id", loc.id)
+        .eq("purpose", "loan")
+        .in("status", ["sent", "approved"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const list = reqs || [];
+      setLoanPendingRequests(list);
+
+      // Badge: approved items (need acceptance) + rejected items (need awareness)
+      const count = list.reduce(
+        (sum, r) => sum + (r.items || []).filter((i) => i.status === "approved" || i.status === "rejected").length,
+        0
+      );
+      setPendingLoanTransfers(count);
+    } catch {
+      // non-critical
+    }
+  }
+
+  // Accepts ALL approved items from a loan transfer request in a single transaction.
+  // This ensures one loan card per request in Active Loans, not one per item.
+  async function acceptLoanTransferRequest(req) {
+    try {
+      setErr("");
+
+      // Collect all approved items from this request
+      const approvedItems = (req.items || []).filter(
+        (i) => i.status === "approved"
+      );
+      if (approvedItems.length === 0) throw new Error("No approved items to accept");
+
+      // Parse borrower info stored in the request note
+      let meta = {};
+      try { meta = JSON.parse(req.note || "{}"); } catch { meta = {}; }
+
+      const sourceName = approvedItems[0]?.source_location?.location_name || "external location";
+
+      const payload = {
+        borrower_name:     meta.borrower_name     || "",
+        borrower_phone:    meta.borrower_phone     || null,
+        borrower_store_no: meta.borrower_store_no  || null,
+        due_date:          meta.due_date            || null,
+        note: `Loan transfer accepted from ${sourceName}${meta.tx_note ? " — " + meta.tx_note : ""}`,
+        // All approved items go into ONE transaction
+        items: approvedItems.map((item) => ({
+          product_id:         item.product?.id,
+          qty:                item.approved_qty ?? item.requested_qty,
+          source_location_id: item.source_location?.id,
+        })),
+      };
+
+      const { error: loanErr } = await supabase.rpc("fn_branch_accept_loan_transfer", { p: payload });
+      if (loanErr) throw loanErr;
+
+      // Mark all accepted items as fulfilled
+      const { error: itemErr } = await supabase
+        .from("branch_request_items")
+        .update({ status: "fulfilled" })
+        .in("id", approvedItems.map((i) => i.id));
+      if (itemErr) throw itemErr;
+
+      // Close the request when all items are done (fulfilled OR rejected/cancelled)
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id")
+        .eq("request_id", req.id)
+        .not("status", "in", '("fulfilled","rejected","cancelled")');
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from("branch_requests")
+          .update({ status: "closed" })
+          .eq("id", req.id);
+      }
+
+      const totalQty = approvedItems.reduce((s, i) => s + (i.approved_qty ?? i.requested_qty ?? 0), 0);
+      showOk(t("branchOperations.success.loanTransferAccepted", {
+        qty: totalQty,
+        name: approvedItems.length === 1
+          ? approvedItems[0].product?.name
+          : `${approvedItems.length} items`,
+      }));
+      await loadLoanPendingRequests();
+      await loadActiveLoans();
+      await refreshCatalog({ silent: true });
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  // Count sale-purpose transfers that have been approved by the warehouse
+  // but not yet accepted by this branch — drives the red notification badge.
+  async function loadPendingSaleTransfers() {
+    try {
+      const loc = await getBranchLocation();
+      // Step 1: get all sale-purpose requests for this branch in actionable states
+      const { data: saleReqs } = await supabase
+        .from("branch_requests")
+        .select("id")
+        .eq("purpose", "sale")
+        .eq("to_location_id", loc.id)
+        .in("status", ["approved", "completed", "closed"]);
+
+      if (!saleReqs || saleReqs.length === 0) {
+        setPendingSaleTransfers(0);
+        return;
+      }
+
+      // Step 2: count items with status "approved" (warehouse approved, branch hasn't accepted yet)
+      const reqIds = saleReqs.map((r) => r.id);
+      const { count } = await supabase
+        .from("branch_request_items")
+        .select("id", { count: "exact", head: true })
+        .in("request_id", reqIds)
+        .eq("status", "approved");
+
+      setPendingSaleTransfers(count || 0);
+    } catch {
+      // non-critical — badge just won't show
+    }
+  }
+
   async function loadSaleHistory(day) {
     setSaleHistoryLoading(true);
     try {
@@ -1157,6 +1488,9 @@ export default function BranchOperations() {
       const startISO = startOfDayUTC(day);
       const endISO = nextDayUTC(day);
 
+      // All committed sales — including those created by fn_branch_accept_transfer.
+      // Transfer-accepted sales are real sales with transaction IDs and must be
+      // returnable just like direct sales.
       const { data: txs, error } = await supabase
         .from("transactions")
         .select(
@@ -1171,7 +1505,6 @@ export default function BranchOperations() {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Fetch returned amounts for these sales
       const parentIds = (txs || []).map((t) => t.id);
       const returnedMap = await fetchReturnedSums(parentIds);
 
@@ -1192,11 +1525,31 @@ export default function BranchOperations() {
           };
         }),
       }));
-
       setSaleHistory(history);
+
+      // Sale-purpose branch requests created on this day (any status)
+      const { data: reqs, error: reqErr } = await supabase
+        .from("branch_requests")
+        .select(`
+          id, status, created_at,
+          items:branch_request_items (
+            id, requested_qty, approved_qty, status,
+            product:product_id ( id, name, sku ),
+            source_location:source_location_id ( id, location_name )
+          )
+        `)
+        .eq("to_location_id", loc.id)
+        .eq("purpose", "sale")
+        .gte("created_at", startISO)
+        .lt("created_at", endISO)
+        .order("created_at", { ascending: false });
+      if (reqErr) throw reqErr;
+      setSalePendingRequests(reqs || []);
+
     } catch (e) {
       setErr(e.message || String(e));
       setSaleHistory([]);
+      setSalePendingRequests([]);
     } finally {
       setSaleHistoryLoading(false);
     }
@@ -1229,7 +1582,7 @@ export default function BranchOperations() {
       });
       if (error) throw error;
 
-      showOk(`Marked ${qty} as sold`);
+      showOk(t("branchOperations.success.markedSold", { qty }));
       loadActiveLoans(); // Refresh
     } catch (e) {
       setErr(e.message || String(e));
@@ -1268,71 +1621,164 @@ export default function BranchOperations() {
       }
 
       const totalQty = itemsToSell.reduce((sum, i) => sum + i.remaining, 0);
-      showOk(`Sold all ${totalQty} items from ${loan.borrower_name}`);
+      showOk(t("branchOperations.success.soldAll", { qty: totalQty, name: loan.borrower_name }));
       loadActiveLoans(); // Refresh
     } catch (e) {
       setErr(e.message || String(e));
     }
   }
 
-  async function markLoanReturned(loan, item, qty) {
+  function markLoanReturned(loan, item, qty) {
+    if (qty <= 0 || qty > item.remaining) return;
+    const returnItem = {
+      product_id: item.product_id,
+      name: item.product?.name || item.name || "",
+      sku: item.product?.sku || item.sku || "",
+      qty,
+      return_kind: "loan_return",
+      parent_tx_id: loan.id,
+    };
+    setRetDestModal({
+      items: [returnItem],
+      onConfirm: async (destinations, retNote) => {
+        try {
+          await processReturnWithDestinations([returnItem], destinations, retNote);
+          setRetDestModal(null);
+          showOk(t("branchOperations.success.returnedItems", { qty }));
+          loadActiveLoans();
+          await refreshCatalog({ silent: true });
+        } catch (e) {
+          setErr(e.message || String(e));
+        }
+      },
+    });
+  }
+
+  async function acceptTransferRequest(req, item, qty) {
     try {
       setErr("");
-      setOk("");
-      if (qty <= 0 || qty > item.remaining) {
-        throw new Error("Invalid quantity");
-      }
+      const acceptQty = qty ?? item.approved_qty ?? item.requested_qty;
+      if (!acceptQty || acceptQty <= 0) throw new Error("Invalid quantity");
 
+      // 1. Record as an official sale WITHOUT stock deduction
+      //    (the source location already deducted its stock when it approved the request)
       const payload = {
-        note: "Product returned",
-        return_kind: "loan_return",
-        parent_tx_id: loan.id,
+        note: `Transfer accepted from ${item.source_location?.location_name || "external location"}`,
         items: [
           {
-            product_id: item.product_id,
-            qty: qty,
+            product_id: item.product?.id,
+            qty: acceptQty,
+            source_location_id: item.source_location?.id,
           },
         ],
       };
-      const { data, error } = await supabase.rpc("fn_branch_commit_return", {
-        p: payload,
-      });
-      if (error) throw error;
+      const { error: saleErr } = await supabase.rpc("fn_branch_accept_transfer", { p: payload });
+      if (saleErr) throw saleErr;
 
-      showOk(`Returned ${qty} items`);
-      loadActiveLoans(); // Refresh
+      // 2. Mark this request item as fulfilled
+      const { error: itemErr } = await supabase
+        .from("branch_request_items")
+        .update({ status: "fulfilled" })
+        .eq("id", item.id);
+      if (itemErr) throw itemErr;
+
+      // 3. If all items in the request are now fulfilled, close the request
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id")
+        .eq("request_id", req.id)
+        .neq("status", "fulfilled");
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from("branch_requests")
+          .update({ status: "closed" })
+          .eq("id", req.id);
+      }
+
+      showOk(t("branchOperations.success.transferAccepted", { qty: acceptQty, name: item.product?.name }));
+      await loadSaleHistory(saleHistoryDay || new Date());
+      await refreshCatalog({ silent: true });
+      loadPendingSaleTransfers(); // refresh badge count
     } catch (e) {
       setErr(e.message || String(e));
     }
   }
 
-  async function commitSaleReturn(sale, item, qty) {
-    try {
-      setErr("");
-      if (qty <= 0 || qty > item.remaining) {
-        throw new Error("Invalid quantity");
-      }
+  /* ─── shared: process a confirmed return with destinations ─── */
+  async function processReturnWithDestinations(items, destinations, retNote) {
+    const loc = await getBranchLocation();
 
-      const payload = {
-        note: "Sale return",
-        return_kind: "sale_return",
-        parent_tx_id: sale.id,
-        items: [
-          {
-            product_id: item.product_id,
-            qty: qty,
-          },
-        ],
-      };
+    // 1. Commit ALL returned qty.
+    //    fn_branch_commit_return records the transaction AND adds the full
+    //    returned qty to this branch's product_list (available) in one shot.
+    const groups = new Map(); // parent_tx_id -> { return_kind, items }
+    for (const item of items) {
+      const g = groups.get(item.parent_tx_id) || { return_kind: item.return_kind, items: [] };
+      g.items.push({ product_id: item.product_id, qty: item.qty });
+      groups.set(item.parent_tx_id, g);
+    }
+    for (const [parent_tx_id, g] of groups.entries()) {
       const { error } = await supabase.rpc("fn_branch_commit_return", {
-        p: payload,
+        p: {
+          note: retNote || "Return",
+          return_kind: g.return_kind,
+          parent_tx_id,
+          items: g.items,
+        },
       });
       if (error) throw error;
+    }
 
-      showOk(`Returned ${qty} items`);
-      loadSaleHistory(saleHistoryDay || new Date()); // Refresh
+    // 2. For non-current-branch destinations, initiate pending stock transfers.
+    //    fn_initiate_transfer:
+    //      • Deducts the transfer qty from this branch's product_list immediately
+    //        (net: only the qty going to current branch stays here)
+    //      • Creates a pending stock_transfer — the "in transit" state
+    //    fn_accept_transfer (called by destination):
+    //      • Adds qty to destination's product_list
+    //    fn_reject_transfer (called by destination):
+    //      • Restores qty back to this branch's product_list
+    const transfersByDest = new Map(); // to_location_id -> [{product_id, qty}]
+    for (const item of items) {
+      const dests = destinations.get(item.product_id) || [];
+      for (const dest of dests) {
+        if (dest.location_id !== loc.id && dest.qty > 0) {
+          const arr = transfersByDest.get(dest.location_id) || [];
+          arr.push({ product_id: item.product_id, qty: dest.qty });
+          transfersByDest.set(dest.location_id, arr);
+        }
+      }
+    }
+    for (const [to_location_id, transferItems] of transfersByDest.entries()) {
+      const { error } = await supabase.rpc("fn_initiate_transfer", {
+        p: {
+          from_location_id: loc.id,
+          to_location_id,
+          note: retNote ? `Return: ${retNote}` : "Returned goods transfer",
+          items: transferItems,
+        },
+      });
+      if (error) throw error;
+    }
+  }
+
+  async function commitSaleReturn(sale, item, qty, destinations, retNote) {
+    const returnItem = {
+      product_id: item.product_id,
+      name: item.name,
+      sku: item.sku || "",
+      qty,
+      return_kind: "sale_return",
+      parent_tx_id: sale.id,
+    };
+    try {
+      await processReturnWithDestinations([returnItem], destinations, retNote);
+      showOk(t("branchOperations.success.returnedItems", { qty }));
+      loadSaleHistory(saleHistoryDay || new Date());
+      await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
+      throw e; // re-throw so SaleHistory's onConfirm knows it failed
     }
   }
 
@@ -1577,65 +2023,54 @@ export default function BranchOperations() {
   }, [skuQuery, histMode]);
 
   /* ----------------------------- SUBMIT RETURN --------------------------- */
-  async function submitReturn() {
+  function submitReturn() {
     setErr("");
     setOk("");
-    try {
-      if (!returnValid) throw new Error(t("branchOperations.errors.selectItemsAndQty"));
+    if (!returnValid) { setErr(t("branchOperations.errors.selectItemsAndQty")); return; }
 
-      const groups = new Map(); // parent_tx_id -> { return_kind, items:[{product_id, qty}] }
+    const items = [];
 
-      if (returnMode === "date") {
-        for (const [, val] of retSelect.entries()) {
-          if (!val.qty || val.qty <= 0) continue;
-          const g = groups.get(val.parent_tx_id) || {
-            return_kind: val.return_kind,
-            items: [],
-          };
-          g.items.push({ product_id: val.product_id, qty: val.qty });
-          groups.set(val.parent_tx_id, g);
-        }
-      } else if (returnMode === "sku") {
-        if (!retSkuPicked) throw new Error(t("branchOperations.errors.pickSkuRow"));
-        const row = retSkuPicked;
-        const g = groups.get(row.parent_tx_id) || {
-          return_kind: row.return_kind,
-          items: [],
-        };
-        g.items.push({ product_id: row.product_id, qty: retSkuQty });
-        groups.set(row.parent_tx_id, g);
-      }
-
-      const results = [];
-      for (const [parent_tx_id, g] of groups.entries()) {
-        const { data, error } = await supabase.rpc("fn_branch_commit_return", {
-          p: {
-            note,
-            return_kind: g.return_kind,
-            parent_tx_id,
-            items: g.items,
-          },
+    if (returnMode === "date") {
+      for (const [, val] of retSelect.entries()) {
+        if (!val.qty || val.qty <= 0) continue;
+        items.push({
+          product_id: val.product_id,
+          name: val.name,
+          sku: val.sku || "",
+          qty: val.qty,
+          return_kind: val.return_kind,
+          parent_tx_id: val.parent_tx_id,
         });
-        if (error) throw error;
-        results.push(data);
       }
-
-      showOk(
-        results.length === 1
-          ? t("branchOperations.success.returnCommittedOne", { tx: results[0] })
-          : t("branchOperations.success.returnCommittedMany", { count: results.length })
-      );
-
-      resetForms();
-      if (returnMode === "date") {
-        await loadReturnByDate(retSelectedDay);
-      } else {
-        // сенинг кодингда searchReturnBySku йўқ, шу сабаб safe reset қиламиз
-        setRetSkuOptions([]);
-      }
-    } catch (e) {
-      setErr(e.message || String(e));
+    } else if (returnMode === "sku" && retSkuPicked) {
+      items.push({
+        product_id: retSkuPicked.product_id,
+        name: retSkuPicked.name,
+        sku: retSkuPicked.sku || "",
+        qty: retSkuQty,
+        return_kind: retSkuPicked.return_kind,
+        parent_tx_id: retSkuPicked.parent_tx_id,
+      });
     }
+
+    if (items.length === 0) return;
+
+    setRetDestModal({
+      items,
+      onConfirm: async (destinations, retNote) => {
+        try {
+          await processReturnWithDestinations(items, destinations, retNote || note);
+          setRetDestModal(null);
+          showOk(t("branchOperations.success.returnCommittedMany", { count: items.length }));
+          resetForms();
+          if (returnMode === "date") await loadReturnByDate(retSelectedDay);
+          else setRetSkuOptions([]);
+          await refreshCatalog({ silent: true });
+        } catch (e) {
+          setErr(e.message || String(e));
+        }
+      },
+    });
   }
 
   useEffect(() => {
@@ -1731,8 +2166,8 @@ return (
     {/* Tabs */}
     <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 flex-wrap">
       {[
-        { key: "sale", label: t("branchOperations.tabs.sale") },
-        { key: "loan", label: t("branchOperations.tabs.loan") },
+        { key: "sale", label: t("branchOperations.tabs.sale"), badge: pendingSaleTransfers },
+        { key: "loan", label: t("branchOperations.tabs.loan"), badge: pendingLoanTransfers },
       ].map((tabItem) => {
         const isActive = tab === tabItem.key;
         return (
@@ -1743,21 +2178,28 @@ return (
               setErr("");
 
               if (tabItem.key === "loan") {
-                // active loans refresh
-                setTimeout(() => loadActiveLoans(), 0);
+                setTimeout(() => {
+                  loadActiveLoans();
+                  loadLoanPendingRequests();
+                }, 0);
               }
 
               if (tabItem.key === "sale") {
                 setTimeout(() => loadSaleHistory(new Date()), 0);
               }
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               isActive
                 ? "bg-white text-neutral-900 shadow-sm"
                 : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
             }`}
           >
             {tabItem.label}
+            {tabItem.badge > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none shadow-sm">
+                {tabItem.badge > 99 ? "99+" : tabItem.badge}
+              </span>
+            )}
           </button>
         );
       })}
@@ -1789,7 +2231,7 @@ return (
             setQ={setQ}
             loading={loading}
             rows={filteredCatalog}
-            onAdd={addToCart}
+            onAdd={handleAddProduct}
             cart={cart}
             note={note}
             onNoteChange={setNote}
@@ -1809,6 +2251,11 @@ return (
             saleHistoryLoading={saleHistoryLoading}
             loadSaleHistory={loadSaleHistory}
             commitSaleReturn={commitSaleReturn}
+            salePendingRequests={salePendingRequests}
+            onAcceptTransfer={acceptTransferRequest}
+            allLocations={allLocations}
+            branchLocationId={branchLocationId}
+            pendingTransferCount={pendingSaleTransfers}
             // Product search props
             searchProducts={searchSaleProducts}
             searchProductHistory={searchSaleProductHistory}
@@ -1825,7 +2272,7 @@ return (
             setQ={setQ}
             loading={loading}
             rows={filteredCatalog}
-            onAdd={addToCart}
+            onAdd={handleAddProduct}
             cart={cart}
             note={note}
             onNoteChange={setNote}
@@ -1860,10 +2307,199 @@ return (
             searchProducts={searchLoanProducts}
             searchProductHistory={searchLoanProductHistory}
             getFirstLoanYear={getFirstLoanYear}
+            // Pending loan transfer props
+            loanPendingRequests={loanPendingRequests}
+            pendingLoanTransferCount={pendingLoanTransfers}
+            onAcceptLoanTransfer={acceptLoanTransferRequest}
           />
         </div>
       )}
     </div>
+
+    {/* Return destination modal */}
+    {retDestModal && (
+      <ReturnDestModal
+        items={retDestModal.items}
+        allLocations={allLocations}
+        branchLocationId={branchLocationId}
+        onConfirm={retDestModal.onConfirm}
+        onClose={() => setRetDestModal(null)}
+      />
+    )}
+
+    {/* Quantity input modal — shown on every Add click */}
+    {sourcePicker && (
+      <QuantityInputModal
+        row={sourcePicker.row}
+        sources={sourcePicker.sources}
+        onConfirm={(selections) => {
+          selections.forEach((sel) =>
+            addToCart(
+              sourcePicker.row,
+              sel.locationId,
+              sel.locationName,
+              sel.qty,
+              sel.selectedQty,
+              sel.needsApproval
+            )
+          );
+          setSourcePicker(null);
+        }}
+        onClose={() => setSourcePicker(null)}
+      />
+    )}
   </div>
 )
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   QUANTITY INPUT MODAL
+   Always shown when staff clicks Add. Shows each available location with a qty
+   input. Confirm adds all filled locations to cart as separate line items.
+   Locations other than own branch show an "Approval needed" badge.
+───────────────────────────────────────────────────────────────────────────── */
+function QuantityInputModal({ row, sources, onConfirm, onClose }) {
+  const { t } = useTranslation();
+  const [qtys, setQtys] = useState(
+    () => Object.fromEntries(sources.map((s) => [s.locationId, ""]))
+  );
+
+  const setQty = (locationId, value, max) => {
+    if (value === "" || value === "0") {
+      setQtys((prev) => ({ ...prev, [locationId]: "" }));
+      return;
+    }
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed) || parsed < 0) return;
+    setQtys((prev) => ({ ...prev, [locationId]: Math.min(parsed, max) }));
+  };
+
+  const totalSelected = sources.reduce((sum, s) => sum + (parseInt(qtys[s.locationId]) || 0), 0);
+  const canConfirm = totalSelected > 0;
+
+  const handleConfirm = () => {
+    const selections = sources
+      .filter((s) => (parseInt(qtys[s.locationId]) || 0) > 0)
+      .map((s) => ({ ...s, selectedQty: parseInt(qtys[s.locationId]) }));
+    if (selections.length === 0) return;
+    onConfirm(selections);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-4">
+          <p className="text-xs text-emerald-100 font-medium uppercase tracking-wider mb-0.5">
+            {t("branchOperations.modal.addToCartLabel")}
+          </p>
+          <h3 className="text-base font-bold text-white leading-tight truncate">{row.name}</h3>
+          <p className="text-xs text-emerald-200 font-mono mt-0.5">{row.sku}</p>
+        </div>
+
+        {/* Location rows */}
+        <div className="p-4 space-y-2">
+          <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-3">
+            {t("branchOperations.modal.enterQty")}
+          </p>
+          {sources.map((src) => (
+            <div
+              key={src.locationId}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+                src.isOwn
+                  ? "border-emerald-200 bg-emerald-50/60"
+                  : "border-neutral-200 bg-neutral-50"
+              }`}
+            >
+              {/* Kind badge */}
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                src.isOwn
+                  ? "bg-emerald-500 text-white"
+                  : src.kind === "warehouse"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-neutral-200 text-neutral-600"
+              }`}>
+                {src.isOwn ? "★" : src.kind === "warehouse" ? "W" : "B"}
+              </span>
+
+              {/* Name + tag */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-neutral-800 truncate">{src.locationName}</span>
+                  {src.isOwn && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md shrink-0">
+                      {t("branchOperations.modal.tagCurrent")}
+                    </span>
+                  )}
+                  {src.needsApproval && (
+                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                      {t("branchOperations.modal.tagViaRequest")}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5">
+                  <span className={`text-xs font-semibold ${
+                    src.qty > 10 ? "text-emerald-600" : src.qty > 0 ? "text-orange-500" : "text-red-500"
+                  }`}>
+                    {src.qty} {t("branchOperations.modal.available")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Qty input */}
+              <input
+                type="number"
+                min={0}
+                max={src.qty}
+                value={qtys[src.locationId]}
+                placeholder="0"
+                onChange={(e) => setQty(src.locationId, e.target.value, src.qty)}
+                className={`w-16 rounded-lg border px-2 py-1.5 text-sm text-center font-medium focus:outline-none focus:ring-2 ${
+                  src.isOwn
+                    ? "border-emerald-300 focus:ring-emerald-500 bg-white"
+                    : "border-neutral-200 focus:ring-slate-400 bg-white"
+                }`}
+              />
+            </div>
+          ))}
+
+          {totalSelected > 0 && (
+            <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 font-medium">
+              {totalSelected === 1
+                ? t("branchOperations.modal.totalOne")
+                : t("branchOperations.modal.totalMany", { count: totalSelected })}
+              {sources.some((s) => s.needsApproval && (parseInt(qtys[s.locationId]) || 0) > 0) && (
+                <span className="ml-1 text-slate-500">{t("branchOperations.modal.includesViaRequest")}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-neutral-100 px-4 py-3 bg-neutral-50 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            {t("branchOperations.modal.cancel")}
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            className="flex-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {t("branchOperations.modal.addToCartBtn")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

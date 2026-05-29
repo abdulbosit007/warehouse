@@ -487,7 +487,7 @@ export default function OwnerHome() {
     setError(null);
 
     try {
-      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes] = await Promise.all([
+      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -513,11 +513,17 @@ export default function OwnerHome() {
           .select("id, name")
           .order("name", { ascending: true }),
 
-        // Fetch items currently in delivery (approved but not yet received)
+        // Branch request items approved but not yet received by branch
         supabase
           .from("branch_request_items")
           .select("product_id, approved_qty")
           .eq("status", "approved"),
+
+        // Pending stock transfer items (deducted from sender, not yet received)
+        // Fetch with parent transfer status; filter client-side for 'pending'
+        supabase
+          .from("stock_transfer_items")
+          .select("product_id, qty, transfer:transfer_id(status)"),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -525,10 +531,19 @@ export default function OwnerHome() {
       if (locationsRes.error) throw locationsRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
       if (inDeliveryRes.error) throw inDeliveryRes.error;
+      // pendingTransfersRes error is non-fatal (table may not exist yet)
 
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
-      setInDeliveryList(inDeliveryRes.data || []);
+      // Combine branch-request approved items + pending stock transfer items
+      const branchInDelivery = (inDeliveryRes.data || []).map((r) => ({
+        product_id: r.product_id,
+        qty: r.approved_qty || 0,
+      }));
+      const transferInTransit = (pendingTransfersRes.data || [])
+        .filter((r) => r.transfer?.status === "pending")
+        .map((r) => ({ product_id: r.product_id, qty: r.qty || 0 }));
+      setInDeliveryList([...branchInDelivery, ...transferInTransit]);
       setLocations(locationsRes.data || []);
       setCategories(categoriesRes.data || []);
     } catch (err) {
@@ -567,12 +582,14 @@ export default function OwnerHome() {
     return locMap.get(locationId) || 0;
   };
 
-  // Compute in-delivery quantities per product
+  // Compute in-transit quantities per product
+  // inDeliveryList is a normalized array of { product_id, qty } covering both
+  // branch-request approved items AND pending stock transfers.
   const inDeliveryMap = useMemo(() => {
     const map = new Map();
     for (const item of inDeliveryList) {
       const current = map.get(item.product_id) || 0;
-      map.set(item.product_id, current + (item.approved_qty || 0));
+      map.set(item.product_id, current + (item.qty || 0));
     }
     return map;
   }, [inDeliveryList]);
@@ -1036,6 +1053,8 @@ export default function OwnerHome() {
               <tbody className="divide-y divide-neutral-100">
                 {paginatedProducts.map((product) => {
                   const totalQty = getTotalQty(product.id);
+                  const inTransitQty = getInDeliveryQty(product.id);
+                  const grandTotal = totalQty + inTransitQty;
 
                   return (
                     <tr key={product.id} className="bg-white">
@@ -1057,14 +1076,14 @@ export default function OwnerHome() {
                       <td className="px-4 py-3 text-center">
                         <span
                           className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold ${
-                            totalQty > 10
+                            grandTotal > 10
                               ? "bg-indigo-100 text-indigo-700"
-                              : totalQty > 0
+                              : grandTotal > 0
                               ? "bg-amber-100 text-amber-700"
                               : "bg-neutral-100 text-neutral-400"
                           }`}
                         >
-                          {totalQty}
+                          {grandTotal}
                         </span>
                       </td>
 

@@ -1,7 +1,7 @@
 {
   "nav": {
     "home": "Home",
-    "branchRequests": "Branch Requests",
+    "branchRequests": "Transfers",
     "incomingBatches": "Incoming Batches",
     "stockCorrections": "Stock Corrections",
     "auditReview": "Audit Review",
@@ -26,6 +26,7 @@
     "saveChanges": "Save Changes",
     "clearFilters": "Clear filters",
     "clearAll": "Clear all",
+    "apply": "Apply",
     "applyFilters": "Apply Filters",
     "rows": "Rows",
     "prev": "Prev",
@@ -782,8 +783,8 @@
     }
   },
   "branchRequests": {
-    "title": "Product Requests",
-    "subtitle": "Manage incoming and outgoing product transfers",
+    "title": "Transfers",
+    "subtitle": "Manage incoming and outgoing stock transfers",
     "tabs": {
       "new": "New Request",
       "outgoing": "My Requests",
@@ -796,6 +797,7 @@
       "rejected": "Rejected",
       "completed": "Completed",
       "cancelled": "Cancelled",
+      "closed": "Accepted",
       "awaitingReceipt": "Awaiting receipt",
       "received": "Received"
     },
@@ -810,12 +812,27 @@
       "confirmReceiptSuccess": "Items received! Inventory updated.",
       "confirmReceiptFail": "Failed to confirm receipt"
     },
+    "modeToggle": {
+      "requests": "Branch Requests",
+      "transfers": "Stock Transfers"
+    },
+    "filterModal": {
+      "title": "Filters",
+      "categoryLabel": "Category",
+      "allCategories": "All Categories",
+      "cancel": "Cancel",
+      "apply": "Apply"
+    },
+    "filter": {
+      "placeholder": "Filter by product name or SKU..."
+    },
     "common": {
       "loading": "Loading...",
       "searching": "Searching...",
       "unknown": "Unknown",
       "qty": "qty",
-      "product": "Product"
+      "product": "Product",
+      "ofTotal": "of {{total}}"
     },
     "newRequest": {
       "searchTitle": "Search Products",
@@ -844,7 +861,9 @@
       "arrived": "Arrived",
       "addToCart": "Add to Cart",
       "noStock": "No stock available in any warehouse",
-      "addedToCartBulk": "{{count}} items added to cart"
+      "addedToCartBulk": "{{count}} items added to cart",
+      "selected": "selected",
+      "items": "items"
     },
     "outgoing": {
       "emptyTitle": "No Active Requests",
@@ -887,8 +906,11 @@
         "all": "All",
         "completed": "Completed",
         "cancelled": "Cancelled",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "closed": "Accepted"
       },
+      "requested": "Requested",
+      "closed": "Closed",
       "noResultsTitle": "No Results",
       "noResultsText": "No requests match your filters",
       "columns": {
@@ -899,6 +921,8 @@
         "status": "Status",
         "date": "Date"
       },
+      "sortOpened": "Opened date",
+      "sortClosed": "Closed date",
       "showing": "Showing {{filtered}} of {{all}} requests",
       "loadMore": "Load More (showing {{count}})"
     }
@@ -929,18 +953,225 @@
       "selectItemsAndQty": "Please select items and quantities.",
       "pickSkuRow": "Pick a SKU row first.",
       "invalidQuantity": "Invalid quantity",
-      "noItemsToSell": "No items to sell"
+      "noItemsToSell": "No items to sell",
+      "stockChanged": "Stock changed",
+      "stockItemIssue": "{{name}}: only {{available}} available, requested {{qty}}"
     },
     "success": {
       "saleCommitted": "Sale committed. TX: {{tx}}",
+      "saleCommittedSimple": "Sale committed.",
+      "salePlusBranchRequest": "{{sold}} item(s) sold from branch. Approval request sent for {{requested}} item(s).",
+      "approvalRequestSent": "Approval request sent for {{count}} item(s). Waiting for confirmation.",
       "loanCommitted": "Loan committed. TX: {{tx}}",
+      "loanCommittedSimple": "Loan committed.",
+      "loanPlusBranchRequest": "{{loaned}} item(s) loaned from branch. Approval request sent for {{requested}} item(s).",
       "returnCommittedOne": "Return committed. TX: {{tx}}",
       "returnCommittedMany": "Committed {{count}} return transactions.",
       "noteUpdated": "Note updated",
       "dueDateUpdated": "Due date updated",
       "markedSold": "Marked {{qty}} as sold",
-      "soldAll": "Sold all {{qty}} items for {{name}}",
-      "returnedItems": "Returned {{qty}} items"
+      "soldAll": "Sold all {{qty}} items from {{name}}",
+      "returnedItems": "Returned {{qty}} items",
+      "transferAccepted": "Accepted {{qty}} × {{name}} — sale committed.",
+      "loanTransferAccepted": "Accepted {{qty}} × {{name}} — loan recorded."
+    },
+    "modal": {
+      "addToCartLabel": "Add to cart",
+      "enterQty": "Enter quantity per location",
+      "tagCurrent": "Current",
+      "tagViaRequest": "Via request",
+      "available": "available",
+      "totalOne": "Total: 1 unit selected",
+      "totalMany": "Total: {{count}} units selected",
+      "includesViaRequest": "· Includes items via request",
+      "cancel": "Cancel",
+      "addToCartBtn": "Add to Cart"
+    },
+    "saleSection": {
+      "title": "Sales",
+      "subtitle": "Create sales and view history",
+      "newSale": "New Sale",
+      "history": "History",
+      "productsTitle": "Products",
+      "productsCount": "{{count}} products · Branch & Warehouse",
+      "searchPlaceholder": "Search by name or SKU"
+    },
+    "loanSection": {
+      "title": "Loan Management",
+      "subtitle": "Create loans, track active loans, view history",
+      "newLoan": "New Loan",
+      "pending": "Pending",
+      "activeLoans": "Active Loans",
+      "history": "History",
+      "productsTitle": "Products in {{locationName}}",
+      "productsCount": "{{count}} products available",
+      "searchPlaceholder": "Search by name or SKU",
+      "noPending": "No pending loan transfers",
+      "unknownBorrower": "Unknown borrower",
+      "dueDate": "Due",
+      "acceptLoan": "Accept",
+      "approved": "Approved",
+      "waitingApproval": "Waiting...",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "filterModal": {
+      "title": "Filters",
+      "categoryLabel": "Category",
+      "allCategories": "All Categories",
+      "cancel": "Cancel",
+      "apply": "Apply"
+    },
+    "productsTable": {
+      "colName": "Name",
+      "colSku": "SKU",
+      "colBranch": "Branch",
+      "colOverall": "Overall",
+      "colAction": "Action",
+      "noProducts": "No products",
+      "addBtn": "Add",
+      "footerCount": "{{count}} products"
+    },
+    "loanHistory": {
+      "viewByDate": "By Date",
+      "viewByProduct": "By Product",
+      "selectDate": "Select Date",
+      "today": "Today",
+      "itemsOne": "{{count}} item",
+      "itemsMany": "{{count}} items",
+      "noLoans": "No loans on this date",
+      "colProduct": "Product",
+      "colBorrower": "Borrower",
+      "colQty": "Qty",
+      "colStatus": "Status",
+      "colDate": "Date",
+      "colType": "Type",
+      "colReturned": "Returned",
+      "statusDone": "Done",
+      "statusActive": "Active",
+      "statusClosed": "Closed",
+      "typeLoan": "Loan",
+      "typeReturn": "Return",
+      "searchLabel": "Search Product",
+      "searchPlaceholder": "Search by name or SKU...",
+      "productHistoryTitle": "Loan History by Product",
+      "loadingHistory": "Loading history...",
+      "searchPrompt": "Search for a product above",
+      "searchPromptSub": "View complete loan history for any item",
+      "noLoansInYear": "No loans in {{year}}",
+      "noLoansHint": "Try selecting a different year",
+      "summaryLoaned": "Loaned",
+      "summaryReturned": "Returned",
+      "summaryTransactions": "Transactions",
+      "detailProgress": "Progress",
+      "detailTotalLoaned": "Total Loaned",
+      "detailReturned": "Returned",
+      "detailSold": "Sold",
+      "detailRemaining": "Remaining"
+    },
+    "activeLoans": {
+      "title": "Active Loans",
+      "subtitle": "{{active}} active · {{items}} items pending",
+      "refresh": "Refresh",
+      "loadingLoans": "Loading loans...",
+      "allCaughtUp": "All caught up!",
+      "noPending": "No active loans pending",
+      "daysLate": "{{days}}d late",
+      "noDueDate": "No due date",
+      "itemsOne": "{{count}} item",
+      "itemsMany": "{{count}} items",
+      "dueDateLabel": "Due Date",
+      "notSet": "Not set",
+      "edit": "Edit",
+      "noteLabel": "Note",
+      "noNote": "No note",
+      "addNoteBtn": "Add",
+      "colProduct": "Product",
+      "colProgress": "Progress",
+      "colActions": "Actions",
+      "itemDone": "Done",
+      "btnReturn": "Return",
+      "btnSell": "Sell",
+      "sellAll": "Sell All Remaining ({{count}} items)",
+      "modalSell": "Mark as Sold",
+      "modalReturn": "Mark as Returned",
+      "available": "Available:",
+      "qtyLabel": "Quantity to {{action}}",
+      "qtyMax": "(max: {{max}})",
+      "noteOptional": "(optional)",
+      "notePlaceholder": "Add a note...",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "editNoteTitle": "Edit Note",
+      "addNoteTitle": "Add Note",
+      "noteModalPlaceholder": "Add a note for this loan...",
+      "saveNote": "Save Note",
+      "editDueDateTitle": "Edit Due Date",
+      "save": "Save"
+    },
+    "cartPanel": {
+      "title": "Cart",
+      "itemsCount": "{{count}} items",
+      "empty": "No items yet.",
+      "max": "max",
+      "sourceBranch": "Branch",
+      "viaRequest": "Via request",
+      "borrowerTitle": "Borrower Details",
+      "borrowerName": "Name",
+      "borrowerNamePlaceholder": "Borrower name",
+      "borrowerPhone": "Phone",
+      "borrowerStore": "Store №",
+      "borrowerStorePlaceholder": "Store number",
+      "borrowerDueDate": "Due date",
+      "borrowerHint": "Required: Name and (Phone OR Store №). Due date defaults to +3 days.",
+      "commitSale": "Commit Sale",
+      "commitLoan": "Commit Loan"
+    },
+    "saleHistory": {
+      "byDate": "By Date",
+      "byProduct": "By Product",
+      "selectDate": "Select Date",
+      "today": "Today",
+      "filterPlaceholder": "Filter by name or SKU...",
+      "loading": "Loading...",
+      "noMatch": "No matching products",
+      "noSales": "No sales on this date",
+      "clearFilter": "Clear filter",
+      "colProduct": "Product",
+      "colSold": "Sold",
+      "colReturned": "Returned",
+      "colRemaining": "Remaining",
+      "fromLocation": "from {{name}}",
+      "statusCompleted": "Completed",
+      "statusRejected": "Rejected",
+      "statusReady": "Ready",
+      "statusWaiting": "Waiting",
+      "acceptBtn": "Accept",
+      "approvedQty": "({{count}} approved)",
+      "footerTotal": "Total: {{sold}} sold · {{returned}} returned",
+      "footerShowing": "Showing {{count}} of {{total}}",
+      "headerCount": "{{products}} product · {{units}} units",
+      "headerCountMany": "{{products}} products · {{units}} units",
+      "searchLabel": "Search Product",
+      "searchPlaceholder": "Search by name or SKU...",
+      "byProductTitle": "Sale History by Product",
+      "loadingHistory": "Loading history...",
+      "searchPrompt": "Search for a product above",
+      "searchPromptSub": "View complete sell history for any item",
+      "noSalesInYear": "No sales in {{year}}",
+      "noSalesInYearSub": "Try selecting a different year",
+      "summaryTotalSold": "Total Sold",
+      "summaryReturned": "Returned",
+      "summaryTransactions": "Transactions",
+      "colDate": "Date",
+      "colType": "Type",
+      "colQty": "Qty",
+      "typeSale": "Sale",
+      "typeReturn": "Return",
+      "returnModalTitle": "Return Items",
+      "returnQtyLabel": "Quantity to return (max: {{max}})",
+      "cancel": "Cancel",
+      "returnBtn": "Return"
     }
   },
   "warehouseHome": {
@@ -1110,6 +1341,10 @@
       "to": "To",
       "statusAll": "All",
       "searchPlaceholder": "Search product or SKU...",
+      "requested": "Requested",
+      "closed": "Closed",
+      "sortOpened": "Opened date",
+      "sortClosed": "Closed date",
       "noResultsTitle": "No Results",
       "noResultsHint": "No requests match your filters",
       "loadMore": "Load More (showing {{count}})",
@@ -1425,6 +1660,93 @@
       "branch": "Branch"
     }
   },
+  "ownerAnalytics": {
+    "title": "Analytics & Activity",
+    "subtitle": "Holistic view of business performance across all locations",
+    "allLocations": "All Locations",
+    "presets": {
+      "today": "Today",
+      "7days": "7 days",
+      "30days": "30 days",
+      "90days": "90 days"
+    },
+    "tabs": {
+      "analytics": "Sales Analytics",
+      "logs": "Activity Logs",
+      "restock": "Smart Restock"
+    },
+    "summary": {
+      "transactions": "Transactions",
+      "transactionsSub": "in selected period",
+      "unitsSold": "Units Sold",
+      "unitsSoldSub": "total items",
+      "totalRevenue": "Total Revenue",
+      "totalRevenueSub": "sum of sale prices",
+      "avgSale": "Avg / Sale",
+      "avgSaleSub": "revenue per transaction"
+    },
+    "loading": "Loading analytics…",
+    "noSales": "No sales in this period",
+    "noSalesSub": "Try a wider date range",
+    "trend": {
+      "title": "Revenue Trend",
+      "overall": "Overall",
+      "noData": "Not enough data points.",
+      "revenue": "Revenue",
+      "transactions": "Transactions"
+    },
+    "byBranch": {
+      "title": "By Branch",
+      "noData": "No branch data.",
+      "revenue": "Revenue"
+    },
+    "categoryPie": {
+      "title": "Revenue by Category",
+      "hint": "Click a slice to see products",
+      "noData": "No category data"
+    },
+    "drilldown": {
+      "placeholder": "Select a category",
+      "clear": "Clear",
+      "hint": "Click a pie slice to drill down",
+      "colNumber": "#",
+      "colProduct": "Product",
+      "colUnits": "Units Sold",
+      "colRevenue": "Revenue"
+    },
+    "topProducts": {
+      "title": "Top Products",
+      "subtitle": "by revenue · top 10",
+      "colNumber": "#",
+      "colProduct": "Product",
+      "colCategory": "Category",
+      "colUnits": "Units",
+      "colRevenue": "Revenue",
+      "colShare": "Share"
+    },
+    "inventory": {
+      "title": "Inventory Value by Location",
+      "subtitle": "Current available stock — sum of (quantity × sale price)",
+      "noData": "No inventory data found.",
+      "colLocation": "Location",
+      "colType": "Type",
+      "colUnits": "Total Units",
+      "colValue": "Inventory Value",
+      "colShare": "Share",
+      "overallTotal": "Overall Total"
+    },
+    "logs": {
+      "noData": "No activity found for the selected criteria.",
+      "colDate": "Date",
+      "colLocation": "Location",
+      "colType": "Type",
+      "colItems": "Items Summary",
+      "sale": "Sale",
+      "return": "Return",
+      "loan": "Loan"
+    },
+    "unauthorized": "Unauthorized. Owner access only."
+  },
   "ownerBranchRequests": {
     "title": "Global Inter-Branch Requests",
     "subtitle": "Read-only overview of all stock requests moving between warehouses and branches.",
@@ -1439,6 +1761,9 @@
     "transferTo": "Transfer to {{name}}",
     "id": "ID",
     "from": "From",
+    "requested": "Requested",
+    "closed": "Closed",
+    "sortBy": "Sort by",
     "table": {
       "product": "Product",
       "requested": "Requested",
@@ -1452,6 +1777,82 @@
       "completed": "Completed",
       "cancelled": "Cancelled",
       "requestedItem": "Requested Item"
+    }
+  },
+  "stockTransfers": {
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "partial": "Partial"
+    },
+    "tabs": {
+      "send": "Send Transfer",
+      "outgoing": "Outgoing",
+      "incoming": "Incoming",
+      "history": "History"
+    },
+    "kind": {
+      "branch": "Branch",
+      "warehouse": "Warehouse"
+    },
+    "send": {
+      "destinationLabel": "Destination",
+      "productsAt": "Products at {{name}}",
+      "searchPlaceholder": "Search by name or SKU…",
+      "searching": "Searching…",
+      "available": "available",
+      "addBtn": "Add",
+      "addedBtn": "Added",
+      "noProducts": "No products found.",
+      "cartTitle": "Transfer Cart",
+      "cartItems": "{{count}} items",
+      "emptyCart": "No products added yet.",
+      "maxQty": "max {{max}}",
+      "notePlaceholder": "Note (optional)…",
+      "sendBtn": "Send Transfer",
+      "sending": "Sending…",
+      "successMsg": "Transfer sent successfully.",
+      "errNoDestination": "Select a destination.",
+      "errEmptyCart": "Add at least one product.",
+      "errZeroQty": "All quantities must be > 0."
+    },
+    "outgoing": {
+      "summary": "{{count}} outgoing transfers",
+      "empty": "No outgoing transfers yet.",
+      "cancelBtn": "Cancel",
+      "cancelling": "Cancelling…",
+      "refresh": "Refresh"
+    },
+    "incoming": {
+      "summary": "{{count}} pending incoming",
+      "empty": "No incoming transfers.",
+      "rejectBtn": "Reject",
+      "acceptBtn": "Accept",
+      "processing": "Processing…",
+      "refresh": "Refresh"
+    },
+    "history": {
+      "filterAll": "All",
+      "filterSent": "Sent",
+      "filterReceived": "Received",
+      "empty": "No transfer history.",
+      "refresh": "Refresh",
+      "requested": "Requested",
+      "closed": "Closed",
+      "sortOpened": "Opened date",
+      "sortClosed": "Closed date"
+    },
+    "card": {
+      "units": "{{count}} units",
+      "note": "Note: {{text}}",
+      "to": "→ {{name}}",
+      "from": "← from {{name}}",
+      "colProduct": "Product",
+      "colSku": "SKU",
+      "colQty": "Qty",
+      "colStatus": "Status"
     }
   }
 }
