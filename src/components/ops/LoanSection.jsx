@@ -24,6 +24,7 @@ export default function LoanSection({
   cartValid,
   loanValid,
   onCommitLoan,
+  committing = false,
   nf,
   // Category filter props
   categories = [],
@@ -178,6 +179,7 @@ export default function LoanSection({
             cartValid={cartValid}
             loanValid={loanValid}
             onCommitLoan={onCommitLoan}
+            committing={committing}
             nf={nf}
           />
         </div>

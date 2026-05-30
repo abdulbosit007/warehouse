@@ -193,7 +193,7 @@ export default function BranchRequests() {
         .select("id", { count: "exact", head: true })
         .eq("to_location_id", location.id)
         .in("status", ["sent", "approved"])
-        .not("purpose", "in", "(sale,loan)");
+        .or("purpose.is.null,purpose.not.in.(sale,loan)");
 
       // Incoming: only count requests that have items with status "requested"
       // (items the user still needs to approve/reject — not already acted on)
@@ -227,7 +227,7 @@ export default function BranchRequests() {
         .from("branch_requests")
         .select("id, to_location_id, purpose, items:branch_request_items(source_location_id)")
         .in("status", ["completed", "cancelled", "rejected", "closed"])
-        .not("purpose", "in", "(sale,loan)")
+        .or("purpose.is.null,purpose.not.in.(sale,loan)")
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -1395,7 +1395,7 @@ function OutgoingTab({ location, showToast }) {
       `)
       .eq("to_location_id", location.id)
       .in("status", ["sent", "approved"])
-      .not("purpose", "in", "(sale,loan)")
+      .or("purpose.is.null,purpose.not.in.(sale,loan)")
       .order("created_at", { ascending: false });
 
     setRequests(data || []);
@@ -1855,6 +1855,12 @@ function IncomingTab({ location, showToast }) {
             return next.filter(Boolean);
           });
         }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "branch_request_items",
+          filter: `source_location_id=eq.${location.id}` },
+        () => loadRequests()
       )
       .subscribe();
 

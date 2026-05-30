@@ -20,6 +20,7 @@ export default function SaleSection({
   removeFromCart,
   cartValid,
   onCommitSale,
+  committing = false,
   nf,
   // Category filter props
   categories = [],
@@ -165,6 +166,7 @@ export default function SaleSection({
             removeFromCart={removeFromCart}
             cartValid={cartValid}
             onCommitSale={onCommitSale}
+            committing={committing}
             nf={nf}
           />
         </div>

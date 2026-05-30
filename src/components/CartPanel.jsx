@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ShoppingCart, Trash2, Package } from "lucide-react";
+import { ShoppingCart, Trash2, Package, RefreshCw } from "lucide-react";
 
 export default function CartPanel({
   tab, // "sale" | "loan"
@@ -15,6 +15,7 @@ export default function CartPanel({
   loanValid,
   onCommitSale,
   onCommitLoan,
+  committing = false,
   nf,
 }) {
   const { t } = useTranslation();
@@ -171,18 +172,22 @@ export default function CartPanel({
       {tab === "sale" ? (
         <button
           onClick={onCommitSale}
-          disabled={!cartValid}
-          className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl hover:shadow-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+          disabled={!cartValid || committing}
+          className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 hover:from-emerald-700 hover:to-teal-700 hover:shadow-xl hover:shadow-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg flex items-center justify-center gap-2"
         >
-          {t("branchOperations.cartPanel.commitSale")}
+          {committing
+            ? <><RefreshCw className="w-4 h-4 animate-spin" />{t("common.saving")}</>
+            : t("branchOperations.cartPanel.commitSale")}
         </button>
       ) : (
         <button
           onClick={onCommitLoan}
-          disabled={!loanValid}
-          className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-200 hover:from-amber-600 hover:to-orange-600 hover:shadow-xl hover:shadow-amber-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+          disabled={!loanValid || committing}
+          className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-200 hover:from-amber-600 hover:to-orange-600 hover:shadow-xl hover:shadow-amber-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg flex items-center justify-center gap-2"
         >
-          {t("branchOperations.cartPanel.commitLoan")}
+          {committing
+            ? <><RefreshCw className="w-4 h-4 animate-spin" />{t("common.saving")}</>
+            : t("branchOperations.cartPanel.commitLoan")}
         </button>
       )}
     </div>

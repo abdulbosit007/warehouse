@@ -1513,6 +1513,12 @@ function IncomingTab({ t, location, showToast }) {
           });
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "branch_request_items",
+          filter: `source_location_id=eq.${location.id}` },
+        () => loadRequests()
+      )
       .subscribe();
 
     return () => {

@@ -72,6 +72,7 @@ export default function BranchOperations() {
   const [warehouseLocations, setWarehouseLocations] = useState([]); // [{id, location_name}]
   const [branchLocationId, setBranchLocationId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [committing, setCommitting] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   
@@ -371,6 +372,35 @@ export default function BranchOperations() {
     if (!isBranch || !locationName) return;
     loadPendingSaleTransfers();
     loadLoanPendingRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBranch, locationName]);
+
+  /* ── Loan pending: real-time subscription ─────────────────────────────── */
+  useEffect(() => {
+    if (!isBranch || !locationName) return;
+    let channel;
+    (async () => {
+      try {
+        const loc = await getBranchLocation();
+        channel = supabase
+          .channel(`loan-pending-${loc.id}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "branch_requests",
+              filter: `to_location_id=eq.${loc.id}` },
+            () => loadLoanPendingRequests()
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "branch_request_items" },
+            () => loadLoanPendingRequests()
+          )
+          .subscribe();
+      } catch {
+        // non-critical — loan pending will still load on manual refresh
+      }
+    })();
+    return () => { if (channel) supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBranch, locationName]);
 
@@ -967,6 +997,8 @@ export default function BranchOperations() {
   }
 
   async function commitSale() {
+    if (committing) return;
+    setCommitting(true);
     try {
       if (!cartValid) throw new Error(t("branchOperations.errors.checkQuantities"));
 
@@ -1058,10 +1090,14 @@ export default function BranchOperations() {
       await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
+    } finally {
+      setCommitting(false);
     }
   }
 
   async function commitLoan() {
+    if (committing) return;
+    setCommitting(true);
     try {
       if (!loanValid) throw new Error(t("branchOperations.errors.borrowerAndQtyRequired"));
 
@@ -1172,6 +1208,8 @@ export default function BranchOperations() {
       if (approvalItems.length > 0) loadLoanPendingRequests();
     } catch (e) {
       setErr(e.message || String(e));
+    } finally {
+      setCommitting(false);
     }
   }
 
@@ -2239,6 +2277,7 @@ return (
             removeFromCart={removeFromCart}
             cartValid={cartValid}
             onCommitSale={commitSale}
+            committing={committing}
             nf={nf}
             // Category filter props
             categories={categories}
@@ -2283,6 +2322,7 @@ return (
             cartValid={cartValid}
             loanValid={loanValid}
             onCommitLoan={commitLoan}
+            committing={committing}
             nf={nf}
             // Category filter props
             categories={categories}
