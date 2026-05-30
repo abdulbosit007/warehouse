@@ -448,7 +448,16 @@ function OutgoingTab({ location }) {
     setLoading(false);
   }, [location.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const ch = supabase
+      .channel(`st-outgoing-${location.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers",
+          filter: `from_location_id=eq.${location.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [load]);
 
   const cancel = async (id) => {
     setCancelling(id);
@@ -545,7 +554,16 @@ function IncomingTab({ location, onAction }) {
     setLoading(false);
   }, [location.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const ch = supabase
+      .channel(`st-incoming-${location.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers",
+          filter: `to_location_id=eq.${location.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [load]);
 
   const actOnItem = async (itemId, rpc) => {
     setActingItem(itemId);
@@ -643,7 +661,14 @@ function HistoryTab({ location }) {
     setLoading(false);
   }, [location.id, sortBy]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const ch = supabase
+      .channel(`st-history-${location.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [load]);
 
   const pills = [
     { key: "all",      label: t("stockTransfers.history.filterAll") },
