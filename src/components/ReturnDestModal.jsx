@@ -73,8 +73,10 @@ export default function ReturnDestModal({
         destinations.set(item.product_id, dests);
       }
       await onConfirm(destinations, retNote.trim() || undefined);
-    } finally {
-      setSubmitting(false);
+      // On success the modal closes — don't reset submitting,
+      // it prevents a second click during the brief unmount window
+    } catch {
+      setSubmitting(false); // only reset on error so user can retry
     }
   };
 
