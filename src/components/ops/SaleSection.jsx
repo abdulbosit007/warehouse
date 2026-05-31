@@ -33,6 +33,7 @@ export default function SaleSection({
   saleHistoryLoading = false,
   loadSaleHistory,
   commitSaleReturn,
+  onBatchSaleReturn,
   salePendingRequests = [],
   onAcceptTransfer,
   // Return destination modal props
@@ -181,6 +182,7 @@ export default function SaleSection({
           loading={saleHistoryLoading}
           loadSaleHistory={loadSaleHistory}
           commitSaleReturn={commitSaleReturn}
+          onBatchSaleReturn={onBatchSaleReturn}
           salePendingRequests={salePendingRequests}
           onAcceptTransfer={onAcceptTransfer}
           allLocations={allLocations}

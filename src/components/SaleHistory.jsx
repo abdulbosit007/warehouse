@@ -13,6 +13,7 @@ export default function SaleHistory({
   loading,
   loadSaleHistory,
   commitSaleReturn,
+  onBatchSaleReturn,
   salePendingRequests = [],
   onAcceptTransfer,
   // Return destination modal props
@@ -155,40 +156,63 @@ export default function SaleHistory({
   };
 
   const handleReturnClick = (grouped) => {
-    const sale = grouped.sales.find((s) => s.item.remaining > 0);
-    if (sale) {
-      setReturnModal({ sale: sale.sale, item: sale.item, grouped });
-      setReturnQty(1);
-    }
+    if (grouped.remaining <= 0) return;
+    setReturnModal({ grouped });
+    setReturnQty(1);
   };
 
   const handleReturnSubmit = () => {
-    if (!returnModal || returnQty <= 0 || returnQty > returnModal.item.remaining) return;
+    if (!returnModal || returnQty <= 0 || returnQty > returnModal.grouped.remaining) return;
     if (!commitSaleReturn) return;
 
-    // Capture values before closing the qty modal
-    const { sale, item, grouped } = returnModal;
-    const qty = returnQty;
+    const { grouped } = returnModal;
 
-    const returnItem = {
-      product_id: item.product_id,
-      name: grouped.name,
-      sku: grouped.sku || "",
-      qty,
-      return_kind: "sale_return",
-      parent_tx_id: sale.id,
-    };
+    // Distribute return qty across multiple transactions (oldest first)
+    const plan = [];
+    let toReturn = returnQty;
+    for (const { sale, item } of grouped.sales) {
+      if (toReturn <= 0) break;
+      const canReturn = Math.min(item.remaining, toReturn);
+      if (canReturn <= 0) continue;
+      plan.push({ sale, item, qty: canReturn });
+      toReturn -= canReturn;
+    }
 
-    // Open destination modal (self-contained in this component)
+    // Merge into ONE modal item so the location list appears only once
+    const productId = plan[0].item.product_id;
+    const totalQty = plan.reduce((s, p) => s + p.qty, 0);
+
     setRetDestModal({
-      items: [returnItem],
+      items: [{
+        product_id: productId,
+        name: grouped.name,
+        sku: grouped.sku || "",
+        qty: totalQty,
+        return_kind: "sale_return",
+        parent_tx_id: plan[0].sale.id,
+      }],
       onConfirm: async (destinations, retNote) => {
-        await commitSaleReturn(sale, item, qty, destinations, retNote);
+        if (plan.length === 1) {
+          // Single transaction — use regular commitSaleReturn
+          const p = plan[0];
+          await commitSaleReturn(p.sale, p.item, p.qty, destinations, retNote);
+        } else if (onBatchSaleReturn) {
+          // Multiple transactions — batch into ONE processReturnWithDestinations call
+          // so only ONE transfer is created (not one per transaction)
+          const batchItems = plan.map(p => ({
+            product_id: p.item.product_id,
+            name: grouped.name,
+            sku: grouped.sku || "",
+            qty: p.qty,
+            return_kind: "sale_return",
+            parent_tx_id: p.sale.id,
+          }));
+          await onBatchSaleReturn(batchItems, destinations, retNote);
+        }
         setRetDestModal(null);
       },
     });
 
-    // Close the qty modal now
     setReturnModal(null);
   };
 
@@ -853,7 +877,7 @@ export default function SaleHistory({
             <div className="mb-4">
               <label className="block text-sm font-medium text-neutral-600 mb-1.5">
                 {t("branchOperations.saleHistory.returnQtyLabel", {
-                  max: returnModal.item.remaining,
+                  max: returnModal.grouped.remaining,
                 })}
               </label>
               <input
@@ -868,7 +892,7 @@ export default function SaleHistory({
                   } else {
                     const num = parseInt(val, 10);
                     if (!isNaN(num)) {
-                      setReturnQty(Math.min(Math.max(0, num), returnModal.item.remaining));
+                      setReturnQty(Math.min(Math.max(0, num), returnModal.grouped.remaining));
                     }
                   }
                 }}

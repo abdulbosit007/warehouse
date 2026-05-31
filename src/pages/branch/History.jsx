@@ -1698,19 +1698,14 @@ export default function BranchOperations() {
       const acceptQty = qty ?? item.approved_qty ?? item.requested_qty;
       if (!acceptQty || acceptQty <= 0) throw new Error("Invalid quantity");
 
+      const productId = item.product?.id;
+
       // 1. Record as an official sale WITHOUT stock deduction
-      //    (the source location already deducted its stock when it approved the request)
       const payload = {
         note: `Transfer accepted from ${item.source_location?.location_name || "external location"}`,
-        items: [
-          {
-            product_id: item.product?.id,
-            qty: acceptQty,
-            source_location_id: item.source_location?.id,
-          },
-        ],
+        items: [{ product_id: productId, qty: acceptQty, source_location_id: item.source_location?.id }],
       };
-      const { error: saleErr } = await supabase.rpc("fn_branch_accept_transfer", { p: payload });
+      const { data: txId, error: saleErr } = await supabase.rpc("fn_branch_accept_transfer", { p: payload });
       if (saleErr) throw saleErr;
 
       // 2. Mark this request item as fulfilled
@@ -1727,16 +1722,84 @@ export default function BranchOperations() {
         .eq("request_id", req.id)
         .neq("status", "fulfilled");
       if (!remaining || remaining.length === 0) {
-        await supabase
-          .from("branch_requests")
-          .update({ status: "closed" })
-          .eq("id", req.id);
+        await supabase.from("branch_requests").update({ status: "closed" }).eq("id", req.id);
       }
 
+      // 4. Remove accepted item from pending list (local state — no reload)
+      setSalePendingRequests(prev =>
+        prev.map(r => {
+          if (r.id !== req.id) return r;
+          const updatedItems = r.items.map(i => i.id === item.id ? { ...i, status: "fulfilled" } : i);
+          const allDone = updatedItems.every(i => i.status === "fulfilled" || i.status === "rejected" || i.status === "cancelled");
+          return allDone ? null : { ...r, items: updatedItems };
+        }).filter(Boolean)
+      );
+
+      // 5. Fetch just the new transaction (single row) to get real IDs for returns
+      let newEntry = null;
+      if (txId) {
+        const { data: newTx } = await supabase
+          .from("transactions")
+          .select("id, created_at, note, transaction_items(id, product_id, qty, product:products(name, sku))")
+          .eq("id", txId)
+          .single();
+        if (newTx) {
+          newEntry = {
+            id: newTx.id,
+            created_at: newTx.created_at,
+            note: newTx.note,
+            items: (newTx.transaction_items || []).map(i => ({
+              id: i.id,
+              product_id: i.product_id,
+              name: i.product?.name || "",
+              sku: i.product?.sku || "",
+              qty: i.qty,
+              returned: 0,
+              remaining: i.qty,
+            })),
+          };
+        }
+      }
+
+      // 6. Merge into sale history local state — add qty if same product exists, else prepend
+      setSaleHistory(prev => {
+        let merged = false;
+        const updated = prev.map(tx => {
+          if (merged) return tx; // already merged into first match — skip the rest
+          const matchIdx = tx.items.findIndex(i => i.product_id === productId);
+          if (matchIdx === -1) return tx;
+          merged = true;
+          return {
+            ...tx,
+            items: tx.items.map((i, idx) =>
+              idx === matchIdx
+                ? { ...i, qty: i.qty + acceptQty, remaining: i.remaining + acceptQty }
+                : i
+            ),
+          };
+        });
+        if (merged) return updated;
+        // Not found — prepend new entry
+        const fallback = newEntry || {
+          id: `pending-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          note: payload.note,
+          items: [{
+            id: `pending-item-${Date.now()}`,
+            product_id: productId,
+            name: item.product?.name || "",
+            sku: item.product?.sku || "",
+            qty: acceptQty,
+            returned: 0,
+            remaining: acceptQty,
+          }],
+        };
+        return [fallback, ...prev];
+      });
+
       showOk(t("branchOperations.success.transferAccepted", { qty: acceptQty, name: item.product?.name }));
-      await loadSaleHistory(saleHistoryDay || new Date());
-      await refreshCatalog({ silent: true });
-      loadPendingSaleTransfers(); // refresh badge count
+      refreshCatalog({ silent: true });
+      loadPendingSaleTransfers();
     } catch (e) {
       setErr(e.message || String(e));
     }
@@ -1816,7 +1879,21 @@ export default function BranchOperations() {
       await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
-      throw e; // re-throw so SaleHistory's onConfirm knows it failed
+      throw e;
+    }
+  }
+
+  // Batch version: multiple transactions, ONE transfer created at the end
+  async function commitSaleReturnBatch(returnItems, destinations, retNote) {
+    const totalQty = returnItems.reduce((s, i) => s + i.qty, 0);
+    try {
+      await processReturnWithDestinations(returnItems, destinations, retNote);
+      showOk(t("branchOperations.success.returnedItems", { qty: totalQty }));
+      loadSaleHistory(saleHistoryDay || new Date());
+      await refreshCatalog({ silent: true });
+    } catch (e) {
+      setErr(e.message || String(e));
+      throw e;
     }
   }
 
@@ -2290,6 +2367,7 @@ return (
             saleHistoryLoading={saleHistoryLoading}
             loadSaleHistory={loadSaleHistory}
             commitSaleReturn={commitSaleReturn}
+            onBatchSaleReturn={commitSaleReturnBatch}
             salePendingRequests={salePendingRequests}
             onAcceptTransfer={acceptTransferRequest}
             allLocations={allLocations}
