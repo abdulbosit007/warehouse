@@ -1480,6 +1480,54 @@ function OutgoingTab({ location, showToast }) {
     }
   }
 
+  async function handleUndoApprovalItem(request, item) {
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
+    try {
+      // 1. Restore qty back to source (warehouse) location
+      const sourceLocId = item.source_location?.id;
+      if (sourceLocId) {
+        const { data: product } = await supabase
+          .from("product_list")
+          .select("id, quantity")
+          .eq("product_id", item.product.id)
+          .eq("location_id", sourceLocId)
+          .eq("status", "available")
+          .single();
+        if (product) {
+          await supabase
+            .from("product_list")
+            .update({ quantity: product.quantity + (item.approved_qty || item.requested_qty) })
+            .eq("id", product.id);
+        }
+      }
+
+      // 2. Cancel this item
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "cancelled", approved_qty: null })
+        .eq("id", item.id);
+
+      // 3. Close request if no active items remain
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .not("status", "in", "(cancelled,rejected,completed,fulfilled)");
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", request.id);
+      }
+
+      showToast(t("branchRequests.toast.cancelSuccess"), "info");
+      updateItemLocally(request.id, item.id, "cancelled");
+    } catch (err) {
+      console.error("Undo approval error:", err);
+      showToast(t("branchRequests.toast.cancelFail"), "error");
+    } finally {
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+    }
+  }
+
   async function handleCancelItem(request, item) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
@@ -1936,11 +1984,52 @@ function IncomingTab({ location, showToast }) {
       console.error(err);
       showToast(t("branchRequests.toast.approveFail"), "error");
     } finally {
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+    }
+  }
+
+  async function handleUndoApprovalItem(request, item) {
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
+    try {
+      // Restore qty to this branch's own stock (branch is the source)
+      const { data: product } = await supabase
+        .from("product_list")
+        .select("id, quantity")
+        .eq("product_id", item.product.id)
+        .eq("location_id", location.id)
+        .eq("status", "available")
+        .single();
+      if (product) {
+        await supabase
+          .from("product_list")
+          .update({ quantity: product.quantity + (item.approved_qty || item.requested_qty) })
+          .eq("id", product.id);
+      }
+
+      // Set item back to requested
+      await supabase
+        .from("branch_request_items")
+        .update({ status: "requested", approved_qty: null })
+        .eq("id", item.id);
+
+      // Revert request to sent if no other finalized items
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id, status")
+        .eq("request_id", request.id)
+        .neq("status", "requested");
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({ status: "sent", warehouse_decided_at: null }).eq("id", request.id);
+      }
+
+      showToast(t("branchRequests.toast.undoOk") || "Approval cancelled", "info");
+      updateItemLocally(request.id, item.id, "requested", { approved_qty: null });
+    } catch (err) {
+      console.error(err);
+      showToast(t("branchRequests.toast.cancelFail"), "error");
+    } finally {
+      setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }
   }
 
@@ -2077,7 +2166,20 @@ function IncomingTab({ location, showToast }) {
                                 )}
                               </>
                             )}
-                            {isItemApproved && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full"><Clock className="w-3 h-3" />{t("branchRequests.status.awaitingReceipt") || "Awaiting receipt"}</span>}
+                            {isItemApproved && (
+                              <>
+                                <button
+                                  onClick={() => handleUndoApprovalItem(req, item)}
+                                  disabled={processingIds.has(item.id)}
+                                  className="px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50"
+                                >
+                                  {t("warehouseRequests.actions.cancel") || "Cancel"}
+                                </button>
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                  <Clock className="w-3 h-3" />{t("branchRequests.status.awaitingReceipt") || "Awaiting receipt"}
+                                </span>
+                              </>
+                            )}
                             {isItemCompleted && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.status.received") || "Received"}</span>}
                             {isItemRejected && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.rejected")}</span>}
                             {isItemCancelled && <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.cancelled")}</span>}

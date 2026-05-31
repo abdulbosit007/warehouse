@@ -88,7 +88,7 @@ export default function Navbar({
   const changeLang = (lng) => {
     i18n.changeLanguage(lng);
     try {
-      localStorage.setItem("i18nextLng", lng);
+      localStorage.setItem("lang", lng);
     } catch {}
   };
 

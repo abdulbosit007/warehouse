@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { DayPicker } from "react-day-picker";
-import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse } from "lucide-react";
+import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse, RefreshCw } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 import ReturnDestModal from "./ReturnDestModal";
 
@@ -16,6 +16,7 @@ export default function SaleHistory({
   onBatchSaleReturn,
   salePendingRequests = [],
   onAcceptTransfer,
+  onCancelTransferItem,
   // Return destination modal props
   allLocations = [],
   branchLocationId = null,
@@ -29,6 +30,10 @@ export default function SaleHistory({
   const [returnQty, setReturnQty] = useState(1);
   const [retDestModal, setRetDestModal] = useState(null); // { items, onConfirm }
   const [filterQuery, setFilterQuery] = useState("");
+  const [displayMode, setDisplayMode] = useState(
+    () => localStorage.getItem("saleHistoryMode") || "overall"
+  );
+  const [actingItemIds, setActingItemIds] = useState(new Set());
   const [sortBy, setSortBy] = useState("name"); // "name" | "qty" | "returned"
   const [sortDir, setSortDir] = useState("asc");
   const [highlightProductId, setHighlightProductId] = useState(null);
@@ -157,6 +162,34 @@ export default function SaleHistory({
 
   const handleReturnClick = (grouped) => {
     if (grouped.remaining <= 0) return;
+    setReturnModal({ grouped });
+    setReturnQty(1);
+  };
+
+  // Accept transfer with double-click guard
+  const handleAcceptTransfer = async (req, it, acceptQty) => {
+    if (actingItemIds.has(it.id) || !onAcceptTransfer) return;
+    setActingItemIds(prev => new Set(prev).add(it.id));
+    try {
+      await onAcceptTransfer(req, it, acceptQty);
+    } finally {
+      setActingItemIds(prev => { const next = new Set(prev); next.delete(it.id); return next; });
+    }
+  };
+
+  // Return for a specific transaction item (transactions view)
+  const handleTxItemReturn = (sale, item) => {
+    if (item.remaining <= 0) return;
+    // Build a mock grouped with just this one transaction item
+    const grouped = {
+      product_id: item.product_id,
+      name: item.name,
+      sku: item.sku,
+      qty: item.qty,
+      returned: item.returned,
+      remaining: item.remaining,
+      sales: [{ sale, item }],
+    };
     setReturnModal({ grouped });
     setReturnQty(1);
   };
@@ -364,19 +397,41 @@ export default function SaleHistory({
             {/* Results panel */}
             <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-white">
-                  {ymd(selectedDay)}
-                </span>
+                {/* Left: date + toggle (stable anchor) */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-white">{ymd(selectedDay)}</span>
+                  {saleHistory.length > 0 && (
+                    <div className="flex items-center bg-white/15 rounded-lg p-0.5 gap-0.5">
+                      <button
+                        onClick={() => { setDisplayMode("overall"); localStorage.setItem("saleHistoryMode", "overall"); }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                          displayMode === "overall"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-white/80 hover:text-white"
+                        }`}
+                      >
+                        {t("branchOperations.saleHistory.modeOverall") || "Overall"}
+                      </button>
+                      <button
+                        onClick={() => { setDisplayMode("transactions"); localStorage.setItem("saleHistoryMode", "transactions"); }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                          displayMode === "transactions"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-white/80 hover:text-white"
+                        }`}
+                      >
+                        {t("branchOperations.saleHistory.modeTransactions") || "Transactions"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Right: count (changes independently, doesn't affect toggle) */}
                 <span className="text-xs text-emerald-200">
-                  {groupedItems.length === 1
-                    ? t("branchOperations.saleHistory.headerCount", {
-                        products: groupedItems.length,
-                        units: totalUnits,
-                      })
-                    : t("branchOperations.saleHistory.headerCountMany", {
-                        products: groupedItems.length,
-                        units: totalUnits,
-                      })}
+                  {displayMode === "transactions"
+                    ? t("branchOperations.saleHistory.txCount", { count: saleHistory.length }) || `${saleHistory.length} sales`
+                    : groupedItems.length === 1
+                    ? t("branchOperations.saleHistory.headerCount", { products: groupedItems.length, units: totalUnits })
+                    : t("branchOperations.saleHistory.headerCountMany", { products: groupedItems.length, units: totalUnits })}
                 </span>
               </div>
 
@@ -427,6 +482,141 @@ export default function SaleHistory({
                     </button>
                   )}
                 </div>
+              ) : displayMode === "transactions" ? (
+                /* ── Transactions view: group entries within 60s as one sale session ── */
+                (() => {
+                  // Build flat list of all entries with timestamps
+                  const allEntries = [
+                    ...saleHistory.map(tx => ({ type: "committed", data: tx, ts: new Date(tx.created_at).getTime() })),
+                    ...salePendingRequests
+                      .filter(req => (req.items || []).some(it => it.status !== "fulfilled" && it.status !== "cancelled"))
+                      .map(req => ({ type: "pending", data: req, ts: new Date(req.created_at).getTime() })),
+                  ].sort((a, b) => a.ts - b.ts); // oldest first, newest at bottom
+
+                  // Group entries within 60s of each other into the same "session"
+                  const sessions = [];
+                  for (const entry of allEntries) {
+                    const last = sessions[sessions.length - 1];
+                    if (last && Math.abs(entry.ts - last.anchorTs) <= 60_000) {
+                      last.entries.push(entry);
+                    } else {
+                      sessions.push({ anchorTs: entry.ts, entries: [entry] });
+                    }
+                  }
+                  // Oldest first, newest at bottom
+                  sessions.sort((a, b) => a.anchorTs - b.anchorTs);
+
+                  // Filter sessions by search query
+                  const q = filterQuery.trim().toLowerCase();
+                  const filtered = q
+                    ? sessions.filter(s => s.entries.some(e => {
+                        if (e.type === "committed")
+                          return (e.data.items || []).some(it => (it.name || "").toLowerCase().includes(q) || (it.sku || "").toLowerCase().includes(q));
+                        return (e.data.items || []).some(it => (it.product?.name || "").toLowerCase().includes(q) || (it.product?.sku || "").toLowerCase().includes(q));
+                      }))
+                    : sessions;
+
+                  return (
+                    <div className="max-h-[450px] overflow-y-auto divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
+                      {filtered.map((session, si) => {
+                        const time = new Date(session.anchorTs).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                        const hasPending = session.entries.some(e => e.type === "pending");
+                        return (
+                          <div key={si} className="p-4 hover:bg-neutral-50/40 transition-colors">
+                            {/* Session header */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{time}</span>
+                              {hasPending && (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                                  <Clock className="w-3 h-3" />{t("branchOperations.saleHistory.statusWaiting")}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* All items from this session */}
+                            <div className="space-y-1.5">
+                              {session.entries.flatMap(entry => {
+                                if (entry.type === "committed") {
+                                  return (entry.data.items || []).map(item => (
+                                    <div key={`c-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg bg-neutral-50 px-3 py-2">
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-neutral-800 truncate">{item.name}</p>
+                                        <p className="text-xs text-neutral-400 font-mono">{item.sku || "—"}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3 shrink-0">
+                                        <span className="text-sm font-bold text-emerald-600">{nf.format(item.qty)}</span>
+                                        {item.returned > 0 && <span className="text-xs text-amber-600">-{nf.format(item.returned)}</span>}
+                                        {item.remaining > 0 && commitSaleReturn && (
+                                          <button onClick={() => handleTxItemReturn(entry.data, item)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 transition-colors">
+                                            <RotateCcw className="w-3 h-3" />{t("branchOperations.saleHistory.returnBtn")}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ));
+                                } else {
+                                  // Pending request items
+                                  const req = entry.data;
+                                  return (req.items || [])
+                                    .filter(it => it.status !== "fulfilled" && it.status !== "cancelled")
+                                    .map(it => {
+                                      const canAccept = onAcceptTransfer && (
+                                        req.status === "approved" || req.status === "closed" ||
+                                        req.status === "completed" || it.status === "approved"
+                                      );
+                                      const isRejected = it.status === "rejected" || req.status === "rejected";
+                                      const acceptQty = it.approved_qty ?? it.requested_qty;
+                                      return (
+                                        <div key={`p-${it.id}`} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 ${canAccept ? "bg-emerald-50" : isRejected ? "bg-red-50" : "bg-amber-50"}`}>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-neutral-800 truncate">{it.product?.name || "—"}</p>
+                                            <div className="flex items-center gap-2">
+                                              <p className="text-xs text-neutral-400 font-mono">{it.product?.sku || ""}</p>
+                                              {it.source_location?.location_name && (
+                                                <span className="text-xs text-blue-600 flex items-center gap-1">
+                                                  <Warehouse className="w-3 h-3" />{it.source_location.location_name}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-sm font-semibold text-neutral-600">{nf.format(it.requested_qty)}</span>
+                                            {isRejected ? (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                <X className="w-3 h-3" />{t("branchOperations.saleHistory.statusRejected")}
+                                              </span>
+                                            ) : canAccept ? (
+                                              <button onClick={() => handleAcceptTransfer(req, it, acceptQty)} disabled={actingItemIds.has(it.id)}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50">
+                                                {actingItemIds.has(it.id)
+                                                  ? <><RefreshCw className="w-3 h-3 animate-spin" />{t("common.saving")}</>
+                                                  : <><CheckCircle2 className="w-3 h-3" />{t("branchOperations.saleHistory.acceptBtn")}</>}
+                                              </button>
+                                            ) : (
+                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                                <Clock className="w-3 h-3" />{t("branchOperations.saleHistory.statusWaiting")}
+                                              </span>
+                                            )}
+                                            {it.status === "requested" && onCancelTransferItem && (
+                                              <button onClick={() => onCancelTransferItem(req, it)}
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors">
+                                                <X className="w-3 h-3" />{t("branchOperations.saleHistory.cancelBtn")}
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    });
+                                }
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="max-h-[450px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   <table className="w-full text-sm">
@@ -525,7 +715,7 @@ export default function SaleHistory({
                       {/* Fulfilled items are merged into the sold table above — no row here */}
                       {salePendingRequests.flatMap((req) =>
                         (req.items || [])
-                          .filter((it) => it.status !== "fulfilled")
+                          .filter((it) => it.status !== "fulfilled" && it.status !== "cancelled")
                           .map((it) => {
                             const canAccept =
                               onAcceptTransfer &&
@@ -597,15 +787,29 @@ export default function SaleHistory({
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  {canAccept && (
-                                    <button
-                                      onClick={() => onAcceptTransfer(req, it, acceptQty)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
-                                    >
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      {t("branchOperations.saleHistory.acceptBtn")}
-                                    </button>
-                                  )}
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {it.status === "requested" && onCancelTransferItem && (
+                                      <button
+                                        onClick={() => onCancelTransferItem(req, it)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        {t("branchOperations.saleHistory.cancelBtn")}
+                                      </button>
+                                    )}
+                                    {canAccept && (
+                                      <button
+                                        onClick={() => handleAcceptTransfer(req, it, acceptQty)}
+                                        disabled={actingItemIds.has(it.id)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {actingItemIds.has(it.id)
+                                          ? <><RefreshCw className="w-3 h-3 animate-spin" />{t("common.saving")}</>
+                                          : <><CheckCircle2 className="w-3 h-3" />{t("branchOperations.saleHistory.acceptBtn")}</>
+                                        }
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );
