@@ -36,6 +36,7 @@ export default function SaleSection({
   onBatchSaleReturn,
   salePendingRequests = [],
   onAcceptTransfer,
+  onCancelTransferItem,
   // Return destination modal props
   allLocations = [],
   branchLocationId = null,
@@ -185,6 +186,7 @@ export default function SaleSection({
           onBatchSaleReturn={onBatchSaleReturn}
           salePendingRequests={salePendingRequests}
           onAcceptTransfer={onAcceptTransfer}
+          onCancelTransferItem={onCancelTransferItem}
           allLocations={allLocations}
           branchLocationId={branchLocationId}
           searchProducts={searchProducts}

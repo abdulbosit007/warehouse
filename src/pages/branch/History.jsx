@@ -1578,6 +1578,7 @@ export default function BranchOperations() {
         `)
         .eq("to_location_id", loc.id)
         .eq("purpose", "sale")
+        .not("status", "in", "(cancelled,closed,completed,rejected)")
         .gte("created_at", startISO)
         .lt("created_at", endISO)
         .order("created_at", { ascending: false });
@@ -1690,6 +1691,48 @@ export default function BranchOperations() {
         }
       },
     });
+  }
+
+  async function cancelSaleTransferItem(req, item) {
+    try {
+      setErr("");
+      const { error } = await supabase
+        .from("branch_request_items")
+        .update({ status: "cancelled" })
+        .eq("id", item.id);
+      if (error) throw error;
+
+      // Close the whole request if no active items remain
+      const { data: remaining } = await supabase
+        .from("branch_request_items")
+        .select("id")
+        .eq("request_id", req.id)
+        .not("status", "in", "(cancelled,fulfilled,rejected)");
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from("branch_requests")
+          .update({ status: "cancelled" })
+          .eq("id", req.id);
+      }
+
+      // Remove item from local pending state instantly
+      setSalePendingRequests(prev =>
+        prev.map(r => {
+          if (r.id !== req.id) return r;
+          const updated = r.items.map(i =>
+            i.id === item.id ? { ...i, status: "cancelled" } : i
+          );
+          const allDone = updated.every(i =>
+            ["cancelled", "fulfilled", "rejected"].includes(i.status)
+          );
+          return allDone ? null : { ...r, items: updated };
+        }).filter(Boolean)
+      );
+
+      loadPendingSaleTransfers();
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
   }
 
   async function acceptTransferRequest(req, item, qty) {
@@ -2370,6 +2413,7 @@ return (
             onBatchSaleReturn={commitSaleReturnBatch}
             salePendingRequests={salePendingRequests}
             onAcceptTransfer={acceptTransferRequest}
+            onCancelTransferItem={cancelSaleTransferItem}
             allLocations={allLocations}
             branchLocationId={branchLocationId}
             pendingTransferCount={pendingSaleTransfers}
