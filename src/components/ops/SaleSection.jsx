@@ -46,6 +46,10 @@ export default function SaleSection({
   getFirstSaleYear,
   // Notification badge
   pendingTransferCount = 0,
+  // Calendar dot data
+  readyDays = new Set(),
+  waitingDays = new Set(),
+  loadSaleMonthData,
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState("new"); // "new" | "history"
@@ -192,6 +196,9 @@ export default function SaleSection({
           searchProducts={searchProducts}
           searchProductHistory={searchProductHistory}
           getFirstSaleYear={getFirstSaleYear}
+          salesDays={readyDays}
+          pendingDays={waitingDays}
+          loadSaleMonthData={loadSaleMonthData}
         />
       )}
 

@@ -147,7 +147,6 @@ export default function SimpleNewRequestModal({
           loc_kind: loc.kind,
           tenant_id: row.tenant_id,
           avail: 0, // sum where status === 'available'
-          total: 0, // sum across all statuses
           isOwn: loc.id === myLocationId,
           isOtherTenant:
             myTenantId && row.tenant_id && row.tenant_id !== myTenantId,
@@ -157,7 +156,6 @@ export default function SimpleNewRequestModal({
       }
 
       e.pl_ids.add(row.id);
-      e.total += row.quantity || 0;
       if (row.status === "available") e.avail += row.quantity || 0;
     });
 
@@ -307,8 +305,7 @@ export default function SimpleNewRequestModal({
                     )}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    Available: {s.avail}{" "}
-                    {s.total > s.avail ? `(total: ${s.total})` : null}
+                    Available: {s.avail}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

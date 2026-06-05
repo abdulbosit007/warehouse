@@ -1673,7 +1673,11 @@
       "today": "Today",
       "7days": "7 days",
       "30days": "30 days",
-      "90days": "90 days"
+      "90days": "90 days",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
     },
     "tabs": {
       "analytics": "Sales Analytics",

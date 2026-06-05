@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react"; // useRef used in DateRangePicker
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
+import "dayjs/locale/ru";
+import "dayjs/locale/uz";
 import {
   BarChart, Bar,
   XAxis, YAxis,
@@ -30,6 +32,7 @@ import {
   DollarSign,
   Store,
   Award,
+  Calendar,
 } from "lucide-react";
 import SmartRestock from "../../components/SmartRestock";
 
@@ -63,17 +66,233 @@ function SummaryCard({ icon: Icon, label, value, sub, color }) {
   );
 }
 
-/* ─── main ───────────────────────────────────────────────────── */
-export default function OwnerHistory() {
-  const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
-  const { t } = useTranslation();
+/* ─── MiniCalendar ───────────────────────────────────────────── */
+// Day-of-week abbreviations per language (Sun-first)
+const DAYS_I18N = {
+  en:  ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+  ru:  ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+  uz:  ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"],
+  uzc: ["Як", "Ду", "Се", "Чо", "Па", "Жу", "Ша"],
+};
 
+// Map app language codes → dayjs locale codes
+function toDayjsLocale(lang) {
+  if (lang === "ru")  return "ru";
+  if (lang === "uz" || lang === "uzc") return "uz";
+  return "en";
+}
+
+function MiniCalendar({ value, minDate, maxDate, onChange }) {
+  const { i18n } = useTranslation();
+  const lang   = i18n.language || "en";
+  const djLoc  = toDayjsLocale(lang);
+  const DAYS   = DAYS_I18N[lang] || DAYS_I18N.en;
+
+  const [cursor, setCursor] = useState(() => dayjs(value).startOf("month"));
+
+  const today    = dayjs().format("YYYY-MM-DD");
+  const start    = cursor.startOf("month");
+  const offset   = start.day();                       // 0=Sun
+  const daysInMonth = cursor.daysInMonth();
+
+  function select(d) {
+    const str = d.format("YYYY-MM-DD");
+    if (minDate && str < minDate) return;
+    if (maxDate && str > maxDate) return;
+    onChange(str);
+  }
+
+  const cells = [];
+  for (let i = 0; i < offset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(cursor.date(d));
+
+  return (
+    <div className="select-none">
+      {/* Month nav */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setCursor(c => c.subtract(1, "month"))}
+          className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <span className="text-sm font-semibold text-neutral-800">
+          {cursor.locale(djLoc).format("MMMM YYYY")}
+        </span>
+        <button
+          onClick={() => setCursor(c => c.add(1, "month"))}
+          className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {DAYS.map(d => (
+          <div key={d} className="text-center text-xs font-medium text-neutral-400 py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((d, i) => {
+          if (!d) return <div key={`e${i}`} />;
+          const str      = d.format("YYYY-MM-DD");
+          const isSelected = str === value;
+          const isToday    = str === today;
+          const disabled   = (minDate && str < minDate) || (maxDate && str > maxDate);
+          return (
+            <button
+              key={str}
+              disabled={disabled}
+              onClick={() => select(d)}
+              className={`
+                w-full aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
+                ${isSelected  ? "bg-violet-600 text-white shadow-sm"
+                  : isToday   ? "border border-violet-300 text-violet-700"
+                  : disabled  ? "text-neutral-300 cursor-not-allowed"
+                  : "text-neutral-700 hover:bg-violet-50 hover:text-violet-700"}
+              `}
+            >
+              {d.date()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── DateRangePicker ────────────────────────────────────────── */
+function DateRangePicker({ preset, onPresetChange, customFrom, customTo, onCustomFromChange, onCustomToChange, t }) {
   const PRESETS = [
     { label: t("ownerAnalytics.presets.today"),  days: 0  },
     { label: t("ownerAnalytics.presets.7days"),  days: 7  },
     { label: t("ownerAnalytics.presets.30days"), days: 30 },
     { label: t("ownerAnalytics.presets.90days"), days: 90 },
   ];
+
+  const [open, setOpen]         = useState(false);
+  const [picking, setPicking]   = useState("from"); // "from" | "to"
+  const ref                     = useRef(null);
+  const isCustom                = preset === "custom";
+  const today                   = dayjs().format("YYYY-MM-DD");
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  function handleFrom(v) {
+    onCustomFromChange(v);
+    if (v > customTo) onCustomToChange(v);
+    setPicking("to");
+  }
+  function handleTo(v) {
+    onCustomToChange(v);
+    setPicking("from");
+  }
+
+  return (
+    <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+      {/* Preset buttons */}
+      {PRESETS.map((p) => (
+        <button
+          key={p.days}
+          onClick={() => onPresetChange(p.days)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            preset === p.days
+              ? "bg-white text-violet-900 shadow-sm"
+              : "text-white/70 hover:text-white hover:bg-white/10"
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+
+      {/* Divider */}
+      <div className="w-px h-4 bg-white/20 mx-0.5" />
+
+      {/* Custom button + popover */}
+      <div className="relative" ref={ref}>
+        <button
+          onClick={() => { onPresetChange("custom"); setOpen((o) => !o); }}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            isCustom
+              ? "bg-white text-violet-900 shadow-sm"
+              : "text-white/70 hover:text-white hover:bg-white/10"
+          }`}
+        >
+          <Calendar className="w-3.5 h-3.5 shrink-0" />
+          {isCustom ? `${customFrom} → ${customTo}` : t("ownerAnalytics.presets.custom")}
+        </button>
+
+        {/* Dropdown */}
+        {open && (
+          <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-violet-100 p-4 w-72">
+
+            {/* From / To tab selector */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setPicking("from")}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  picking === "from"
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "bg-violet-50 text-violet-500 hover:bg-violet-100"
+                }`}
+              >
+                {t("ownerAnalytics.presets.from")} · {customFrom}
+              </button>
+              <button
+                onClick={() => setPicking("to")}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  picking === "to"
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "bg-violet-50 text-violet-500 hover:bg-violet-100"
+                }`}
+              >
+                {t("ownerAnalytics.presets.to")} · {customTo}
+              </button>
+            </div>
+
+            {/* Calendar */}
+            {picking === "from" ? (
+              <MiniCalendar
+                value={customFrom}
+                maxDate={today}
+                onChange={handleFrom}
+              />
+            ) : (
+              <MiniCalendar
+                value={customTo}
+                minDate={customFrom}
+                maxDate={today}
+                onChange={handleTo}
+              />
+            )}
+
+            {/* Apply */}
+            <button
+              onClick={() => setOpen(false)}
+              className="mt-4 w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors"
+            >
+              {t("ownerAnalytics.presets.apply")}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── main ───────────────────────────────────────────────────── */
+export default function OwnerHistory() {
+  const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab]           = useState("analytics");
   const [loading, setLoading]               = useState(true);
@@ -89,19 +308,28 @@ export default function OwnerHistory() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [trendLocation, setTrendLocation]       = useState("");
   const [trendDropdownOpen, setTrendDropdownOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(dayjs().subtract(30, "day").format("YYYY-MM-DD"));
+  const [customTo, setCustomTo]     = useState(dayjs().format("YYYY-MM-DD"));
+
+  const isCustom = preset === "custom";
 
   /* date window derived from preset */
   const dateFrom = useMemo(() => {
+    if (isCustom) return dayjs(customFrom).startOf("day").toISOString();
     if (preset === 0) return dayjs().startOf("day").toISOString();
     return dayjs().subtract(preset, "day").startOf("day").toISOString();
-  }, [preset]);
-  const dateTo = dayjs().endOf("day").toISOString();
+  }, [preset, isCustom, customFrom]);
+
+  const dateTo = useMemo(() => {
+    if (isCustom) return dayjs(customTo).endOf("day").toISOString();
+    return dayjs().endOf("day").toISOString();
+  }, [isCustom, customTo]);
 
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, authError, roleBase, dateFrom]);
+  }, [authLoading, authError, roleBase, dateFrom, dateTo]);
 
   async function loadData() {
     setLoading(true);
@@ -316,8 +544,8 @@ export default function OwnerHistory() {
     <div className="space-y-6 pb-20">
 
       {/* ── Header ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 p-6 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.08),transparent_60%)]" />
+      <div className="relative rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 p-6 shadow-lg">
+        <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.08),transparent_60%)]" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-white tracking-tight">{t("ownerAnalytics.title")}</h1>
@@ -325,23 +553,15 @@ export default function OwnerHistory() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Preset date range pills */}
-            <div className="bg-white/10 rounded-xl p-1 flex gap-1">
-              {PRESETS.map(p => (
-                <button
-                  key={p.days}
-                  onClick={() => setPreset(p.days)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    preset === p.days
-                      ? "bg-white text-violet-900 shadow-sm"
-                      : "text-white/70 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
+            <DateRangePicker
+              preset={preset}
+              onPresetChange={setPreset}
+              customFrom={customFrom}
+              customTo={customTo}
+              onCustomFromChange={setCustomFrom}
+              onCustomToChange={setCustomTo}
+              t={t}
+            />
             <button
               onClick={loadData}
               className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all"

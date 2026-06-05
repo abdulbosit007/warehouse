@@ -610,10 +610,11 @@ function NewRequestTab({ location, showToast }) {
         .from("product_list")
         .select("location_id, quantity")
         .eq("product_id", selectedProduct.id)
+        .eq("status", "available")
         .neq("location_id", location.id);
       const stockMap = {};
       (data || []).forEach((row) => {
-        stockMap[row.location_id] = row.quantity;
+        stockMap[row.location_id] = (stockMap[row.location_id] || 0) + (row.quantity || 0);
       });
       setProductStock(stockMap);
       setStockLoading(false);
@@ -656,7 +657,8 @@ function NewRequestTab({ location, showToast }) {
             .from("product_list")
             .select("product_id, location_id, quantity")
             .in("product_id", prodIds)
-            .in("location_id", whIds);
+            .in("location_id", whIds)
+            .eq("status", "available");
 
           const stockBySku = {};
           skus.forEach((sku) => {
@@ -1941,7 +1943,7 @@ function IncomingTab({ location, showToast }) {
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
       const { data: product } = await supabase.from("product_list").select("id, quantity")
-        .eq("product_id", item.product.id).eq("location_id", location.id).single();
+        .eq("product_id", item.product.id).eq("location_id", location.id).eq("status", "available").single();
       if (product) {
         await supabase.from("product_list").update({ quantity: Math.max(0, product.quantity - item.requested_qty) }).eq("id", product.id);
       }

@@ -24,6 +24,10 @@ export default function SaleHistory({
   searchProducts,
   searchProductHistory,
   getFirstSaleYear,
+  // Calendar dot data
+  salesDays = new Set(),
+  pendingDays = new Set(),
+  loadSaleMonthData,
 }) {
   const { t } = useTranslation();
   const [returnModal, setReturnModal] = useState(null);
@@ -34,6 +38,7 @@ export default function SaleHistory({
     () => localStorage.getItem("saleHistoryMode") || "overall"
   );
   const [actingItemIds, setActingItemIds] = useState(new Set());
+  const [openSessions, setOpenSessions] = useState(new Set()); // set of session indices that are expanded
   const [sortBy, setSortBy] = useState("name"); // "name" | "qty" | "returned"
   const [sortDir, setSortDir] = useState("asc");
   const [highlightProductId, setHighlightProductId] = useState(null);
@@ -52,6 +57,12 @@ export default function SaleHistory({
   const suggestRef = useRef(null);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
+
+  // Load calendar dot data for the current month on mount
+  useEffect(() => {
+    loadSaleMonthData?.(selectedDay instanceof Date ? selectedDay : new Date());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -340,11 +351,22 @@ export default function SaleHistory({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {/* Calendar Panel */}
             <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-white" />
-                <span className="text-sm font-semibold text-white">
-                  {t("branchOperations.saleHistory.selectDate")}
-                </span>
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-white" />
+                  <span className="text-sm font-semibold text-white">
+                    {t("branchOperations.saleHistory.selectDate")}
+                  </span>
+                </div>
+                {/* Legend */}
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[10px] text-white/80">
+                    <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> {t("branchOperations.saleHistory.statusReady")}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-white/80">
+                    <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> {t("branchOperations.saleHistory.statusWaiting")}
+                  </span>
+                </div>
               </div>
               <div className="p-3">
                 <style>{`
@@ -366,6 +388,8 @@ export default function SaleHistory({
                   .rdp-emerald .rdp-day:not(.rdp-selected) button:hover {
                     background-color: #d1fae5 !important;
                   }
+.rdp-day-inner { position: relative; display: flex; flex-direction: column; align-items: center; }
+                  .rdp-day-dots { display: flex; gap: 2px; justify-content: center; height: 5px; margin-top: 1px; }
                 `}</style>
                 <DayPicker
                   mode="single"
@@ -377,8 +401,27 @@ export default function SaleHistory({
                     setHighlightProductId(null);
                   }}
                   defaultMonth={selectedDay}
+                  onMonthChange={(month) => loadSaleMonthData?.(month)}
                   showOutsideDays
                   className="!font-sans rdp-emerald"
+                  components={{
+                    DayButton: ({ day, modifiers, ...buttonProps }) => {
+                      const date = day.date;
+                      const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+                      // salesDays = ready-to-accept (red), pendingDays = waiting only (orange) — mutually exclusive
+                      const isReady   = salesDays.has(ds);
+                      const isWaiting = pendingDays.has(ds);
+                      const dotColor  = isReady ? "#ef4444" : isWaiting ? "#eab308" : null;
+                      return (
+                        <button {...buttonProps} style={{ ...buttonProps.style, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                          <span>{date.getDate()}</span>
+                          <span style={{ height: 6, marginTop: 2, display: "flex", alignItems: "center" }}>
+                            {dotColor && <span style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: dotColor, display: "inline-block" }} />}
+                          </span>
+                        </button>
+                      );
+                    },
+                  }}
                 />
                 <button
                   onClick={() => {
@@ -517,24 +560,69 @@ export default function SaleHistory({
                     : sessions;
 
                   return (
-                    <div className="max-h-[450px] overflow-y-auto divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
+                    <div className="max-h-[500px] overflow-y-auto divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
                       {filtered.map((session, si) => {
                         const time = new Date(session.anchorTs).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-                        const hasPending = session.entries.some(e => e.type === "pending");
-                        return (
-                          <div key={si} className="p-4 hover:bg-neutral-50/40 transition-colors">
-                            {/* Session header */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{time}</span>
-                              {hasPending && (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
-                                  <Clock className="w-3 h-3" />{t("branchOperations.saleHistory.statusWaiting")}
-                                </span>
-                              )}
-                            </div>
+                        // Red = has at least one item individually approved (ready to accept)
+                        const hasReadyToAccept = session.entries.some(e =>
+                          e.type === "pending" && (e.data.items || []).some(it =>
+                            it.status === "approved"
+                          )
+                        );
+                        // Orange = has pending items still waiting (none approved yet)
+                        const hasWaiting = !hasReadyToAccept && session.entries.some(e =>
+                          e.type === "pending" && (e.data.items || []).some(it =>
+                            it.status === "requested"
+                          )
+                        );
+                        const totalItems = session.entries.reduce((s, e) => s + (e.data.items || []).length, 0);
+                        const isOpen     = openSessions.has(si);
 
-                            {/* All items from this session */}
-                            <div className="space-y-1.5">
+                        const toggle = () => setOpenSessions(prev => {
+                          const next = new Set(prev);
+                          next.has(si) ? next.delete(si) : next.add(si);
+                          return next;
+                        });
+
+                        return (
+                          <div key={si} className="transition-colors">
+                            {/* Session header — clickable */}
+                            <button
+                              onClick={toggle}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 transition-colors text-left"
+                            >
+                              <div className="flex items-center gap-2">
+                                {/* Dots — only shown when actionable */}
+                                {(hasReadyToAccept || hasWaiting) && (
+                                  <div className="flex gap-1 items-center">
+                                    {hasReadyToAccept && <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />}
+                                    {hasWaiting       && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0" />}
+                                  </div>
+                                )}
+                                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{time}</span>
+                                {hasWaiting && (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-500">
+                                    <Clock className="w-3 h-3" />{t("branchOperations.saleHistory.statusWaiting")}
+                                  </span>
+                                )}
+                                {hasReadyToAccept && !hasWaiting && (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500">
+                                    <CheckCircle2 className="w-3 h-3" />{t("branchOperations.saleHistory.statusReady")}
+                                  </span>
+                                )}
+                                <span className="text-xs text-neutral-400">{totalItems} {totalItems === 1 ? "item" : "items"}</span>
+                              </div>
+                              <svg
+                                className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+
+                            {/* Collapsible content */}
+                            {isOpen && (
+                            <div className="px-4 pb-3 space-y-1.5 bg-neutral-50/50 border-t border-neutral-100">
                               {session.entries.flatMap(entry => {
                                 if (entry.type === "committed") {
                                   return (entry.data.items || []).map(item => (
@@ -611,6 +699,7 @@ export default function SaleHistory({
                                 }
                               })}
                             </div>
+                            )}
                           </div>
                         );
                       })}
