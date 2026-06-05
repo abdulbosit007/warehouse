@@ -1671,7 +1671,11 @@
       "today": "Bugun",
       "7days": "7 kun",
       "30days": "30 kun",
-      "90days": "90 kun"
+      "90days": "90 kun",
+      "custom": "Maxsus",
+      "from": "Dan",
+      "to": "Gacha",
+      "apply": "Qo'llash"
     },
     "tabs": {
       "analytics": "Sotuv tahlili",

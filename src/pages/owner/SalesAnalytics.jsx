@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Store,
   Award,
+  Calendar,
 } from "lucide-react";
 
 /* ─── helpers ────────────────────────────────────────────────── */
@@ -64,19 +65,28 @@ export default function SalesAnalytics() {
   const [txData, setTxData]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
+  const [customFrom, setCustomFrom] = useState(dayjs().subtract(30, "day").format("YYYY-MM-DD"));
+  const [customTo, setCustomTo]     = useState(dayjs().format("YYYY-MM-DD"));
+
+  const isCustom = preset === "custom";
 
   const dateFrom = useMemo(() => {
+    if (isCustom) return dayjs(customFrom).startOf("day").toISOString();
     if (preset === 0) return dayjs().startOf("day").toISOString();
     return dayjs().subtract(preset, "day").startOf("day").toISOString();
-  }, [preset]);
-  const dateTo = dayjs().endOf("day").toISOString();
+  }, [preset, isCustom, customFrom]);
+
+  const dateTo = useMemo(() => {
+    if (isCustom) return dayjs(customTo).endOf("day").toISOString();
+    return dayjs().endOf("day").toISOString();
+  }, [isCustom, customTo]);
 
   /* ── fetch ── */
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, authError, roleBase, dateFrom]);
+  }, [authLoading, authError, roleBase, dateFrom, dateTo]);
 
   async function load() {
     setLoading(true);
@@ -227,7 +237,40 @@ export default function SalesAnalytics() {
                   {p.label}
                 </button>
               ))}
+              <button
+                onClick={() => setPreset("custom")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  isCustom
+                    ? "bg-white text-violet-900 shadow-sm"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                Custom
+              </button>
             </div>
+
+            {/* Custom date inputs */}
+            {isCustom && (
+              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={customTo}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="bg-transparent text-white text-sm outline-none [color-scheme:dark] cursor-pointer"
+                />
+                <span className="text-white/50 text-sm">—</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  min={customFrom}
+                  max={dayjs().format("YYYY-MM-DD")}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="bg-transparent text-white text-sm outline-none [color-scheme:dark] cursor-pointer"
+                />
+              </div>
+            )}
 
             <button
               onClick={load}

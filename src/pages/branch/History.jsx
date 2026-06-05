@@ -156,6 +156,8 @@ export default function BranchOperations() {
   const [salePendingRequests, setSalePendingRequests] = useState([]);
   // count of approved-but-not-yet-accepted sale transfers (drives the red badge)
   const [pendingSaleTransfers, setPendingSaleTransfers] = useState(0);
+  // calendar dot data: which days have sales / pending requests
+  const [saleMonthDays, setSaleMonthDays] = useState({ sales: new Set(), pending: new Set() });
 
   // loan pending requests (approved by warehouse, waiting for branch to create loan)
   const [loanPendingRequests, setLoanPendingRequests] = useState([]);
@@ -1594,6 +1596,43 @@ export default function BranchOperations() {
     }
   }
 
+  async function loadSaleMonthData(month) {
+    try {
+      const loc = await getBranchLocation();
+      const y = month.getFullYear();
+      const m = month.getMonth();
+      const startISO = new Date(y, m, 1).toISOString();
+      const endISO   = new Date(y, m + 1, 1).toISOString();
+
+      // Fetch pending sale requests with item statuses to determine ready vs waiting
+      const { data: reqs } = await supabase
+        .from("branch_requests")
+        .select(`created_at, status, items:branch_request_items ( status, request_id )`)
+        .eq("to_location_id", loc.id)
+        .eq("purpose", "sale")
+        .not("status", "in", "(cancelled,closed,completed,rejected)")
+        .gte("created_at", startISO)
+        .lt("created_at", endISO);
+
+      const readySet   = new Set(); // red  — has at least one item ready to accept
+      const waitingSet = new Set(); // orange — only waiting items, nothing ready
+
+      for (const req of reqs || []) {
+        const day = req.created_at.slice(0, 10);
+        const active = (req.items || []).filter(it => it.status !== "fulfilled" && it.status !== "cancelled");
+        if (!active.length) continue;
+        const isReady = active.some(it => it.status === "approved");
+        if (isReady) readySet.add(day);
+        else waitingSet.add(day);
+      }
+
+      // A day with a ready request → red only (not orange too)
+      for (const day of readySet) waitingSet.delete(day);
+
+      setSaleMonthDays({ sales: readySet, pending: waitingSet });
+    } catch { /* ignore — dots are cosmetic */ }
+  }
+
   async function convertLoanToSale(loan, item, qty) {
     try {
       setErr("");
@@ -2343,7 +2382,10 @@ return (
               }
 
               if (tabItem.key === "sale") {
-                setTimeout(() => loadSaleHistory(new Date()), 0);
+                setTimeout(() => {
+                  loadSaleHistory(new Date());
+                  loadSaleMonthData(new Date());
+                }, 0);
               }
             }}
             className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -2421,6 +2463,10 @@ return (
             searchProducts={searchSaleProducts}
             searchProductHistory={searchSaleProductHistory}
             getFirstSaleYear={getFirstSaleYear}
+            // Calendar dot data
+            readyDays={saleMonthDays.sales}
+            waitingDays={saleMonthDays.pending}
+            loadSaleMonthData={loadSaleMonthData}
           />
         </div>
       )}
