@@ -3,6 +3,7 @@
 // Same design as branch version for consistency
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import CustomSelect from "../../components/CustomSelect";
@@ -1093,17 +1094,11 @@ function OutgoingTab({ t, location, showToast }) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      const qtyToAdd = item.approved_qty || item.requested_qty || 0;
-      if (qtyToAdd > 0) {
-        const { error: stockErr } = await supabase.rpc("fn_add_stock", {
-          p_product_id: item.product.id,
-          p_location_id: location.id,
-          p_qty: qtyToAdd,
-        });
-        if (stockErr) throw stockErr;
-      }
-
-      await supabase.from("branch_request_items").update({ status: "completed" }).eq("id", item.id);
+      // Atomic in DB: destination.in_transit -> destination.available + mark completed
+      const { error: recvErr } = await supabase.rpc("fn_branch_request_receive_item", {
+        p_item_id: item.id,
+      });
+      if (recvErr) throw recvErr;
 
       const { data: remaining } = await supabase
         .from("branch_request_items")
@@ -1550,26 +1545,11 @@ function IncomingTab({ t, location, showToast }) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      const { data: product } = await supabase
-        .from("product_list")
-        .select("id, quantity")
-        .eq("product_id", item.product.id)
-        .eq("location_id", location.id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from("product_list")
-          .update({
-            quantity: Math.max(0, product.quantity - item.requested_qty),
-          })
-          .eq("id", product.id);
-      }
-
-      await supabase
-        .from("branch_request_items")
-        .update({ status: "approved", approved_qty: item.requested_qty })
-        .eq("id", item.id);
+      // Atomic in DB: source.available -> destination.in_transit + mark approved
+      const { error: apprErr } = await supabase.rpc("fn_branch_request_approve_item", {
+        p_item_id: item.id,
+      });
+      if (apprErr) throw apprErr;
 
       const { data: remaining } = await supabase
         .from("branch_request_items")
@@ -1653,28 +1633,12 @@ function IncomingTab({ t, location, showToast }) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      // 1. Fetch product and restore quantity
-      const { data: product } = await supabase
-        .from("product_list")
-        .select("id, quantity")
-        .eq("product_id", item.product.id)
-        .eq("location_id", location.id)
-        .single();
-
-      if (product) {
-        await supabase
-          .from("product_list")
-          .update({
-            quantity: product.quantity + (item.approved_qty || item.requested_qty),
-          })
-          .eq("id", product.id);
-      }
-
-      // 2. Set item back to requested
-      await supabase
-        .from("branch_request_items")
-        .update({ status: "requested", approved_qty: null })
-        .eq("id", item.id);
+      // Atomic in DB: destination.in_transit -> source.available + back to requested
+      const { error: revErr } = await supabase.rpc("fn_branch_request_revert_item", {
+        p_item_id: item.id,
+        p_cancel: false,
+      });
+      if (revErr) throw revErr;
 
       // 3. Mark request as sent if there are no more finalized items
       const { data: remaining } = await supabase
@@ -2004,8 +1968,8 @@ function HistoryTab({ t, location }) {
   );
 
   const loadHistory = useCallback(
-    async (pageNum = 0, append = false) => {
-      if (pageNum === 0) setLoading(true);
+    async (pageNum = 0, append = false, silent = false) => {
+      if (pageNum === 0) { if (!silent) setLoading(true); }
       else setLoadingMore(true);
 
       const { data, error } = await supabase
@@ -2043,10 +2007,18 @@ function HistoryTab({ t, location }) {
         setHasMore((data || []).length === PAGE_SIZE);
       }
 
-      setLoading(false);
+      if (!silent) setLoading(false);
       setLoadingMore(false);
     },
     [location.id, dateFrom, dateTo, sortBy]
+  );
+
+  // Live: silently refresh history when any request or item changes.
+  useRealtimeRefresh(
+    `wh-req-history-${location.id}`,
+    [{ table: "branch_requests" }, { table: "branch_request_items" }],
+    () => loadHistory(0, false, true),
+    [location.id]
   );
 
   useEffect(() => {

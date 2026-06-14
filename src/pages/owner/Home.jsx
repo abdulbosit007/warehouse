@@ -479,11 +479,32 @@ export default function OwnerHome() {
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadData();
+
+    // Live updates: reload (debounced) when stock or in-delivery data changes.
+    // A sale/loan/return/approval all mutate product_list; the in-delivery
+    // figures come from branch_request_items + stock_transfer_items.
+    let t;
+    const reload = () => {
+      clearTimeout(t);
+      t = setTimeout(() => loadData({ silent: true }), 400);
+    };
+    const ch = supabase
+      .channel("owner-home-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_list" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "branch_request_items" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, reload)
+      .subscribe();
+
+    return () => {
+      clearTimeout(t);
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData({ silent = false } = {}) {
+    // silent = refresh the table data in place (no full-page spinner).
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -519,11 +540,13 @@ export default function OwnerHome() {
           .select("product_id, approved_qty")
           .eq("status", "approved"),
 
-        // Pending stock transfer items (deducted from sender, not yet received)
-        // Fetch with parent transfer status; filter client-side for 'pending'
+        // In-transit stock transfer items — filter by the ITEM's status, not the
+        // parent transfer's. In a multi-item transfer, an accepted item has
+        // already moved to the destination's available stock even while the
+        // transfer is still 'pending' (waiting on the other items).
         supabase
           .from("stock_transfer_items")
-          .select("product_id, qty, transfer:transfer_id(status)"),
+          .select("product_id, qty, status"),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -541,7 +564,7 @@ export default function OwnerHome() {
         qty: r.approved_qty || 0,
       }));
       const transferInTransit = (pendingTransfersRes.data || [])
-        .filter((r) => r.transfer?.status === "pending")
+        .filter((r) => (r.status || "pending") === "pending")
         .map((r) => ({ product_id: r.product_id, qty: r.qty || 0 }));
       setInDeliveryList([...branchInDelivery, ...transferInTransit]);
       setLocations(locationsRes.data || []);
@@ -550,7 +573,7 @@ export default function OwnerHome() {
       console.error("Error loading data:", err);
       setError(err?.message || t("ownerHome.errors.failedLoad"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 

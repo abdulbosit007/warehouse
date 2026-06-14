@@ -672,7 +672,7 @@ export default function InventoryBatchDetail() {
       setCorrections(corrData || []);
 
       // Load products for reference
-      const { data: prodData } = await supabase.from("products").select("id, name, sku");
+      const { data: prodData } = await fetchAll(() => supabase.from("products").select("id, name, sku"));
       setProducts(prodData || []);
 
       // Load audit history

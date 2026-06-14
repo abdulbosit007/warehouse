@@ -459,10 +459,10 @@ function OutgoingTab({ location }) {
     return () => supabase.removeChannel(ch);
   }, [load]);
 
-  const cancel = async (id) => {
-    setCancelling(id);
+  const cancelItem = async (itemId) => {
+    setCancelling(itemId);
     setErr("");
-    const { error } = await supabase.rpc("fn_cancel_transfer", { p_transfer_id: id });
+    const { error } = await supabase.rpc("fn_cancel_transfer_item", { p_item_id: itemId });
     if (error) setErr(error.message);
     else load();
     setCancelling(null);
@@ -492,20 +492,22 @@ function OutgoingTab({ location }) {
             directionLabel={t("stockTransfers.card.to", { name: tr.to_loc?.location_name })}
             expanded={!!expanded[tr.id]}
             onToggle={() => setExpanded(p => ({ ...p, [tr.id]: !p[tr.id] }))}
-            actions={
-              tr.status === "pending" &&
-              (tr.items || []).every(i => (i.status || "pending") === "pending") && (
-                <button
-                  onClick={() => cancel(tr.id)}
-                  disabled={cancelling === tr.id}
-                  className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  {cancelling === tr.id
-                    ? t("stockTransfers.outgoing.cancelling")
-                    : t("stockTransfers.outgoing.cancelBtn")}
-                </button>
-              )
-            }
+            itemActions={(item) => {
+              if ((item.status || "pending") !== "pending") return null;
+              return (
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => cancelItem(item.id)}
+                    disabled={cancelling === item.id}
+                    className="px-2.5 py-1 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {cancelling === item.id
+                      ? t("stockTransfers.outgoing.cancelling")
+                      : t("stockTransfers.outgoing.cancelBtn")}
+                  </button>
+                </div>
+              );
+            }}
           />
         ))
       )}
