@@ -198,11 +198,34 @@ export default function BranchHome() {
       return;
     }
     loadData();
+
+    // Live updates: refresh the table in place (no spinner) when stock changes.
+    // A sale/loan/return/receipt at any location mutates product_list.
+    let t;
+    const reload = () => {
+      clearTimeout(t);
+      t = setTimeout(() => loadData({ silent: true }), 400);
+    };
+    const ch = supabase
+      .channel(`branch-home-live-${locationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_list",
+          filter: `location_id=eq.${locationId}` },
+        reload
+      )
+      .subscribe();
+
+    return () => {
+      clearTimeout(t);
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, locationId]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData({ silent = false } = {}) {
+    // silent = refresh the table data in place (no full-page spinner).
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -246,7 +269,7 @@ export default function BranchHome() {
       console.error("Error loading data:", err);
       setError(err.message || t("branch1.home.errors.loadFailed"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 

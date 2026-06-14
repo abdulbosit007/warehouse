@@ -138,124 +138,25 @@ export async function sendAllDraftItems(batchId) {
  * ============================ */
 
 export async function approveItem(itemId, warehouseUserId, locationId = null) {
-  console.log("[approveItem] Starting approval:", { itemId, warehouseUserId, locationId });
-  
-  // First update the item status
-  const { data: item, error: updateErr } = await supabase
+  // Atomic: claims the item (sent->approved), resolves/creates the product,
+  // and adds stock in ONE transaction. If stock fails, everything rolls back —
+  // no stuck 'approved' item (the fn_items_edit_guard trigger blocks reverting
+  // approved->sent, so this MUST be done server-side in a single transaction).
+  const { error } = await supabase.rpc("fn_approve_incoming_item", {
+    p_item_id: itemId,
+    p_location_id: locationId,
+    p_reviewed_by: warehouseUserId,
+  });
+  if (error) {
+    console.error("[approveItem] error:", error);
+    return { data: null, error };
+  }
+  // Return the updated row for callers that read it.
+  const { data: item } = await supabase
     .from("incoming_batch_items")
-    .update({
-      status: "approved",
-      reviewed_by: warehouseUserId,
-      reviewed_at: nowIso(),
-      rejection_code: null,
-      corrected_quantity: null,
-      approved_location_id: locationId,
-    })
-    .eq("id", itemId)
-    .eq("status", "sent")
     .select("*")
+    .eq("id", itemId)
     .single();
-
-  if (updateErr) {
-    console.error("[approveItem] Update error:", updateErr);
-    return { data: null, error: updateErr };
-  }
-
-  console.log("[approveItem] Item updated:", item);
-
-  // Now update product_list - add/increase quantity at the location
-  if (locationId && item) {
-    let productId = null;
-    
-    // Check if product exists by SKU
-    if (item.sku) {
-      console.log("[approveItem] Looking for product by SKU:", item.sku);
-      const { data: existing, error: existErr } = await supabase
-        .from("products")
-        .select("id")
-        .eq("sku", item.sku)
-        .maybeSingle();
-      
-      if (existErr) console.error("[approveItem] Product lookup error:", existErr);
-      
-      if (existing) {
-        productId = existing.id;
-        console.log("[approveItem] Found existing product:", productId);
-      } else {
-        // Create new product
-        console.log("[approveItem] Creating new product...");
-        const { data: newProd, error: prodErr } = await supabase
-          .from("products")
-          .insert({
-            id: newId(),
-            name: item.product_name,
-            sku: item.sku,
-            category_id: item.category_id,
-            price: item.price > 0 ? item.price : 1, // Minimum price of 1 to satisfy constraint
-          })
-          .select()
-          .single();
-        
-        if (prodErr) {
-          console.error("[approveItem] Create product error:", prodErr);
-        } else if (newProd) {
-          productId = newProd.id;
-          console.log("[approveItem] Created new product:", productId);
-        }
-      }
-    } else {
-      console.log("[approveItem] No SKU on item, skipping product_list update");
-    }
-
-    if (productId) {
-      console.log("[approveItem] Checking product_list for:", { productId, locationId });
-      const { data: existingEntry, error: listErr } = await supabase
-        .from("product_list")
-        .select("id, quantity")
-        .eq("product_id", productId)
-        .eq("location_id", locationId)
-        .maybeSingle();
-
-      if (listErr) console.error("[approveItem] product_list lookup error:", listErr);
-
-      if (existingEntry) {
-        const oldQty = existingEntry.quantity || 0;
-        const addQty = item.quantity || 0;
-        const newQty = oldQty + addQty;
-        console.log("[approveItem] Updating existing entry:", { id: existingEntry.id, oldQty, addQty, newQty });
-        
-        const { error: upErr } = await supabase
-          .from("product_list")
-          .update({ 
-            quantity: newQty,
-            status: "available"
-          })
-          .eq("id", existingEntry.id);
-        
-        if (upErr) console.error("[approveItem] Update product_list error:", upErr);
-        else console.log("[approveItem] Successfully updated product_list!");
-      } else {
-        console.log("[approveItem] Creating new product_list entry:", { productId, locationId, quantity: item.quantity });
-        const { error: insErr } = await supabase
-          .from("product_list")
-          .insert({
-            id: newId(),
-            product_id: productId,
-            location_id: locationId,
-            quantity: item.quantity || 0,
-            status: "available",
-          });
-        
-        if (insErr) console.error("[approveItem] Insert product_list error:", insErr);
-        else console.log("[approveItem] Successfully created product_list entry!");
-      }
-    } else {
-      console.log("[approveItem] No productId, cannot update product_list");
-    }
-  } else {
-    console.log("[approveItem] Skipping product_list update - no locationId or no item");
-  }
-
   return { data: item, error: null };
 }
 
@@ -304,89 +205,22 @@ export async function ownerAcceptWarehouseDecision(item) {
     Number(item.corrected_quantity) > 0;
 
   if (isQtyFix) {
-    const finalQty = Number(item.corrected_quantity);
-
-    // 1. Update the item status + quantity
-    const { data: updated, error: updateErr } = await supabase
+    // Atomic: rejected(qty_mismatch) -> approved + resolve product + add stock,
+    // all in one transaction (rolls back together on failure). The edit-guard
+    // trigger blocks approved->rejected, so a manual revert can't work — this
+    // must be server-side.
+    const { error } = await supabase.rpc("fn_owner_accept_incoming_fix", {
+      p_item_id: item.id,
+    });
+    if (error) {
+      console.error("[ownerAcceptFix] error:", error);
+      return { data: null, error };
+    }
+    const { data: updated } = await supabase
       .from("incoming_batch_items")
-      .update({
-        quantity: finalQty,
-        status: "approved",
-        rejection_code: null,
-        corrected_quantity: null,
-      })
+      .select("*")
       .eq("id", item.id)
-      .eq("status", "rejected")
-      .select()
       .single();
-
-    if (updateErr) {
-      console.error("[ownerAcceptFix] Update error:", updateErr);
-      return { data: null, error: updateErr };
-    }
-
-    // 2. Add to products / product_list (same logic as approveItem)
-    const locationId = updated?.approved_location_id || item.approved_location_id;
-    if (locationId && updated) {
-      let productId = null;
-
-      if (updated.sku) {
-        const { data: existing } = await supabase
-          .from("products")
-          .select("id")
-          .eq("sku", updated.sku)
-          .maybeSingle();
-
-        if (existing) {
-          productId = existing.id;
-        } else {
-          const { data: newProd, error: prodErr } = await supabase
-            .from("products")
-            .insert({
-              id: newId(),
-              name: updated.product_name,
-              sku: updated.sku,
-              category_id: updated.category_id,
-              price: updated.price > 0 ? updated.price : 1,
-            })
-            .select()
-            .single();
-
-          if (prodErr) console.error("[ownerAcceptFix] Create product error:", prodErr);
-          else if (newProd) productId = newProd.id;
-        }
-      }
-
-      if (productId) {
-        const { data: existingEntry } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", productId)
-          .eq("location_id", locationId)
-          .maybeSingle();
-
-        if (existingEntry) {
-          const newQty = (existingEntry.quantity || 0) + finalQty;
-          const { error: upErr } = await supabase
-            .from("product_list")
-            .update({ quantity: newQty, status: "available" })
-            .eq("id", existingEntry.id);
-          if (upErr) console.error("[ownerAcceptFix] Update product_list error:", upErr);
-        } else {
-          const { error: insErr } = await supabase
-            .from("product_list")
-            .insert({
-              id: newId(),
-              product_id: productId,
-              location_id: locationId,
-              quantity: finalQty,
-              status: "available",
-            });
-          if (insErr) console.error("[ownerAcceptFix] Insert product_list error:", insErr);
-        }
-      }
-    }
-
     return { data: updated, error: null };
   }
 

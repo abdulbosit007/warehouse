@@ -2,7 +2,7 @@
 // Monthly Excel Report Generator for Warehouse Management System
 
 import * as XLSX from "xlsx";
-import { supabase } from "./supabaseClient";
+import { supabase, fetchAll } from "./supabaseClient";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 /**
@@ -23,16 +23,18 @@ async function fetchLocations() {
  * Fetch all products with category info
  */
 async function fetchProducts() {
-  const { data, error } = await supabase
-    .from("products")
-    .select(`
+  const { data, error } = await fetchAll(() =>
+    supabase
+      .from("products")
+      .select(`
       id,
       name,
       sku,
       category_id,
       categories ( name )
     `)
-    .order("name", { ascending: true });
+      .order("name", { ascending: true })
+  );
 
   if (error) throw error;
   return data || [];
@@ -42,9 +44,11 @@ async function fetchProducts() {
  * Fetch product_list for stock quantities per location
  */
 async function fetchProductList() {
-  const { data, error } = await supabase
-    .from("product_list")
-    .select("product_id, location_id, quantity");
+  const { data, error } = await fetchAll(() =>
+    supabase
+      .from("product_list")
+      .select("product_id, location_id, quantity")
+  );
 
   if (error) throw error;
   return data || [];
@@ -55,9 +59,10 @@ async function fetchProductList() {
  * Transactions use transaction_items for product details
  */
 async function fetchTransactionsWithItems(startDate, endDate) {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(`
+  const { data, error } = await fetchAll(() =>
+    supabase
+      .from("transactions")
+      .select(`
       id,
       type,
       status,
@@ -65,9 +70,10 @@ async function fetchTransactionsWithItems(startDate, endDate) {
       created_at,
       items:transaction_items ( product_id, qty )
     `)
-    .eq("status", "committed")
-    .gte("created_at", startDate.toISOString())
-    .lte("created_at", endDate.toISOString());
+      .eq("status", "committed")
+      .gte("created_at", startDate.toISOString())
+      .lte("created_at", endDate.toISOString())
+  );
 
   if (error) {
     console.warn("Could not fetch transactions:", error.message);
@@ -81,9 +87,10 @@ async function fetchTransactionsWithItems(startDate, endDate) {
  * These represent incoming stock to warehouse locations.
  */
 async function fetchIncomingBatchItems(startDate, endDate) {
-  const { data, error } = await supabase
-    .from("incoming_batch_items")
-    .select(`
+  const { data, error } = await fetchAll(() =>
+    supabase
+      .from("incoming_batch_items")
+      .select(`
       id,
       product_name,
       sku,
@@ -92,10 +99,11 @@ async function fetchIncomingBatchItems(startDate, endDate) {
       reviewed_at,
       approved_location_id
     `)
-    .eq("status", "approved")
-    .not("approved_location_id", "is", null)
-    .gte("reviewed_at", startDate.toISOString())
-    .lte("reviewed_at", endDate.toISOString());
+      .eq("status", "approved")
+      .not("approved_location_id", "is", null)
+      .gte("reviewed_at", startDate.toISOString())
+      .lte("reviewed_at", endDate.toISOString())
+  );
 
   if (error) {
     console.warn("Could not fetch incoming_batch_items:", error.message);
@@ -109,9 +117,10 @@ async function fetchIncomingBatchItems(startDate, endDate) {
  * Used to calculate outstanding loans at the end of a month.
  */
 async function fetchAllLoanTransactionsUpTo(endDate) {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(`
+  const { data, error } = await fetchAll(() =>
+    supabase
+      .from("transactions")
+      .select(`
       id,
       type,
       status,
@@ -119,9 +128,10 @@ async function fetchAllLoanTransactionsUpTo(endDate) {
       created_at,
       items:transaction_items ( product_id, qty )
     `)
-    .eq("status", "committed")
-    .in("type", ["loan", "loan_return"])
-    .lte("created_at", endDate.toISOString());
+      .eq("status", "committed")
+      .in("type", ["loan", "loan_return"])
+      .lte("created_at", endDate.toISOString())
+  );
 
   if (error) {
     console.warn("Could not fetch loan transactions:", error.message);

@@ -789,9 +789,11 @@ export default function BranchAuditReview({ asTab = false }) {
       // Batch insert in chunks of 500 to avoid Supabase limits
       for (let i = 0; i < responses.length; i += 500) {
         const batch = responses.slice(i, i + 500);
+        // upsert (not insert) so a retry after a partial failure doesn't
+        // hit the unique(session_id, location_id, product_id) constraint.
         const { error: insertErr } = await supabase
           .from("inventory_audit_responses")
-          .insert(batch);
+          .upsert(batch, { onConflict: "session_id,location_id,product_id" });
         if (insertErr) throw insertErr;
       }
 
@@ -810,10 +812,11 @@ export default function BranchAuditReview({ asTab = false }) {
           const { error: upsertErr } = await supabase
             .from("product_list")
             .upsert(chunk, { onConflict: "product_id,location_id,status" });
-            
-          if (upsertErr) {
-            console.error("[auditSubmit] product_list upsert error:", upsertErr);
-          }
+
+          // Fatal: a failed correction must NOT be swallowed. Throwing here
+          // keeps the session OPEN so staff can safely retry (responses +
+          // corrections are idempotent upserts).
+          if (upsertErr) throw upsertErr;
         }
       }
 

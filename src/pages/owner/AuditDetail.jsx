@@ -262,11 +262,9 @@ export default function OwnerAuditDetail() {
             .from("product_list")
             .upsert(chunk, { onConflict: "product_id,location_id,status" });
             
-          if (upsertErr) {
-            console.error("[closeAudit] product_list upsert error:", upsertErr);
-          } else {
-            console.log(`[closeAudit] Upserted batch of ${chunk.length} discrepancies`);
-          }
+          // Fatal: don't mark the session closed if a correction failed to
+          // apply. Re-running handleClose is safe (idempotent upsert).
+          if (upsertErr) throw upsertErr;
         }
       }
 

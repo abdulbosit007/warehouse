@@ -1,8 +1,3 @@
--- UPDATE fn_branch_commit_return to ALSO create a sale transaction when loan items are sold
--- When no_stock_return is true (loan sale), we create a proper sale transaction
--- so it appears in Sale History
--- Run this in Supabase SQL Editor
-
 CREATE OR REPLACE FUNCTION public.fn_branch_commit_return(p jsonb)
 RETURNS uuid
 LANGUAGE plpgsql

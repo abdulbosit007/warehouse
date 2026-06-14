@@ -487,7 +487,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
       const [productsRes, plRes] = await Promise.all([
         fetchAll(() => supabase.from("products").select("id, name, sku, category_id")),
-        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity")),
+        fetchAll(() => supabase.from("product_list").select("product_id, location_id, quantity").eq("status", "available")),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -654,37 +654,34 @@ export default function WarehouseAuditReview({ asTab = false }) {
       // Batch insert in chunks of 500 to avoid Supabase limits
       for (let i = 0; i < responses.length; i += 500) {
         const batch = responses.slice(i, i + 500);
-        const { error: insertErr } = await supabase.from("inventory_audit_responses").insert(batch);
+        // upsert (not insert) so a retry after a partial failure doesn't
+        // hit the unique(session_id, location_id, product_id) constraint.
+        const { error: insertErr } = await supabase
+          .from("inventory_audit_responses")
+          .upsert(batch, { onConflict: "session_id,location_id,product_id" });
         if (insertErr) throw insertErr;
       }
 
-      // Immediately update product_list for discrepancies
+      // Apply corrections via an idempotent, status-aware upsert.
+      // (Replaces the old maybeSingle lookup, which broke when a product had
+      // more than one row at a location — e.g. available + in_transit.)
       const rejected = responses.filter((r) => r.status === "rejected");
-      for (const resp of rejected) {
-        const newQty = resp.reported_qty ?? 0;
-        const { data: entry, error: lookupErr } = await supabase
-          .from("product_list")
-          .select("id, quantity")
-          .eq("product_id", resp.product_id)
-          .eq("location_id", resp.location_id)
-          .maybeSingle();
+      if (rejected.length > 0) {
+        const productUpdates = rejected.map((resp) => ({
+          product_id: resp.product_id,
+          location_id: resp.location_id,
+          status: "available",
+          quantity: resp.reported_qty ?? 0,
+        }));
 
-        if (lookupErr) {
-          console.error("[auditSubmit] product_list lookup error:", lookupErr);
-          continue;
-        }
-        if (entry) {
-          await supabase.from("product_list").update({ quantity: newQty }).eq("id", entry.id);
-          console.log(`[auditSubmit] Updated product ${resp.product_id}: ${entry.quantity} → ${newQty}`);
-        } else {
-          // No product_list row exists — create one
-          await supabase.from("product_list").insert({
-            product_id: resp.product_id,
-            location_id: resp.location_id,
-            quantity: newQty,
-            status: "available",
-          });
-          console.log(`[auditSubmit] Inserted product ${resp.product_id} with qty ${newQty}`);
+        for (let i = 0; i < productUpdates.length; i += 500) {
+          const chunk = productUpdates.slice(i, i + 500);
+          const { error: upsertErr } = await supabase
+            .from("product_list")
+            .upsert(chunk, { onConflict: "product_id,location_id,status" });
+
+          // Fatal: don't let a failed correction look like a successful audit.
+          if (upsertErr) throw upsertErr;
         }
       }
 

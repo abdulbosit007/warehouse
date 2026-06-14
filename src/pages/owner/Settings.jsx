@@ -3,7 +3,7 @@
 // UI Design matching User Management exactly
 
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import {
@@ -88,9 +88,11 @@ function CategoriesTab() {
 
       if (catsErr) throw catsErr;
 
-      const { data: products, error: prodErr } = await supabase
-        .from("products")
-        .select("id, category_id");
+      const { data: products, error: prodErr } = await fetchAll(() =>
+        supabase
+          .from("products")
+          .select("id, category_id")
+      );
 
       if (prodErr) throw prodErr;
 

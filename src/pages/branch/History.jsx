@@ -1735,10 +1735,12 @@ export default function BranchOperations() {
   async function cancelSaleTransferItem(req, item) {
     try {
       setErr("");
-      const { error } = await supabase
-        .from("branch_request_items")
-        .update({ status: "cancelled" })
-        .eq("id", item.id);
+      // Atomic in DB: destination.in_transit -> source.available + cancel item
+      // (an approved sale-transfer already moved stock into in_transit)
+      const { error } = await supabase.rpc("fn_branch_request_revert_item", {
+        p_item_id: item.id,
+        p_cancel: true,
+      });
       if (error) throw error;
 
       // Close the whole request if no active items remain

@@ -1,5 +1,5 @@
 // src/pages/warehouse/Home.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import CustomSelect from "../../components/CustomSelect";
@@ -209,14 +209,41 @@ export default function WarehouseHome() {
   /* ─────────────────────────────────────────────────────────────────────────
      LOAD DATA
   ───────────────────────────────────────────────────────────────────────── */
+  const warehouseIdsRef = useRef([]);
+
   useEffect(() => {
     if (authLoading || authError || roleBase !== "warehouse") return;
     loadData();
+
+    // Live updates: refresh the table in place (no spinner), but ONLY when the
+    // changed product_list row belongs to one of this user's warehouse locations.
+    let t;
+    const reload = () => {
+      clearTimeout(t);
+      t = setTimeout(() => loadData({ silent: true }), 400);
+    };
+    const ch = supabase
+      .channel("warehouse-home-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_list" },
+        (payload) => {
+          const loc = payload.new?.location_id || payload.old?.location_id;
+          if (loc && warehouseIdsRef.current.includes(loc)) reload();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearTimeout(t);
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, userLocationId, isSuperWarehouse]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData({ silent = false } = {}) {
+    // silent = refresh the table data in place (no full-page spinner).
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -239,13 +266,14 @@ export default function WarehouseHome() {
       setLocations(warehouseLocations);
 
       const warehouseIds = warehouseLocations.map((l) => l.id);
+      warehouseIdsRef.current = warehouseIds;
 
       // If no warehouse locations available for this user, skip the rest
       if (warehouseIds.length === 0) {
         setProducts([]);
         setProductList([]);
         setCategories([]);
-        setLoading(false);
+        if (!silent) setLoading(false);
         return;
       }
 
@@ -281,7 +309,7 @@ export default function WarehouseHome() {
       console.error("Error loading data:", err);
       setError(err.message || t("warehouseHome.errors.failedToLoad"));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
