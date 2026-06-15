@@ -25,6 +25,17 @@
     "saving": "Сақланмоқда...",
     "saveChanges": "Ўзгаришларни сақлаш",
     "clearFilters": "Филтрларни тозалаш",
+    "auditFilters": {
+      "searchPlaceholder": "Маҳсулот ёки SKU бўйича қидириш…",
+      "allChanges": "Барча ўзгаришлар",
+      "increasesOnly": "Кўпайишлар (+)",
+      "decreasesOnly": "Камайишлар (−)",
+      "allStatuses": "Барча ҳолатлар",
+      "statusChanged": "Ўзгарганлар",
+      "statusUnchanged": "Ўзгармаганлар",
+      "noChange": "Ўзгаришсиз",
+      "noResults": "Филтрларга мос ўзгаришлар йўқ"
+    },
     "clearAll": "Ҳаммасини тозалаш",
     "apply": "Қўллаш",
     "applyFilters": "Филтрларни қўллаш",

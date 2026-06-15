@@ -25,6 +25,17 @@
     "saving": "Сохранение...",
     "saveChanges": "Сохранить изменения",
     "clearFilters": "Очистить фильтры",
+    "auditFilters": {
+      "searchPlaceholder": "Поиск по товару или SKU…",
+      "allChanges": "Все изменения",
+      "increasesOnly": "Увеличения (+)",
+      "decreasesOnly": "Уменьшения (−)",
+      "allStatuses": "Все статусы",
+      "statusChanged": "Изменённые",
+      "statusUnchanged": "Без изменений",
+      "noChange": "Без изменений",
+      "noResults": "Нет изменений по заданным фильтрам"
+    },
     "clearAll": "Очистить всё",
     "apply": "Применить",
     "applyFilters": "Применить фильтры",

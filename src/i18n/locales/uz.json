@@ -25,6 +25,17 @@
     "saving": "Saqlanmoqda...",
     "saveChanges": "O‘zgarishlarni saqlash",
     "clearFilters": "Filtrlarni tozalash",
+    "auditFilters": {
+      "searchPlaceholder": "Mahsulot yoki SKU bo‘yicha qidirish…",
+      "allChanges": "Barcha o‘zgarishlar",
+      "increasesOnly": "Ko‘payishlar (+)",
+      "decreasesOnly": "Kamayishlar (−)",
+      "allStatuses": "Barcha holatlar",
+      "statusChanged": "O‘zgarganlar",
+      "statusUnchanged": "O‘zgarmaganlar",
+      "noChange": "O‘zgarishsiz",
+      "noResults": "Filtrlarga mos o‘zgarishlar yo‘q"
+    },
     "clearAll": "Hammasini tozalash",
     "apply": "Qo’llash",
     "applyFilters": "Filtrlarni qo’llash",
