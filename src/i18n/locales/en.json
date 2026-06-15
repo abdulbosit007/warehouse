@@ -25,6 +25,17 @@
     "saving": "Saving...",
     "saveChanges": "Save Changes",
     "clearFilters": "Clear filters",
+    "auditFilters": {
+      "searchPlaceholder": "Search product or SKU…",
+      "allChanges": "All changes",
+      "increasesOnly": "Increases (+)",
+      "decreasesOnly": "Decreases (−)",
+      "allStatuses": "All statuses",
+      "statusChanged": "Changed",
+      "statusUnchanged": "Unchanged",
+      "noChange": "No change",
+      "noResults": "No changes match your filters"
+    },
     "clearAll": "Clear all",
     "apply": "Apply",
     "applyFilters": "Apply Filters",

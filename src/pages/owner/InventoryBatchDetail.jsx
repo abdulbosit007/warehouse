@@ -20,6 +20,7 @@ import {
   AlertCircle,
   ChevronRight,
   MessageSquare,
+  Search,
 } from "lucide-react";
 
 const BRAND = "#4f46e5";
@@ -290,8 +291,31 @@ function SessionDetailModal({ session, location, onClose }) {
 ───────────────────────────────────────────────────────────────────────────── */
 function AuditCorrectionsModal({ audit, products, location, onClose }) {
   const { t, i18n } = useTranslation();
-  const corrections = (audit.responses || []).filter((r) => r.status === "rejected");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [changeFilter, setChangeFilter] = useState("all"); // 'all' | 'increase' | 'decrease'
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'changed' | 'unchanged'
+
+  const allResponses = audit.responses || [];
   const dateStr = formatDate(audit.created_at, i18n.language, { year: "numeric", month: "2-digit", day: "2-digit" });
+
+  const term = searchTerm.trim().toLowerCase();
+  const corrections = allResponses.filter((r) => {
+    const isChanged = r.status === "rejected";
+    if (statusFilter === "changed" && !isChanged) return false;
+    if (statusFilter === "unchanged" && isChanged) return false;
+    if (changeFilter !== "all") {
+      if (!isChanged) return false; // increase/decrease only apply to changed items
+      const diff = (r.reported_qty ?? 0) - r.system_qty_at_submit;
+      if (changeFilter === "increase" && diff <= 0) return false;
+      if (changeFilter === "decrease" && diff >= 0) return false;
+    }
+    if (term) {
+      const product = products.find((p) => p.id === r.product_id);
+      const haystack = `${product?.name || ""} ${product?.sku || ""}`.toLowerCase();
+      if (!haystack.includes(term)) return false;
+    }
+    return true;
+  });
 
   return (
     <div
@@ -303,96 +327,139 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
         className="w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4 flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">
-              {t("ownerInventoryBatchDetail.modals.auditCorrections.title")}
-            </h3>
-            <p className="text-sm text-red-100 mt-0.5">
-              {(location?.location_name || location?.name)} • {dateStr} •{" "}
-              {t("ownerInventoryBatchDetail.correctionsCount", { count: corrections.length })}
-            </p>
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-5 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/15">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                {t("ownerInventoryBatchDetail.modals.auditCorrections.title")}
+              </h3>
+              <p className="text-sm text-indigo-100 mt-0.5">
+                {(location?.location_name || location?.name)} • {dateStr}
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Summary Stats */}
-        <div className="px-6 py-4 bg-neutral-50 border-b flex gap-6">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-100">
-              <Check className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500">
-                {t("ownerInventoryBatchDetail.modals.auditCorrections.confirmed")}
-              </p>
-              <p className="font-bold text-lg text-neutral-900">{audit.confirmed}</p>
-            </div>
+        <div className="px-6 py-4 bg-neutral-50/80 border-b border-neutral-200 grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5">
+            <p className="text-xs text-neutral-500">{t("ownerInventoryBatchDetail.table.product")}</p>
+            <p className="text-xl font-bold text-neutral-900">{allResponses.length}</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-red-100">
-              <X className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500">
-                {t("ownerInventoryBatchDetail.modals.auditCorrections.corrections")}
-              </p>
-              <p className="font-bold text-lg text-neutral-900">{audit.rejected}</p>
-            </div>
+          <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-2.5">
+            <p className="text-xs text-emerald-600">{t("ownerInventoryBatchDetail.modals.auditCorrections.confirmed")}</p>
+            <p className="text-xl font-bold text-emerald-700">{audit.confirmed}</p>
+          </div>
+          <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 px-3 py-2.5">
+            <p className="text-xs text-rose-600">{t("ownerInventoryBatchDetail.modals.auditCorrections.corrections")}</p>
+            <p className="text-xl font-bold text-rose-700">{audit.rejected}</p>
           </div>
         </div>
 
-        {/* Corrections Table */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Filter controls */}
+        {allResponses.length > 0 && (
+          <div className="px-6 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t("common.auditFilters.searchPlaceholder")}
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+            >
+              <option value="all">{t("common.auditFilters.allStatuses")}</option>
+              <option value="changed">{t("common.auditFilters.statusChanged")}</option>
+              <option value="unchanged">{t("common.auditFilters.statusUnchanged")}</option>
+            </select>
+            <select
+              value={changeFilter}
+              onChange={(e) => setChangeFilter(e.target.value)}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+            >
+              <option value="all">{t("common.auditFilters.allChanges")}</option>
+              <option value="increase">{t("common.auditFilters.increasesOnly")}</option>
+              <option value="decrease">{t("common.auditFilters.decreasesOnly")}</option>
+            </select>
+          </div>
+        )}
+
+        {/* Results list */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-neutral-50/40">
           {corrections.length === 0 ? (
-            <div className="text-center py-8 text-neutral-500">
-              {t("ownerInventoryBatchDetail.modals.auditCorrections.empty")}
+            <div className="text-center py-10 text-neutral-500 text-sm">
+              {allResponses.length === 0
+                ? t("ownerInventoryBatchDetail.modals.auditCorrections.empty")
+                : t("common.auditFilters.noResults")}
             </div>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="sticky top-0 bg-white">
-                <tr className="bg-neutral-50 text-xs text-neutral-500 uppercase">
-                  <th className="px-4 py-3 text-left">{t("ownerInventoryBatchDetail.table.product")}</th>
-                  <th className="px-4 py-3 text-center">{t("ownerInventoryBatchDetail.table.systemQty")}</th>
-                  <th className="px-4 py-3 text-center">{t("ownerInventoryBatchDetail.table.actualQty")}</th>
-                  <th className="px-4 py-3 text-center">{t("ownerInventoryBatchDetail.table.difference")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {corrections.map((r) => {
-                  const product = products.find((p) => p.id === r.product_id);
-                  const diff = r.reported_qty - r.system_qty_at_submit;
+            corrections.map((r) => {
+              const product = products.find((p) => p.id === r.product_id);
+              const isChanged = r.status === "rejected";
+              const diff = isChanged ? (r.reported_qty ?? 0) - r.system_qty_at_submit : 0;
 
-                  return (
-                    <tr key={r.id} className="hover:bg-red-50/50">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-neutral-900">
-                          {product?.name || t("ownerInventoryBatchDetail.unknown")}
-                        </div>
-                        <div className="text-xs font-mono text-neutral-500">
-                          {product?.sku || (r.product_id ? r.product_id.slice(0, 8) : "—")}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center font-mono">{r.system_qty_at_submit}</td>
-                      <td className="px-4 py-3 text-center font-mono font-bold text-red-600">{r.reported_qty}</td>
-                      <td className="px-4 py-3 text-center">
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-neutral-900 truncate">
+                      {product?.name || t("ownerInventoryBatchDetail.unknown")}
+                    </div>
+                    <div className="text-xs font-mono text-neutral-400">
+                      {product?.sku || (r.product_id ? r.product_id.slice(0, 8) : "—")}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-24 text-right text-sm font-mono">
+                      <span className="text-neutral-500">{r.system_qty_at_submit}</span>
+                      <span className="mx-1.5 text-neutral-300">→</span>
+                      <span className={isChanged ? "font-bold text-neutral-900" : "font-semibold text-neutral-700"}>
+                        {isChanged ? r.reported_qty : r.system_qty_at_submit}
+                      </span>
+                    </div>
+
+                    <div className="w-32 flex justify-end">
+                      {isChanged ? (
                         <span
-                          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            diff > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap ${
+                            diff > 0
+                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 text-emerald-700"
+                              : "bg-gradient-to-r from-rose-50 to-red-50 border-rose-200 text-rose-700"
                           }`}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full ${diff > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
                           {diff > 0 ? "+" : ""}
                           {diff}
                         </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap bg-neutral-50 border-neutral-200 text-neutral-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
+                          {t("common.auditFilters.noChange")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -408,6 +475,21 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
   const { userRow } = useCurrentUser();
   const [processing, setProcessing] = useState(null);
   const [expandedComments, setExpandedComments] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [changeFilter, setChangeFilter] = useState("all"); // 'all' | 'increase' | 'decrease'
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'pending' | 'approved' | 'rejected'
+
+  const term = searchTerm.trim().toLowerCase();
+  const filteredCorrections = corrections.filter((c) => {
+    if (statusFilter !== "all" && c.status !== statusFilter) return false;
+    if (changeFilter === "increase" && !(c.difference > 0)) return false;
+    if (changeFilter === "decrease" && !(c.difference < 0)) return false;
+    if (term) {
+      const haystack = `${c.product?.name || ""} ${c.product?.sku || ""}`.toLowerCase();
+      if (!haystack.includes(term)) return false;
+    }
+    return true;
+  });
 
   const [year, m] = month.split("-");
   const monthName = formatDate(new Date(Number(year), Number(m) - 1, 1), i18n.language, {
@@ -477,6 +559,39 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
           </button>
         </div>
 
+        {/* Filter controls */}
+        <div className="px-6 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t("common.auditFilters.searchPlaceholder")}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+          >
+            <option value="all">{t("common.auditFilters.allStatuses")}</option>
+            <option value="pending">{t("ownerInventoryBatchDetail.status.pending")}</option>
+            <option value="approved">{t("ownerInventoryBatchDetail.status.approved")}</option>
+            <option value="rejected">{t("ownerInventoryBatchDetail.status.rejected")}</option>
+          </select>
+          <select
+            value={changeFilter}
+            onChange={(e) => setChangeFilter(e.target.value)}
+            className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+          >
+            <option value="all">{t("common.auditFilters.allChanges")}</option>
+            <option value="increase">{t("common.auditFilters.increasesOnly")}</option>
+            <option value="decrease">{t("common.auditFilters.decreasesOnly")}</option>
+          </select>
+        </div>
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <table className="min-w-full text-sm border-collapse">
@@ -492,7 +607,14 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
               </tr>
             </thead>
             <tbody>
-              {corrections.map((c) => (
+              {filteredCorrections.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-8 text-center text-neutral-500">
+                    {t("common.auditFilters.noResults")}
+                  </td>
+                </tr>
+              )}
+              {filteredCorrections.map((c) => (
                 <React.Fragment key={c.id}>
                 <tr className="border-t hover:bg-neutral-50">
                   <td className="px-3 py-2 text-xs">

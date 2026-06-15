@@ -493,7 +493,10 @@ export default function OwnerHome() {
       .on("postgres_changes", { event: "*", schema: "public", table: "product_list" }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "branch_request_items" }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, reload)
-      .subscribe();
+      .subscribe((status, err) => {
+        // TEMP diagnostic: shows SUBSCRIBED vs CHANNEL_ERROR/TIMED_OUT/CLOSED per tab.
+        console.log("[owner-home realtime]", status, err || "");
+      });
 
     return () => {
       clearTimeout(t);
