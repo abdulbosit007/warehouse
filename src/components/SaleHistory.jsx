@@ -17,6 +17,8 @@ export default function SaleHistory({
   salePendingRequests = [],
   onAcceptTransfer,
   onCancelTransferItem,
+  onCloseRejectedItem,
+  onResendElsewhere,
   // Return destination modal props
   allLocations = [],
   branchLocationId = null,
@@ -649,10 +651,10 @@ export default function SaleHistory({
                                   return (req.items || [])
                                     .filter(it => it.status !== "fulfilled" && it.status !== "cancelled")
                                     .map(it => {
-                                      const canAccept = onAcceptTransfer && (
-                                        req.status === "approved" || req.status === "closed" ||
-                                        req.status === "completed" || it.status === "approved"
-                                      );
+                                      // Acceptable iff THIS item is approved — not the
+                                      // whole request (a closed/completed request must not
+                                      // re-enable Accept on its rejected items).
+                                      const canAccept = onAcceptTransfer && it.status === "approved";
                                       const isRejected = it.status === "rejected" || req.status === "rejected";
                                       const acceptQty = it.approved_qty ?? it.requested_qty;
                                       return (
@@ -671,9 +673,25 @@ export default function SaleHistory({
                                           <div className="flex items-center gap-2 shrink-0">
                                             <span className="text-sm font-semibold text-neutral-600">{nf.format(it.requested_qty)}</span>
                                             {isRejected ? (
-                                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                                                <X className="w-3 h-3" />{t("branchOperations.saleHistory.statusRejected")}
-                                              </span>
+                                              <>
+                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                                  <X className="w-3 h-3" />{t("branchOperations.saleHistory.statusRejected")}
+                                                </span>
+                                                {onCloseRejectedItem && (
+                                                  <button onClick={() => onCloseRejectedItem(req, it)}
+                                                    title={t("common.close")} aria-label={t("common.close")}
+                                                    className="inline-flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100 transition-colors">
+                                                    <X className="w-4 h-4" />
+                                                  </button>
+                                                )}
+                                                {onResendElsewhere && (
+                                                  <button onClick={() => onResendElsewhere(req, it)}
+                                                    title={t("branchOperations.saleHistory.resendBtn")} aria-label={t("branchOperations.saleHistory.resendBtn")}
+                                                    className="inline-flex items-center justify-center p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                                                    <RefreshCw className="w-4 h-4" />
+                                                  </button>
+                                                )}
+                                              </>
                                             ) : canAccept ? (
                                               <button onClick={() => handleAcceptTransfer(req, it, acceptQty)} disabled={actingItemIds.has(it.id)}
                                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50">
@@ -806,12 +824,8 @@ export default function SaleHistory({
                         (req.items || [])
                           .filter((it) => it.status !== "fulfilled" && it.status !== "cancelled")
                           .map((it) => {
-                            const canAccept =
-                              onAcceptTransfer &&
-                              (req.status === "approved" ||
-                                req.status === "closed" ||
-                                req.status === "completed" ||
-                                it.status === "approved");
+                            // Acceptable iff THIS item is approved (see note above).
+                            const canAccept = onAcceptTransfer && it.status === "approved";
                             const isRejected = it.status === "rejected" || req.status === "rejected";
                             const acceptQty = it.approved_qty ?? it.requested_qty;
 
@@ -884,6 +898,26 @@ export default function SaleHistory({
                                       >
                                         <X className="w-3 h-3" />
                                         {t("branchOperations.saleHistory.cancelBtn")}
+                                      </button>
+                                    )}
+                                    {isRejected && onCloseRejectedItem && (
+                                      <button
+                                        onClick={() => onCloseRejectedItem(req, it)}
+                                        title={t("common.close")}
+                                        aria-label={t("common.close")}
+                                        className="inline-flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100 transition-colors"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                    {isRejected && onResendElsewhere && (
+                                      <button
+                                        onClick={() => onResendElsewhere(req, it)}
+                                        title={t("branchOperations.saleHistory.resendBtn")}
+                                        aria-label={t("branchOperations.saleHistory.resendBtn")}
+                                        className="inline-flex items-center justify-center p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                                      >
+                                        <RefreshCw className="w-4 h-4" />
                                       </button>
                                     )}
                                     {canAccept && (

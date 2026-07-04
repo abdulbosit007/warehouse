@@ -33,8 +33,10 @@ import {
   Store,
   Award,
   Calendar,
+  Boxes,
 } from "lucide-react";
 import SmartRestock from "../../components/SmartRestock";
+import StockMonitor from "../../components/StockMonitor";
 
 /* ─── constants ──────────────────────────────────────────────── */
 const COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#3B82F6"];
@@ -582,6 +584,7 @@ export default function OwnerHistory() {
           { key: "analytics", icon: Activity,      label: t("ownerAnalytics.tabs.analytics") },
           { key: "logs",      icon: HistoryIcon,  label: t("ownerAnalytics.tabs.logs")      },
           { key: "restock",   icon: PackageSearch, label: t("ownerAnalytics.tabs.restock")  },
+          { key: "monitor",   icon: Boxes,        label: t("ownerAnalytics.tabs.monitor")  },
         ].map(({ key, icon: Icon, label }) => (
           <button
             key={key}
@@ -1012,6 +1015,9 @@ export default function OwnerHistory() {
           <SmartRestock locationId={selectedLocation} />
         </div>
       )}
+
+      {/* ══ STOCK MONITOR TAB ══ */}
+      {activeTab === "monitor" && <StockMonitor />}
     </div>
   );
 }

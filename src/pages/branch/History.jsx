@@ -83,7 +83,7 @@ export default function BranchOperations() {
   };
 
   // source picker: shown when a product has stock at multiple locations
-  const [sourcePicker, setSourcePicker] = useState(null); // {row, sources} | null
+  const [sourcePicker, setSourcePicker] = useState(null); // {row, sources, resendItem?} | null
 
   // search + cart
   const [q, setQ] = useState("");
@@ -384,18 +384,24 @@ export default function BranchOperations() {
     (async () => {
       try {
         const loc = await getBranchLocation();
+        // Covers both loan AND sale transfer requests: when the source location
+        // approves/rejects, refresh this branch's pending loan + sale lists.
+        const refreshPending = () => {
+          loadLoanPendingRequests();
+          loadPendingSaleTransfers();
+        };
         channel = supabase
-          .channel(`loan-pending-${loc.id}`)
+          .channel(`req-pending-${loc.id}`)
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "branch_requests",
               filter: `to_location_id=eq.${loc.id}` },
-            () => loadLoanPendingRequests()
+            refreshPending
           )
           .on(
             "postgres_changes",
             { event: "UPDATE", schema: "public", table: "branch_request_items" },
-            () => loadLoanPendingRequests()
+            refreshPending
           )
           .subscribe();
       } catch {
@@ -1442,6 +1448,7 @@ export default function BranchOperations() {
         borrower_store_no: meta.borrower_store_no  || null,
         due_date:          meta.due_date            || null,
         note: `Loan transfer accepted from ${sourceName}${meta.tx_note ? " — " + meta.tx_note : ""}`,
+        created_at: req.created_at,
         // All approved items go into ONE transaction
         items: approvedItems.map((item) => ({
           product_id:         item.product?.id,
@@ -1580,7 +1587,10 @@ export default function BranchOperations() {
         `)
         .eq("to_location_id", loc.id)
         .eq("purpose", "sale")
-        .not("status", "in", "(cancelled,closed,completed,rejected)")
+        // Keep rejected/closed requests too, so rejected items stay visible and
+        // actionable (close / resend). The timeline filters out requests whose
+        // items are all fulfilled/cancelled, so this won't clutter the view.
+        .not("status", "in", "(cancelled)")
         .gte("created_at", startISO)
         .lt("created_at", endISO)
         .order("created_at", { ascending: false });
@@ -1610,7 +1620,10 @@ export default function BranchOperations() {
         .select(`created_at, status, items:branch_request_items ( status, request_id )`)
         .eq("to_location_id", loc.id)
         .eq("purpose", "sale")
-        .not("status", "in", "(cancelled,closed,completed,rejected)")
+        // Keep rejected/closed requests too, so rejected items stay visible and
+        // actionable (close / resend). The timeline filters out requests whose
+        // items are all fulfilled/cancelled, so this won't clutter the view.
+        .not("status", "in", "(cancelled)")
         .gte("created_at", startISO)
         .lt("created_at", endISO);
 
@@ -1748,7 +1761,7 @@ export default function BranchOperations() {
         .from("branch_request_items")
         .select("id")
         .eq("request_id", req.id)
-        .not("status", "in", "(cancelled,fulfilled,rejected)");
+        .not("status", "in", "(cancelled,fulfilled)");
       if (!remaining || remaining.length === 0) {
         await supabase
           .from("branch_requests")
@@ -1764,13 +1777,155 @@ export default function BranchOperations() {
             i.id === item.id ? { ...i, status: "cancelled" } : i
           );
           const allDone = updated.every(i =>
-            ["cancelled", "fulfilled", "rejected"].includes(i.status)
+            ["cancelled", "fulfilled"].includes(i.status)
           );
           return allDone ? null : { ...r, items: updated };
         }).filter(Boolean)
       );
 
       loadPendingSaleTransfers();
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  // Dismiss a REJECTED sale-transfer item: no stock moved (it was rejected),
+  // so just mark it cancelled to drop it from the pending list.
+  async function closeSaleRequestItem(req, item) {
+    try {
+      setErr("");
+      // Guard on status='rejected': this must NEVER cancel an 'approved' item,
+      // which would orphan its destination in_transit / source stock. If the
+      // line isn't actually rejected (stale UI / race) this is a no-op.
+      const { data: cancelled, error } = await supabase
+        .from("branch_request_items")
+        .update({ status: "cancelled" })
+        .eq("id", item.id)
+        .eq("status", "rejected")
+        .select("id");
+      if (error) throw error;
+      if (!cancelled || cancelled.length === 0) {
+        loadPendingSaleTransfers();
+        return; // wasn't rejected — leave request + stock untouched
+      }
+
+      // Recompute the request status ONLY when nothing actionable remains.
+      // Closing one item never cancels a request that still has active items.
+      const { data: allItems } = await supabase
+        .from("branch_request_items")
+        .select("status")
+        .eq("request_id", req.id);
+      const rows = allItems || [];
+      // Rejected items are still actionable (close / resend) — keep the request
+      // visible until they're resolved. Only cancelled/fulfilled count as done.
+      const active = rows.filter((i) => !["cancelled", "fulfilled"].includes(i.status));
+      if (active.length === 0) {
+        // 'closed' if a real sale was fulfilled in this request, else 'cancelled'.
+        const hasFulfilled = rows.some((i) => i.status === "fulfilled");
+        await supabase
+          .from("branch_requests")
+          .update({ status: hasFulfilled ? "closed" : "cancelled" })
+          .eq("id", req.id);
+      }
+
+      setSalePendingRequests(prev =>
+        prev.map(r => {
+          if (r.id !== req.id) return r;
+          const updated = r.items.map(i => (i.id === item.id ? { ...i, status: "cancelled" } : i));
+          const allDone = updated.every(i => ["cancelled", "fulfilled"].includes(i.status));
+          return allDone ? null : { ...r, items: updated };
+        }).filter(Boolean)
+      );
+
+      loadPendingSaleTransfers();
+    } catch (e) {
+      setErr(e.message || String(e));
+    }
+  }
+
+  // Resend a rejected sale item by reusing the sell flow: open the existing
+  // source/qty picker pre-seeded with this product (all locations that have it
+  // in stock, including the one that rejected it). It then goes through the
+  // normal cart + commit pipeline, creating a fresh sale request.
+  function resendRejectedItem(req, item) {
+    const pid = item.product?.id || item.product_id;
+    const row = catalog.find((r) => r.product_id === pid);
+    // All locations with stock — current branch (sell directly) AND other
+    // locations (re-request). Nothing hidden.
+    const sources = (row?.sources || []).filter((s) => s.qty > 0);
+    if (!row || sources.length === 0) {
+      setErr(t("branchOperations.saleHistory.noResendSource"));
+      return;
+    }
+    setSourcePicker({ row, sources, resendItem: { req, item } });
+  }
+
+  // Resend a rejected sale line DIRECTLY (no cart), dated to the ORIGINAL day:
+  //   - current branch    → commit a real sale (deducts own stock)
+  //   - other branch / wh → create a fresh sale request
+  // Then drop the old rejected line and refresh that day.
+  async function commitResend(selections, ctx) {
+    try {
+      setErr("");
+      const { data: { user } } = await supabase.auth.getUser();
+      const originalDay = ctx.req.created_at;
+      const productId = ctx.item.product?.id || ctx.item.product_id;
+
+      const own = selections.filter((s) => !s.needsApproval);    // current location → sale
+      const others = selections.filter((s) => s.needsApproval);  // other location → request
+
+      // Current location → commit the sale dated to the original day. The RPC
+      // stamps transactions.created_at from p.created_at (inside SECURITY
+      // DEFINER, so it's reliable regardless of RLS).
+      if (own.length > 0) {
+        const { error: saleErr } = await supabase.rpc("fn_branch_commit_sale", {
+          p: {
+            note: "",
+            created_at: originalDay,
+            items: own.map((sel) => ({
+              product_id: productId,
+              qty: sel.selectedQty,
+              source_location_id: sel.locationId,
+            })),
+          },
+        });
+        if (saleErr) throw saleErr;
+      }
+
+      // Other locations → create requests dated to the original day.
+      for (const sel of others) {
+        const { data: request, error: reqErr } = await supabase
+          .from("branch_requests")
+          .insert({
+            to_location_id: branchLocationId,
+            status: "sent",
+            purpose: "sale",
+            created_by: user?.id,
+            created_at: originalDay,
+          })
+          .select("id")
+          .single();
+        if (reqErr) throw reqErr;
+        const { error: itemErr } = await supabase
+          .from("branch_request_items")
+          .insert({
+            request_id: request.id,
+            product_id: productId,
+            source_location_id: sel.locationId,
+            requested_qty: sel.selectedQty,
+            status: "requested",
+          });
+        if (itemErr) throw itemErr;
+      }
+
+      await closeSaleRequestItem(ctx.req, ctx.item); // drop the old rejected line
+      showOk(
+        own.length > 0
+          ? t("branchOperations.success.saleCommittedSimple")
+          : t("branchOperations.success.approvalRequestSent", { count: others.length })
+      );
+      await loadSaleHistory(new Date(originalDay)); // refresh the original day
+      await refreshCatalog({ silent: true });        // own-branch sale changed stock
     } catch (e) {
       setErr(e.message || String(e));
     }
@@ -1784,9 +1939,11 @@ export default function BranchOperations() {
 
       const productId = item.product?.id;
 
-      // 1. Record as an official sale WITHOUT stock deduction
+      // 1. Record as an official sale WITHOUT stock deduction, dated to the
+      //    original request's day (so a resent/accepted line keeps that date).
       const payload = {
         note: `Transfer accepted from ${item.source_location?.location_name || "external location"}`,
+        created_at: req.created_at,
         items: [{ product_id: productId, qty: acceptQty, source_location_id: item.source_location?.id }],
       };
       const { data: txId, error: saleErr } = await supabase.rpc("fn_branch_accept_transfer", { p: payload });
@@ -1814,7 +1971,7 @@ export default function BranchOperations() {
         prev.map(r => {
           if (r.id !== req.id) return r;
           const updatedItems = r.items.map(i => i.id === item.id ? { ...i, status: "fulfilled" } : i);
-          const allDone = updatedItems.every(i => i.status === "fulfilled" || i.status === "rejected" || i.status === "cancelled");
+          const allDone = updatedItems.every(i => i.status === "fulfilled" || i.status === "cancelled");
           return allDone ? null : { ...r, items: updatedItems };
         }).filter(Boolean)
       );
@@ -2458,6 +2615,8 @@ return (
             salePendingRequests={salePendingRequests}
             onAcceptTransfer={acceptTransferRequest}
             onCancelTransferItem={cancelSaleTransferItem}
+            onCloseRejectedItem={closeSaleRequestItem}
+            onResendElsewhere={resendRejectedItem}
             allLocations={allLocations}
             branchLocationId={branchLocationId}
             pendingTransferCount={pendingSaleTransfers}
@@ -2543,16 +2702,21 @@ return (
         row={sourcePicker.row}
         sources={sourcePicker.sources}
         onConfirm={(selections) => {
-          selections.forEach((sel) =>
-            addToCart(
-              sourcePicker.row,
-              sel.locationId,
-              sel.locationName,
-              sel.qty,
-              sel.selectedQty,
-              sel.needsApproval
-            )
-          );
+          if (sourcePicker.resendItem) {
+            // Resend → create the request directly, dated to the original day.
+            commitResend(selections, sourcePicker.resendItem);
+          } else {
+            selections.forEach((sel) =>
+              addToCart(
+                sourcePicker.row,
+                sel.locationId,
+                sel.locationName,
+                sel.qty,
+                sel.selectedQty,
+                sel.needsApproval
+              )
+            );
+          }
           setSourcePicker(null);
         }}
         onClose={() => setSourcePicker(null)}
