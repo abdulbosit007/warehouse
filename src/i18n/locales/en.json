@@ -1159,6 +1159,8 @@
       "statusWaiting": "Waiting",
       "acceptBtn": "Accept",
       "cancelBtn": "Cancel",
+      "resendBtn": "Resend",
+      "noResendSource": "No other location has this product in stock",
       "approvedQty": "({{count}} approved)",
       "footerTotal": "Total: {{sold}} sold · {{returned}} returned",
       "footerShowing": "Showing {{count}} of {{total}}",
@@ -1693,7 +1695,60 @@
     "tabs": {
       "analytics": "Sales Analytics",
       "logs": "Activity Logs",
-      "restock": "Smart Restock"
+      "restock": "Smart Restock",
+      "monitor": "Stock Monitor"
+    },
+    "monitor": {
+      "title": "Stock Monitor",
+      "subtitle": "Every stock change per location since the last completed audit",
+      "selectLocation": "Select location",
+      "baselineFrom": "Baseline from audit on {{date}}",
+      "noBaseline": "No completed audit for this location — showing all tracked changes",
+      "search": "Search product or SKU",
+      "allReasons": "All change types",
+      "movedOnly": "Changed only",
+      "refresh": "Refresh",
+      "showing": "Showing {{shown}} of {{total}} products",
+      "pickPrompt": "Select a product to see its full stock history",
+      "statementTitle": "Movement history",
+      "currentStock": "Current stock",
+      "cards": {
+        "productsChanged": "Products changed",
+        "movements": "Total changes",
+        "flagged": "Unexplained",
+        "netUnits": "Net units"
+      },
+      "col": {
+        "product": "Product",
+        "baseline": "Baseline",
+        "current": "Current",
+        "net": "Net change",
+        "changes": "Changes"
+      },
+      "unexplained": "Unexplained",
+      "unexplainedHint": "Current stock differs from baseline + tracked changes by {{qty}}. This change happened before monitoring started or outside the system.",
+      "noMovements": "No stock changes recorded for this location yet",
+      "noMatch": "No products match your filters",
+      "actorUnknown": "System",
+      "reasons": {
+        "stock_in": "Stock in",
+        "stock_out": "Stock out",
+        "transit_in": "In-transit added",
+        "transit_out": "In-transit cleared",
+        "loan_out": "Loaned out",
+        "loan_return": "Loan returned",
+        "init": "Initial stock",
+        "adjust": "Adjustment",
+        "unknown": "Unknown",
+        "sale": "Sale",
+        "sale_return": "Return",
+        "loan": "Loan",
+        "transfer": "Transfer",
+        "request": "Branch request",
+        "incoming": "Receiving",
+        "correction": "Correction",
+        "audit": "Audit"
+      }
     },
     "summary": {
       "transactions": "Transactions",

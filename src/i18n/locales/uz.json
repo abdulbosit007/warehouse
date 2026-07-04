@@ -1157,6 +1157,8 @@
       "statusWaiting": "Kutilmoqda",
       "acceptBtn": "Qabul qilish",
       "cancelBtn": "Bekor qilish",
+      "resendBtn": "Qayta so‘rash",
+      "noResendSource": "Bu mahsulot boshqa joyda mavjud emas",
       "approvedQty": "({{count}} tasdiqlangan)",
       "footerTotal": "Jami: {{sold}} sotilgan · {{returned}} qaytarilgan",
       "footerShowing": "{{count}} / {{total}} ko'rsatilmoqda",
@@ -1691,7 +1693,60 @@
     "tabs": {
       "analytics": "Sotuv tahlili",
       "logs": "Faoliyat jurnali",
-      "restock": "Aqlli buyurtma"
+      "restock": "Aqlli buyurtma",
+      "monitor": "Ombor monitori"
+    },
+    "monitor": {
+      "title": "Ombor monitori",
+      "subtitle": "Oxirgi inventarizatsiyadan beri har bir lokatsiya bo‘yicha qoldiq o‘zgarishi",
+      "selectLocation": "Lokatsiyani tanlang",
+      "baselineFrom": "Inventarizatsiya asosi: {{date}}",
+      "noBaseline": "Bu lokatsiya uchun yakunlangan inventarizatsiya yo‘q — barcha kuzatilgan o‘zgarishlar ko‘rsatilmoqda",
+      "search": "Mahsulot yoki SKU qidirish",
+      "allReasons": "Barcha o‘zgarish turlari",
+      "movedOnly": "Faqat o‘zgarganlar",
+      "refresh": "Yangilash",
+      "showing": "{{total}} tadan {{shown}} ta mahsulot ko‘rsatilmoqda",
+      "pickPrompt": "To‘liq qoldiq tarixini ko‘rish uchun mahsulotni tanlang",
+      "statementTitle": "Harakat tarixi",
+      "currentStock": "Joriy qoldiq",
+      "cards": {
+        "productsChanged": "O‘zgargan mahsulot",
+        "movements": "Jami o‘zgarish",
+        "flagged": "Tushuntirilmagan",
+        "netUnits": "Sof miqdor"
+      },
+      "col": {
+        "product": "Mahsulot",
+        "baseline": "Asos",
+        "current": "Joriy",
+        "net": "O‘zgarish",
+        "changes": "O‘zgarishlar"
+      },
+      "unexplained": "Tushuntirilmagan",
+      "unexplainedHint": "Joriy qoldiq asos va kuzatilgan o‘zgarishlardan {{qty}} ga farq qiladi. Bu o‘zgarish monitoring boshlanishidan oldin yoki tizimdan tashqarida sodir bo‘lgan.",
+      "noMovements": "Bu lokatsiya uchun hali qoldiq o‘zgarishi yo‘q",
+      "noMatch": "Filtringizga mos mahsulot yo‘q",
+      "actorUnknown": "Tizim",
+      "reasons": {
+        "stock_in": "Kirim",
+        "stock_out": "Chiqim",
+        "transit_in": "Yo‘lda (qo‘shildi)",
+        "transit_out": "Yo‘lda (yechildi)",
+        "loan_out": "Qarzga berildi",
+        "loan_return": "Qarz qaytdi",
+        "init": "Boshlang‘ich qoldiq",
+        "adjust": "Tuzatish",
+        "unknown": "Noma’lum",
+        "sale": "Sotuv",
+        "sale_return": "Qaytarish",
+        "loan": "Qarz",
+        "transfer": "Ko‘chirish",
+        "request": "Filial so‘rovi",
+        "incoming": "Qabul",
+        "correction": "Korreksiya",
+        "audit": "Inventarizatsiya"
+      }
     },
     "summary": {
       "transactions": "Tranzaksiyalar",

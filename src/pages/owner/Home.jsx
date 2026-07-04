@@ -488,11 +488,16 @@ export default function OwnerHome() {
       clearTimeout(t);
       t = setTimeout(() => loadData({ silent: true }), 400);
     };
+    // TEMP diagnostic: logs every realtime event that actually arrives.
+    const onEvent = (payload) => {
+      console.log("[owner-home event]", payload?.table, payload?.eventType, payload);
+      reload();
+    };
     const ch = supabase
       .channel("owner-home-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_list" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "branch_request_items" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_list" }, onEvent)
+      .on("postgres_changes", { event: "*", schema: "public", table: "branch_request_items" }, onEvent)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, onEvent)
       .subscribe((status, err) => {
         // TEMP diagnostic: shows SUBSCRIBED vs CHANNEL_ERROR/TIMED_OUT/CLOSED per tab.
         console.log("[owner-home realtime]", status, err || "");
