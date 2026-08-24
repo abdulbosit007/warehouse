@@ -173,6 +173,7 @@ export default function BranchHome() {
   const { loading: authLoading, error: authError, roleBase, locationId, locationName } = useCurrentUser();
 
   const [products, setProducts] = useState([]);
+  const [stockScope, setStockScope] = useState("in_stock"); // "in_stock" = stocked in any location | "all" = whole catalog
   const [productList, setProductList] = useState([]);
   const [allProductList, setAllProductList] = useState([]); // All locations
   const [categories, setCategories] = useState([]);
@@ -293,8 +294,35 @@ export default function BranchHome() {
       }));
   }, [products, quantityMap]);
 
+  // Product ids that hold stock in SOME location (this one or others).
+  const stockedAnywhere = useMemo(
+    () => new Set(allProductList.map((x) => x.product_id)),
+    [allProductList]
+  );
+
+  // Table rows depend on the scope toggle. Products not stocked here appear with
+  // quantity 0; stocked-here rows sort first.
+  const tableProducts = useMemo(() => {
+    const base =
+      stockScope === "all"
+        ? products
+        : products.filter((p) => stockedAnywhere.has(p.id) || getQty(p.id) > 0);
+    return base
+      .map((p) => ({
+        ...p,
+        quantity: getQty(p.id),
+        value: (getQty(p.id) || 0) * (p.sale_price || 0),
+      }))
+      .sort((a, b) => {
+        const ha = a.quantity > 0 ? 1 : 0;
+        const hb = b.quantity > 0 ? 1 : 0;
+        if (ha !== hb) return hb - ha; // stocked-here first
+        return (a.name || "").localeCompare(b.name || "");
+      });
+  }, [products, stockScope, stockedAnywhere, quantityMap]);
+
   const filteredProducts = useMemo(() => {
-    let result = productsWithStock;
+    let result = tableProducts;
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -323,7 +351,7 @@ export default function BranchHome() {
     }
 
     return result;
-  }, [productsWithStock, search, filters]);
+  }, [tableProducts, search, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = useMemo(() => {
@@ -503,12 +531,30 @@ export default function BranchHome() {
           )}
         </button>
 
+        {/* Scope toggle: stocked-anywhere vs whole catalog */}
+        <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-1">
+          {[
+            { key: "in_stock", label: t("branch1.home.scope.inStock") },
+            { key: "all", label: t("branch1.home.scope.all") },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => { setStockScope(key); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                stockScope === key ? "bg-emerald-600 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="text-sm text-neutral-500">
-          {filteredProducts.length === productsWithStock.length
+          {filteredProducts.length === tableProducts.length
             ? t("branch1.home.meta.products", { count: filteredProducts.length })
             : t("branch1.home.meta.productsOfTotal", {
                 shown: filteredProducts.length,
-                total: productsWithStock.length,
+                total: tableProducts.length,
               })}
         </div>
       </div>

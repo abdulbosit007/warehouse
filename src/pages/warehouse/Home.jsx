@@ -189,6 +189,8 @@ export default function WarehouseHome() {
   } = useCurrentUser();
 
   const [products, setProducts] = useState([]);
+  const [stockScope, setStockScope] = useState("in_stock"); // "in_stock" = stocked in any location | "all" = whole catalog
+  const [allStocked, setAllStocked] = useState([]); // product ids with stock in ANY location
   const [productList, setProductList] = useState([]);
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -277,7 +279,7 @@ export default function WarehouseHome() {
         return;
       }
 
-      const [productsRes, listRes, categoriesRes] = await Promise.all([
+      const [productsRes, listRes, allStockedRes, categoriesRes] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -291,6 +293,14 @@ export default function WarehouseHome() {
             .eq("status", "available")
             .in("location_id", warehouseIds)
         ),
+        // product ids that hold stock in ANY location (for the "in stock" scope)
+        fetchAll(() =>
+          supabase
+            .from("product_list")
+            .select("product_id")
+            .eq("status", "available")
+            .gt("quantity", 0)
+        ),
         supabase
           .from("categories")
           .select("id, name")
@@ -299,10 +309,12 @@ export default function WarehouseHome() {
 
       if (productsRes.error) throw productsRes.error;
       if (listRes.error) throw listRes.error;
+      if (allStockedRes.error) throw allStockedRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
 
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
+      setAllStocked(allStockedRes.data || []);
       setCategories(categoriesRes.data || []);
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -341,14 +353,35 @@ export default function WarehouseHome() {
   const getQtyAt = (productId, locationId) =>
     quantityMap.get(productId)?.get(locationId) || 0;
 
-  // Only show products that have stock in any warehouse
+  // Products stocked in the warehouse — used for the stat cards (KPIs stay truthful).
   const productsWithStock = useMemo(() => {
     return products.filter((p) => getTotalQty(p.id) > 0);
   }, [products, quantityMap]);
 
+  // Product ids that hold stock in SOME location (this warehouse or elsewhere).
+  const stockedAnywhere = useMemo(
+    () => new Set(allStocked.map((x) => x.product_id)),
+    [allStocked]
+  );
+
+  // Table rows depend on the scope toggle. Products not stocked in the warehouse
+  // appear with quantity 0; stocked rows sort first.
+  const tableProducts = useMemo(() => {
+    const base =
+      stockScope === "all"
+        ? products
+        : products.filter((p) => stockedAnywhere.has(p.id) || getTotalQty(p.id) > 0);
+    return [...base].sort((a, b) => {
+      const ha = getTotalQty(a.id) > 0 ? 1 : 0;
+      const hb = getTotalQty(b.id) > 0 ? 1 : 0;
+      if (ha !== hb) return hb - ha; // stocked first
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [products, stockScope, stockedAnywhere, quantityMap]);
+
   // Apply filters
   const filteredProducts = useMemo(() => {
-    let result = productsWithStock;
+    let result = tableProducts;
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -380,7 +413,7 @@ export default function WarehouseHome() {
     }
 
     return result;
-  }, [productsWithStock, search, filters, quantityMap]);
+  }, [tableProducts, search, filters, quantityMap]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = useMemo(() => {
@@ -589,14 +622,32 @@ export default function WarehouseHome() {
           )}
         </button>
 
+        {/* Scope toggle: stocked-anywhere vs whole catalog */}
+        <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-1">
+          {[
+            { key: "in_stock", label: t("warehouseHome.scope.inStock") },
+            { key: "all", label: t("warehouseHome.scope.all") },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => { setStockScope(key); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                stockScope === key ? "bg-blue-600 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="text-sm text-neutral-500">
-          {filteredProducts.length === productsWithStock.length
+          {filteredProducts.length === tableProducts.length
             ? t("warehouseHome.list.countAll", {
                 count: filteredProducts.length.toLocaleString(),
               })
             : t("warehouseHome.list.countFiltered", {
                 count: filteredProducts.length.toLocaleString(),
-                total: productsWithStock.length.toLocaleString(),
+                total: tableProducts.length.toLocaleString(),
               })}
         </div>
       </div>

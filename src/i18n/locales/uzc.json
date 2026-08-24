@@ -66,6 +66,10 @@
     "searchPlaceholder": "Ном ёки SKU бўйича қидириш...",
     "productsCount": "{{count}} та маҳсулот",
     "productsCountOf": "{{filtered}} / {{total}}",
+    "scope": {
+      "inStock": "Сотувда",
+      "all": "Ҳаммаси"
+    },
     "stats": {
       "products": "Маҳсулотлар",
       "warehouses": "Омборлар",
@@ -577,6 +581,10 @@
       "meta": {
         "products": "{{count}} та маҳсулот",
         "productsOfTotal": "{{shown}} / {{total}}"
+      },
+      "scope": {
+        "inStock": "Сотувда",
+        "all": "Ҳаммаси"
       },
       "filters": {
         "button": "Фильтрлар",
@@ -1245,6 +1253,10 @@
       "countAll": "{{count}} та маҳсулот",
       "countFiltered": "{{count}} / {{total}} та"
     },
+    "scope": {
+      "inStock": "Сотувда",
+      "all": "Ҳаммаси"
+    },
     "errors": {
       "failedToLoad": "Маълумотларни юклаб бўлмади"
     },
@@ -1740,6 +1752,7 @@
         "sale": "Сотув",
         "sale_return": "Қайтариш",
         "loan": "Қарз",
+        "loanSold": "Қарз → Сотилди",
         "transfer": "Кўчириш",
         "request": "Филиал сўрови",
         "incoming": "Қабул",

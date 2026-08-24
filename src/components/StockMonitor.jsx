@@ -52,6 +52,7 @@ export default function StockMonitor() {
   const [userMap, setUserMap]   = useState({});    // user_id -> name
   const [search, setSearch]     = useState("");
   const [selectedPid, setSelectedPid] = useState(null);
+  const [loanInfo, setLoanInfo] = useState(() => new Map()); // "productId|ts(ms)" -> { sold }
 
   const reloadTimer = useRef(null);
 
@@ -160,6 +161,39 @@ export default function StockMonitor() {
         return q;
       });
       const movements = mv || [];
+
+      // Loan outcomes at this location. Match a loan movement to its loan tx by
+      // (product, timestamp) — the movement's ts equals the loan tx's created_at
+      // (same transaction). If the loan was closed by a "Loan sale", it was sold
+      // (stock never returned to available), so the ledger shows "Loan → Sold".
+      const [{ data: loans }, { data: loanSales }] = await Promise.all([
+        fetchAll(() =>
+          supabase
+            .from("transactions")
+            .select("id, created_at, location_id, transaction_items(product_id, source_location_id)")
+            .eq("type", "loan")
+            .eq("status", "committed")
+        ),
+        fetchAll(() =>
+          supabase
+            .from("transactions")
+            .select("parent_tx_id")
+            .eq("type", "sale")
+            .like("note", "Loan sale%")
+        ),
+      ]);
+      const soldLoanIds = new Set((loanSales || []).map((s) => s.parent_tx_id).filter(Boolean));
+      const loanMap = new Map();
+      (loans || []).forEach((loan) => {
+        const sold = soldLoanIds.has(loan.id);
+        const ms = new Date(loan.created_at).getTime();
+        (loan.transaction_items || []).forEach((it) => {
+          const loc = it.source_location_id || loan.location_id;
+          if (loc !== locationId) return; // only loans deducted at this location
+          loanMap.set(`${it.product_id}|${ms}`, { sold });
+        });
+      });
+      setLoanInfo(loanMap);
 
       // 4. Product names for everything referenced.
       const pids = new Set([
@@ -275,6 +309,19 @@ export default function StockMonitor() {
   const reasonLabel = (r) => t(`ownerAnalytics.monitor.reasons.${r}`, r);
   const fmtTs = (ts) => new Date(ts).toLocaleString();
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+  // Label + badge style for one movement. A loan (matched by product+timestamp)
+  // reads "Loan" — or "Loan → Sold" if that loan was closed by a sale.
+  const movementView = (m) => {
+    const loan = loanInfo.get(`${m.product_id}|${new Date(m.ts).getTime()}`);
+    if (loan) {
+      return {
+        label: loan.sold ? t("ownerAnalytics.monitor.reasons.loanSold") : reasonLabel("loan"),
+        style: REASON_STYLE.loan,
+      };
+    }
+    return { label: reasonLabel(m.reason), style: REASON_STYLE[m.reason] || REASON_STYLE.unknown };
+  };
 
   /* ── render ───────────────────────────────────────────────────────────── */
   return (
@@ -434,10 +481,11 @@ export default function StockMonitor() {
                 {/* operations, oldest → newest */}
                 {chrono.map((m) => {
                   const up = m.delta > 0;
+                  const mv = movementView(m);
                   return (
                     <TimelineRow key={m.id} dot={up ? "bg-emerald-500" : "bg-rose-500"}>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${REASON_STYLE[m.reason] || REASON_STYLE.unknown}`}>
-                        {reasonLabel(m.reason)}
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${mv.style}`}>
+                        {mv.label}
                       </span>
                       <span className={`inline-flex items-center gap-0.5 font-bold tabular-nums ${up ? "text-emerald-600" : "text-rose-600"}`}>
                         {up ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}

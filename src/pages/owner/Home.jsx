@@ -451,6 +451,7 @@ export default function OwnerHome() {
   const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
 
   const [products, setProducts] = useState([]);
+  const [stockScope, setStockScope] = useState("in_stock"); // "in_stock" = stocked in any location | "all" = whole catalog
   const [productList, setProductList] = useState([]);
   const [inDeliveryList, setInDeliveryList] = useState([]); // Items currently in delivery
   const [locations, setLocations] = useState([]);
@@ -629,9 +630,24 @@ export default function OwnerHome() {
     return inDeliveryMap.get(productId) || 0;
   };
 
+  // Table base set — depends on the scope toggle. "in_stock" = products with
+  // stock in any location; "all" = whole catalog. Stocked rows sort first.
+  const tableProducts = useMemo(() => {
+    const base =
+      stockScope === "all"
+        ? products
+        : products.filter((p) => getTotalQty(p.id) > 0);
+    return [...base].sort((a, b) => {
+      const ha = getTotalQty(a.id) > 0 ? 1 : 0;
+      const hb = getTotalQty(b.id) > 0 ? 1 : 0;
+      if (ha !== hb) return hb - ha; // stocked first
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [products, stockScope, quantityMap]);
+
   // Apply all filters
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = tableProducts;
 
     // Search filter
     if (search.trim()) {
@@ -688,7 +704,7 @@ export default function OwnerHome() {
     }
 
     return result;
-  }, [products, search, filters, quantityMap]);
+  }, [tableProducts, search, filters, quantityMap]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = useMemo(() => {
@@ -885,12 +901,30 @@ export default function OwnerHome() {
           )}
         </button>
 
+        {/* Scope toggle: stocked-anywhere vs whole catalog */}
+        <div className="inline-flex rounded-xl border border-neutral-200 bg-white p-1">
+          {[
+            { key: "in_stock", label: t("ownerHome.scope.inStock") },
+            { key: "all", label: t("ownerHome.scope.all") },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => { setStockScope(key); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                stockScope === key ? "bg-indigo-600 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="text-sm text-neutral-500">
-          {filteredProducts.length === products.length
+          {filteredProducts.length === tableProducts.length
             ? t("ownerHome.productsCount", { count: filteredProducts.length.toLocaleString() })
             : t("ownerHome.productsCountOf", {
                 filtered: filteredProducts.length.toLocaleString(),
-                total: products.length.toLocaleString(),
+                total: tableProducts.length.toLocaleString(),
               })}
         </div>
       </div>
