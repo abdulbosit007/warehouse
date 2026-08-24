@@ -66,6 +66,10 @@
     "searchPlaceholder": "Nom yoki SKU bo‘yicha qidirish...",
     "productsCount": "{{count}} ta mahsulot",
     "productsCountOf": "{{filtered}} / {{total}}",
+    "scope": {
+      "inStock": "Sotuvda",
+      "all": "Hammasi"
+    },
     "stats": {
       "products": "Mahsulotlar",
       "warehouses": "Omborlar",
@@ -578,6 +582,10 @@
       "meta": {
         "products": "{{count}} ta mahsulot",
         "productsOfTotal": "{{shown}} / {{total}}"
+      },
+      "scope": {
+        "inStock": "Sotuvda",
+        "all": "Hammasi"
       },
       "filters": {
         "button": "Filtrlar",
@@ -1246,6 +1254,10 @@
       "countAll": "{{count}} ta mahsulot",
       "countFiltered": "{{count}} / {{total}} ta"
     },
+    "scope": {
+      "inStock": "Sotuvda",
+      "all": "Hammasi"
+    },
     "errors": {
       "failedToLoad": "Ma’lumotlarni yuklab bo‘lmadi"
     },
@@ -1741,6 +1753,7 @@
         "sale": "Sotuv",
         "sale_return": "Qaytarish",
         "loan": "Qarz",
+        "loanSold": "Qarz → Sotildi",
         "transfer": "Ko‘chirish",
         "request": "Filial so‘rovi",
         "incoming": "Qabul",

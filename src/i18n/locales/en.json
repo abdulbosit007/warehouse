@@ -66,6 +66,10 @@
     "searchPlaceholder": "Search by name or SKU...",
     "productsCount": "{{count}} products",
     "productsCountOf": "{{filtered}} of {{total}}",
+    "scope": {
+      "inStock": "In stock",
+      "all": "All"
+    },
     "stats": {
       "products": "Products",
       "warehouses": "Warehouses",
@@ -580,6 +584,10 @@
       "meta": {
         "products": "{{count}} products",
         "productsOfTotal": "{{shown}} of {{total}}"
+      },
+      "scope": {
+        "inStock": "In stock",
+        "all": "All"
       },
       "filters": {
         "button": "Filters",
@@ -1248,6 +1256,10 @@
       "countAll": "{{count}} products",
       "countFiltered": "{{count}} of {{total}}"
     },
+    "scope": {
+      "inStock": "In stock",
+      "all": "All"
+    },
     "errors": {
       "failedToLoad": "Failed to load data"
     },
@@ -1743,6 +1755,7 @@
         "sale": "Sale",
         "sale_return": "Return",
         "loan": "Loan",
+        "loanSold": "Loan → Sold",
         "transfer": "Transfer",
         "request": "Branch request",
         "incoming": "Receiving",

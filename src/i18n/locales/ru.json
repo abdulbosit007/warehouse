@@ -66,6 +66,10 @@
     "searchPlaceholder": "Поиск по названию или SKU...",
     "productsCount": "{{count}} товаров",
     "productsCountOf": "{{filtered}} из {{total}}",
+    "scope": {
+      "inStock": "В наличии",
+      "all": "Все"
+    },
     "stats": {
       "products": "Товары",
       "warehouses": "Склады",
@@ -579,6 +583,10 @@
       "meta": {
         "products": "{{count}} товаров",
         "productsOfTotal": "{{shown}} из {{total}}"
+      },
+      "scope": {
+        "inStock": "В наличии",
+        "all": "Все"
       },
       "filters": {
         "button": "Фильтры",
@@ -1247,6 +1255,10 @@
       "countAll": "{{count}} товаров",
       "countFiltered": "{{count}} из {{total}}"
     },
+    "scope": {
+      "inStock": "В наличии",
+      "all": "Все"
+    },
     "errors": {
       "failedToLoad": "Не удалось загрузить данные"
     },
@@ -1742,6 +1754,7 @@
         "sale": "Продажа",
         "sale_return": "Возврат",
         "loan": "Долг",
+        "loanSold": "Долг → Продан",
         "transfer": "Перемещение",
         "request": "Заявка филиала",
         "incoming": "Приёмка",
