@@ -27,8 +27,8 @@ export default function SaleHistory({
   searchProductHistory,
   getFirstSaleYear,
   // Calendar dot data
-  readyDays = new Set(),
-  waitingDays = new Set(),
+  salesDays = new Set(),
+  pendingDays = new Set(),
   loadSaleMonthData,
 }) {
   const { t } = useTranslation();
@@ -410,9 +410,9 @@ export default function SaleHistory({
                     DayButton: ({ day, modifiers, ...buttonProps }) => {
                       const date = day.date;
                       const ds = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-                      // readyDays = ready-to-accept or rejected (red), waitingDays = waiting only (yellow) — mutually exclusive
-                      const isReady   = readyDays.has(ds);
-                      const isWaiting = waitingDays.has(ds);
+                      // salesDays = ready-to-accept or rejected (red), pendingDays = waiting only (yellow) — mutually exclusive
+                      const isReady   = salesDays.has(ds);
+                      const isWaiting = pendingDays.has(ds);
                       const dotColor  = isReady ? "#ef4444" : isWaiting ? "#eab308" : null;
                       return (
                         <button {...buttonProps} style={{ ...buttonProps.style, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
