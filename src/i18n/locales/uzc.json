@@ -840,7 +840,7 @@
       "apply": "Қўллаш"
     },
     "filter": {
-      "placeholder": "Ном ёки SKU бўйича филтрлаш..."
+      "placeholder": "Қидирув..."
     },
     "common": {
       "loading": "Юкланмоқда...",
@@ -1358,6 +1358,13 @@
       "status": "Ҳолат",
       "date": "Сана",
       "actions": "Амаллар"
+    },
+    "filter": {
+      "placeholder": "Қидирув..."
+    },
+    "purpose": {
+      "ondemand": "Буюртма бўйича",
+      "restock": "Тўлдириш"
     },
     "history": {
       "outgoing": "Чиқувчи",

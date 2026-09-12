@@ -1362,6 +1362,13 @@
       "date": "Date",
       "actions": "Actions"
     },
+    "filter": {
+      "placeholder": "Search..."
+    },
+    "purpose": {
+      "ondemand": "On-Demand",
+      "restock": "Restocking"
+    },
     "history": {
       "outgoing": "Outgoing",
       "incoming": "Incoming",

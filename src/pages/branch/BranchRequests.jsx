@@ -2189,7 +2189,7 @@ function HistoryTab({ location }) {
       const { data, error } = await supabase
         .from("branch_requests")
         .select(`
-        id, status, created_at, warehouse_decided_at, to_location_id,
+        id, status, created_at, warehouse_decided_at, purpose, to_location_id,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
@@ -2454,7 +2454,7 @@ function HistoryTab({ location }) {
                   <div className="flex items-center gap-3">
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                     <div className="text-left">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-neutral-900">
                           {direction === "outgoing" ? t("branchRequests.outgoing.columns.source") : t("branchRequests.incoming.columns.requester")}: {partner}
                         </p>
@@ -2462,6 +2462,16 @@ function HistoryTab({ location }) {
                           <StatusIcon className="w-3 h-3" />
                           {label}
                         </span>
+                        {(req.purpose === "sale" || req.purpose === "loan") && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
+                            {t("warehouseRequests.purpose.ondemand")}
+                          </span>
+                        )}
+                        {!req.purpose && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
+                            {t("warehouseRequests.purpose.restock")}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{req.items?.length || 0} {t("branchRequests.history.columns.products").toLowerCase()}</span>
