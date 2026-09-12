@@ -1360,6 +1360,13 @@
       "date": "Sana",
       "actions": "Amallar"
     },
+    "filter": {
+      "placeholder": "Qidiruv..."
+    },
+    "purpose": {
+      "ondemand": "Buyurtma bo'yicha",
+      "restock": "To'ldirish"
+    },
     "history": {
       "outgoing": "Chiquvchi",
       "incoming": "Kiruvchi",

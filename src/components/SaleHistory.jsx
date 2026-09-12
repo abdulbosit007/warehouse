@@ -631,7 +631,14 @@ export default function SaleHistory({
                                     <div key={`c-${item.id}`} className="flex items-center justify-between gap-3 rounded-lg bg-neutral-50 px-3 py-2">
                                       <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium text-neutral-800 truncate">{item.name}</p>
-                                        <p className="text-xs text-neutral-400 font-mono">{item.sku || "—"}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-xs text-neutral-400 font-mono">{item.sku || "—"}</p>
+                                          {item.source_location?.id && item.source_location.id !== branchLocationId && (
+                                            <span className="text-xs text-blue-600 flex items-center gap-1">
+                                              <Warehouse className="w-3 h-3" />{item.source_location.location_name}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                       <div className="flex items-center gap-3 shrink-0">
                                         <span className="text-sm font-bold text-emerald-600">{nf.format(item.qty)}</span>

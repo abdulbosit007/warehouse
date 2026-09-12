@@ -1542,7 +1542,10 @@ export default function BranchOperations() {
         .from("transactions")
         .select(
           `id, type, status, created_at, note,
-           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
+           transaction_items ( id, product_id, qty,
+             product:products ( name, sku ),
+             source_location:source_location_id ( id, location_name )
+           )`
         )
         .eq("type", "sale")
         .eq("status", "committed")
@@ -1569,6 +1572,7 @@ export default function BranchOperations() {
             qty: item.qty,
             returned: sums.total,
             remaining: Math.max(0, item.qty - sums.total),
+            source_location: item.source_location || null,
           };
         }),
       }));
@@ -1981,7 +1985,7 @@ export default function BranchOperations() {
       if (txId) {
         const { data: newTx } = await supabase
           .from("transactions")
-          .select("id, created_at, note, transaction_items(id, product_id, qty, product:products(name, sku))")
+          .select("id, created_at, note, transaction_items(id, product_id, qty, product:products(name, sku), source_location:source_location_id(id, location_name))")
           .eq("id", txId)
           .single();
         if (newTx) {
@@ -1997,6 +2001,7 @@ export default function BranchOperations() {
               qty: i.qty,
               returned: 0,
               remaining: i.qty,
+              source_location: i.source_location || null,
             })),
           };
         }

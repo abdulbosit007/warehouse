@@ -842,7 +842,7 @@
       "apply": "Применить"
     },
     "filter": {
-      "placeholder": "Фильтр по названию или SKU..."
+      "placeholder": "Поиск..."
     },
     "common": {
       "loading": "Загрузка...",
@@ -1360,6 +1360,13 @@
       "status": "Статус",
       "date": "Дата",
       "actions": "Действия"
+    },
+    "filter": {
+      "placeholder": "Поиск..."
+    },
+    "purpose": {
+      "ondemand": "По запросу",
+      "restock": "Пополнение"
     },
     "history": {
       "outgoing": "Исходящие",
