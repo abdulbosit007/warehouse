@@ -571,8 +571,14 @@ export default function SaleHistory({
                             it.status === "approved"
                           )
                         );
+                        // Red also = has rejected items needing resend or close
+                        const hasRejected = session.entries.some(e =>
+                          e.type === "pending" && (e.data.items || []).some(it =>
+                            it.status === "rejected"
+                          )
+                        );
                         // Orange = has pending items still waiting (none approved yet)
-                        const hasWaiting = !hasReadyToAccept && session.entries.some(e =>
+                        const hasWaiting = !hasReadyToAccept && !hasRejected && session.entries.some(e =>
                           e.type === "pending" && (e.data.items || []).some(it =>
                             it.status === "requested"
                           )
@@ -595,10 +601,10 @@ export default function SaleHistory({
                             >
                               <div className="flex items-center gap-2">
                                 {/* Dots — only shown when actionable */}
-                                {(hasReadyToAccept || hasWaiting) && (
+                                {(hasReadyToAccept || hasRejected || hasWaiting) && (
                                   <div className="flex gap-1 items-center">
-                                    {hasReadyToAccept && <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />}
-                                    {hasWaiting       && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0" />}
+                                    {(hasReadyToAccept || hasRejected) && <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />}
+                                    {hasWaiting && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0" />}
                                   </div>
                                 )}
                                 <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">{time}</span>
@@ -607,7 +613,7 @@ export default function SaleHistory({
                                     <Clock className="w-3 h-3" />{t("branchOperations.saleHistory.statusWaiting")}
                                   </span>
                                 )}
-                                {hasReadyToAccept && !hasWaiting && (
+                                {(hasReadyToAccept || hasRejected) && !hasWaiting && (
                                   <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500">
                                     <CheckCircle2 className="w-3 h-3" />{t("branchOperations.saleHistory.statusReady")}
                                   </span>
