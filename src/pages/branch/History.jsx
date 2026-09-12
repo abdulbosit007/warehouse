@@ -1631,19 +1631,19 @@ export default function BranchOperations() {
         .gte("created_at", startISO)
         .lt("created_at", endISO);
 
-      const readySet   = new Set(); // red  — has at least one item ready to accept
-      const waitingSet = new Set(); // orange — only waiting items, nothing ready
+      const readySet   = new Set(); // red  — has at least one item approved or rejected
+      const waitingSet = new Set(); // yellow — only waiting items, nothing ready or rejected
 
       for (const req of reqs || []) {
         const day = req.created_at.slice(0, 10);
         const active = (req.items || []).filter(it => it.status !== "fulfilled" && it.status !== "cancelled");
         if (!active.length) continue;
-        const isReady = active.some(it => it.status === "approved");
+        const isReady = active.some(it => it.status === "approved" || it.status === "rejected");
         if (isReady) readySet.add(day);
         else waitingSet.add(day);
       }
 
-      // A day with a ready request → red only (not orange too)
+      // A day with a ready/rejected request → red only (not yellow too)
       for (const day of readySet) waitingSet.delete(day);
 
       setSaleMonthDays({ sales: readySet, pending: waitingSet });
