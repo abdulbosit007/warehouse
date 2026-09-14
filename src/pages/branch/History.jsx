@@ -2064,16 +2064,31 @@ export default function BranchOperations() {
       g.items.push({ product_id: item.product_id, qty: item.qty });
       groups.set(item.parent_tx_id, g);
     }
-    for (const [parent_tx_id, g] of groups.entries()) {
-      const { error } = await supabase.rpc("fn_branch_commit_return", {
-        p: {
-          note: retNote || "Return",
-          return_kind: g.return_kind,
-          parent_tx_id,
-          items: g.items,
-        },
+
+    if (groups.size > 1) {
+      // Multiple parent transactions — use atomic multi-function so all-or-nothing
+      const kindSet = new Set([...groups.values()].map((g) => g.return_kind));
+      const returnKind = [...kindSet][0];
+      const transactions = [...groups.entries()].map(([parent_tx_id, g]) => ({
+        parent_tx_id,
+        items: g.items,
+      }));
+      const { error } = await supabase.rpc("fn_branch_commit_return_multi", {
+        p: { note: retNote || "Return", return_kind: returnKind, transactions },
       });
       if (error) throw error;
+    } else {
+      for (const [parent_tx_id, g] of groups.entries()) {
+        const { error } = await supabase.rpc("fn_branch_commit_return", {
+          p: {
+            note: retNote || "Return",
+            return_kind: g.return_kind,
+            parent_tx_id,
+            items: g.items,
+          },
+        });
+        if (error) throw error;
+      }
     }
 
     // 2. For non-current-branch destinations, initiate pending stock transfers.
@@ -2188,13 +2203,14 @@ export default function BranchOperations() {
               existing.original += original;
               existing.returned += retSum;
               existing.remaining += remaining;
-              // Keep track of all parent tx ids
               existing.parent_tx_ids.push(t.id);
+              existing.txBreakdown.push({ parent_tx_id: t.id, remaining });
             } else {
               grouped.set(gkey, {
                 key: gkey,
                 parent_tx_id: t.id,
                 parent_tx_ids: [t.id],
+                txBreakdown: [{ parent_tx_id: t.id, remaining }],
                 return_kind: "sale_return",
                 created_at: t.created_at,
                 type: t.type,
@@ -2394,14 +2410,32 @@ export default function BranchOperations() {
     if (returnMode === "date") {
       for (const [, val] of retSelect.entries()) {
         if (!val.qty || val.qty <= 0) continue;
-        items.push({
-          product_id: val.product_id,
-          name: val.name,
-          sku: val.sku || "",
-          qty: val.qty,
-          return_kind: val.return_kind,
-          parent_tx_id: val.parent_tx_id,
-        });
+        if (val.txBreakdown && val.txBreakdown.length > 1) {
+          let toReturn = val.qty;
+          for (const tx of val.txBreakdown) {
+            if (toReturn <= 0) break;
+            const allocate = Math.min(toReturn, tx.remaining);
+            if (allocate <= 0) continue;
+            items.push({
+              product_id: val.product_id,
+              name: val.name,
+              sku: val.sku || "",
+              qty: allocate,
+              return_kind: val.return_kind,
+              parent_tx_id: tx.parent_tx_id,
+            });
+            toReturn -= allocate;
+          }
+        } else {
+          items.push({
+            product_id: val.product_id,
+            name: val.name,
+            sku: val.sku || "",
+            qty: val.qty,
+            return_kind: val.return_kind,
+            parent_tx_id: val.parent_tx_id,
+          });
+        }
       }
     } else if (returnMode === "sku" && retSkuPicked) {
       items.push({
