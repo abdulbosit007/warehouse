@@ -600,6 +600,7 @@ function NewRequestTab({ t, location, showToast }) {
         .from("product_list")
         .select("location_id, quantity")
         .eq("product_id", selectedProduct.id)
+        .eq("status", "available")
         .neq("location_id", location.id);
 
       const stockMap = {};
