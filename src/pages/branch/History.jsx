@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 // lucide-react icons are used via child components (SaleSection, LoanSection, ReturnDestModal)
 import { useTranslation } from "react-i18next";
 
@@ -38,7 +39,8 @@ export default function BranchOperations() {
   const log = (step, data) => {
     // eslint-disable-next-line no-console
     console.log(`[dbg] ${step}`, data);
-    setLogs((prev) => [...prev, { t: new Date().toISOString(), step, data }]);
+    // keep the last 200: live refreshes log on every reload
+    setLogs((prev) => [...prev.slice(-199), { t: new Date().toISOString(), step, data }]);
   };
   const tic = (k) => (t0.current[k] = performance.now());
   const toc = (k) =>
@@ -158,6 +160,10 @@ export default function BranchOperations() {
   const [pendingSaleTransfers, setPendingSaleTransfers] = useState(0);
   // calendar dot data: which days have sales / pending requests
   const [saleMonthDays, setSaleMonthDays] = useState({ sales: new Set(), pending: new Set() });
+  const saleMonthRef = useRef(new Date()); // month the sale calendar shows (for live refresh)
+  // latest-call-wins: an older day's load must not overwrite a newer one
+  const saleHistoryReq = useRef(0);
+  const loanHistoryReq = useRef(0);
 
   // loan pending requests (approved by warehouse, waiting for branch to create loan)
   const [loanPendingRequests, setLoanPendingRequests] = useState([]);
@@ -377,105 +383,44 @@ export default function BranchOperations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBranch, locationName]);
 
-  /* ── Loan pending: real-time subscription ─────────────────────────────── */
-  useEffect(() => {
-    if (!isBranch || !locationName) return;
-    let channel;
-    (async () => {
-      try {
-        const loc = await getBranchLocation();
-        // Covers both loan AND sale transfer requests: when the source location
-        // approves/rejects, refresh this branch's pending loan + sale lists.
-        const refreshPending = () => {
-          loadLoanPendingRequests();
-          loadPendingSaleTransfers();
-        };
-        channel = supabase
-          .channel(`req-pending-${loc.id}`)
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "branch_requests",
-              filter: `to_location_id=eq.${loc.id}` },
-            refreshPending
-          )
-          .on(
-            "postgres_changes",
-            { event: "UPDATE", schema: "public", table: "branch_request_items" },
-            refreshPending
-          )
-          .subscribe();
-      } catch {
-        // non-critical — loan pending will still load on manual refresh
-      }
-    })();
-    return () => { if (channel) supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBranch, locationName]);
+  /* ----------------------------- LIVE UPDATES ----------------------------- */
+  const liveEnabled = isBranch && !!locationName;
 
-  /* -------------------- REALTIME SUBSCRIPTION + POLLING ------------------- */
-  useEffect(() => {
-    if (!isBranch || !locationName) return;
+  // Sale / loan transfer requests: the source location approves or rejects them.
+  useLiveRefresh(
+    ["branch_requests", "branch_request_items"],
+    () =>
+      Promise.all([
+        loadLoanPendingRequests(),
+        loadPendingSaleTransfers(),
+        tab === "sale" && loadSaleHistory(saleHistoryDay || new Date(), { silent: true }),
+        tab === "sale" && loadSaleMonthData(saleMonthRef.current),
+      ]),
+    { enabled: liveEnabled }
+  );
 
-    let channel;
-    let pollingInterval;
-    let realtimeActive = false;
+  // Stock anywhere: the catalog shows every location's stock and caps cart quantities.
+  // (1s grouping: sales at any branch trigger this.)
+  useLiveRefresh(["product_list"], () => refreshCatalog({ silent: true }), {
+    enabled: liveEnabled,
+    delay: 1000,
+  });
 
-    (async () => {
-      try {
-        const loc = await getBranchLocation();
-
-        // Try Supabase Realtime subscription on product_list
-        channel = supabase
-          .channel(`product-list-${loc.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*", // INSERT, UPDATE, DELETE
-              schema: "public",
-              table: "product_list",
-              filter: `location_id=eq.${loc.id}`,
-            },
-            (_payload) => {
-              // Any change → silently refresh catalog
-              log("realtime product_list change", _payload.eventType);
-              refreshCatalog({ silent: true });
-            }
-          )
-          .subscribe((status) => {
-            log("realtime status", status);
-            if (status === "SUBSCRIBED") {
-              realtimeActive = true;
-              // If Realtime works, clear polling fallback
-              if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-              }
-            }
-          });
-
-        // Polling fallback: refresh every 30s in case Realtime isn't enabled
-        pollingInterval = setInterval(() => {
-          if (!realtimeActive) {
-            refreshCatalog({ silent: true });
-          }
-        }, 30_000);
-      } catch (e) {
-        log("realtime setup error", e.message || String(e));
-        // If Realtime setup fails, ensure polling is running
-        if (!pollingInterval) {
-          pollingInterval = setInterval(() => {
-            refreshCatalog({ silent: true });
-          }, 30_000);
-        }
-      }
-    })();
-
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-      if (pollingInterval) clearInterval(pollingInterval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBranch, locationName, refreshCatalog]);
+  // Sales, returns and loans of this branch recorded on another device.
+  useLiveRefresh(
+    ["transactions"],
+    () =>
+      tab === "sale"
+        ? loadSaleHistory(saleHistoryDay || new Date(), { silent: true })
+        : Promise.all([
+            loadActiveLoans({ silent: true }),
+            loadLoanHistory(loanHistoryDay || new Date(), { silent: true }),
+          ]),
+    {
+      enabled: liveEnabled && !!branchLocationId,
+      match: (c) => (c.new?.location_id ?? branchLocationId) === branchLocationId,
+    }
+  );
 
   /* -------- fetch returned sums for parent transactions (for caps/badges) --- */
   // Map parent_tx_id -> Map product_id -> { total, returned, sold }
@@ -1236,10 +1181,10 @@ export default function BranchOperations() {
   };
 
   /* ------------------------- ACTIVE LOANS ------------------------------ */
-  async function loadActiveLoans() {
-    setActiveLoansLoading(true);
+  async function loadActiveLoans({ silent = false } = {}) {
+    if (!silent) setActiveLoansLoading(true);
     try {
-      setErr("");
+      if (!silent) setErr("");
       const loc = await getBranchLocation();
       const sinceISO = oneYearAgoISO();
 
@@ -1296,10 +1241,11 @@ export default function BranchOperations() {
       console.log("Active loans with notes:", loans.map(l => ({ id: l.id, borrower: l.borrower_name, note: l.note }))); // DEBUG
       setActiveLoans(loans);
     } catch (e) {
+      if (silent) return; // keep what is on screen
       setErr(e.message || String(e));
       setActiveLoans([]);
     } finally {
-      setActiveLoansLoading(false);
+      if (!silent) setActiveLoansLoading(false);
     }
   }
 
@@ -1333,10 +1279,11 @@ export default function BranchOperations() {
     }
   }
 
-  async function loadLoanHistory(day) {
-    setLoanHistoryLoading(true);
+  async function loadLoanHistory(day, { silent = false } = {}) {
+    const req = ++loanHistoryReq.current;
+    if (!silent) setLoanHistoryLoading(true);
     try {
-      setErr("");
+      if (!silent) setErr("");
       const loc = await getBranchLocation();
       const startISO = startOfDayUTC(day);
       const endISO = nextDayUTC(day);
@@ -1357,6 +1304,7 @@ export default function BranchOperations() {
 
       const parentIds = (txs || []).map((t) => t.id);
       const returnedMap = await fetchReturnedSums(parentIds);
+      if (req !== loanHistoryReq.current) return; // a newer load (e.g. another day) is running
 
       const history = (txs || []).map((tx) => ({
         id: tx.id,
@@ -1383,10 +1331,12 @@ export default function BranchOperations() {
 
       setLoanHistory(history);
     } catch (e) {
+      if (silent || req !== loanHistoryReq.current) return; // keep what is on screen
       setErr(e.message || String(e));
       setLoanHistory([]);
     } finally {
-      setLoanHistoryLoading(false);
+      // the newest call ends the spinner (a quiet one may have replaced a normal one)
+      if (req === loanHistoryReq.current) setLoanHistoryLoading(false);
     }
   }
 
@@ -1436,36 +1386,12 @@ export default function BranchOperations() {
       );
       if (approvedItems.length === 0) throw new Error("No approved items to accept");
 
-      // Parse borrower info stored in the request note
-      let meta = {};
-      try { meta = JSON.parse(req.note || "{}"); } catch { meta = {}; }
-
-      const sourceName = approvedItems[0]?.source_location?.location_name || "external location";
-
-      const payload = {
-        borrower_name:     meta.borrower_name     || "",
-        borrower_phone:    meta.borrower_phone     || null,
-        borrower_store_no: meta.borrower_store_no  || null,
-        due_date:          meta.due_date            || null,
-        note: `Loan transfer accepted from ${sourceName}${meta.tx_note ? " — " + meta.tx_note : ""}`,
-        created_at: req.created_at,
-        // All approved items go into ONE transaction
-        items: approvedItems.map((item) => ({
-          product_id:         item.product?.id,
-          qty:                item.approved_qty ?? item.requested_qty,
-          source_location_id: item.source_location?.id,
-        })),
-      };
-
-      const { error: loanErr } = await supabase.rpc("fn_branch_accept_loan_transfer", { p: payload });
+      // Atomic in DB: checks the items are still approved, records ONE loan with the
+      // borrower details stored in the request, uses up in_transit, marks items fulfilled.
+      const { error: loanErr } = await supabase.rpc("fn_branch_accept_loan_request", {
+        p_request_id: req.id,
+      });
       if (loanErr) throw loanErr;
-
-      // Mark all accepted items as fulfilled
-      const { error: itemErr } = await supabase
-        .from("branch_request_items")
-        .update({ status: "fulfilled" })
-        .in("id", approvedItems.map((i) => i.id));
-      if (itemErr) throw itemErr;
 
       // Close the request when all items are done (fulfilled OR rejected/cancelled)
       const { data: remaining } = await supabase
@@ -1492,6 +1418,9 @@ export default function BranchOperations() {
       await refreshCatalog({ silent: true });
     } catch (e) {
       setErr(e.message || String(e));
+      // It may have been accepted or reverted elsewhere: show the real state.
+      loadLoanPendingRequests();
+      loadActiveLoans();
     }
   }
 
@@ -1527,10 +1456,11 @@ export default function BranchOperations() {
     }
   }
 
-  async function loadSaleHistory(day) {
-    setSaleHistoryLoading(true);
+  async function loadSaleHistory(day, { silent = false } = {}) {
+    const req = ++saleHistoryReq.current;
+    if (!silent) setSaleHistoryLoading(true);
     try {
-      setErr("");
+      if (!silent) setErr("");
       const loc = await getBranchLocation();
       const startISO = startOfDayUTC(day);
       const endISO = nextDayUTC(day);
@@ -1576,7 +1506,6 @@ export default function BranchOperations() {
           };
         }),
       }));
-      setSaleHistory(history);
 
       // Sale-purpose branch requests created on this day (any status)
       const { data: reqs, error: reqErr } = await supabase
@@ -1599,18 +1528,24 @@ export default function BranchOperations() {
         .lt("created_at", endISO)
         .order("created_at", { ascending: false });
       if (reqErr) throw reqErr;
+
+      if (req !== saleHistoryReq.current) return; // a newer load (e.g. another day) is running
+      setSaleHistory(history);
       setSalePendingRequests(reqs || []);
 
     } catch (e) {
+      if (silent || req !== saleHistoryReq.current) return; // keep what is on screen
       setErr(e.message || String(e));
       setSaleHistory([]);
       setSalePendingRequests([]);
     } finally {
-      setSaleHistoryLoading(false);
+      // the newest call ends the spinner (a quiet one may have replaced a normal one)
+      if (req === saleHistoryReq.current) setSaleHistoryLoading(false);
     }
   }
 
   async function loadSaleMonthData(month) {
+    saleMonthRef.current = month;
     try {
       const loc = await getBranchLocation();
       const y = month.getFullYear();
@@ -1646,6 +1581,7 @@ export default function BranchOperations() {
       // A day with a ready/rejected request → red only (not yellow too)
       for (const day of readySet) waitingSet.delete(day);
 
+      if (month !== saleMonthRef.current) return; // the calendar moved to another month meanwhile
       setSaleMonthDays({ sales: readySet, pending: waitingSet });
     } catch { /* ignore — dots are cosmetic */ }
   }
@@ -1744,6 +1680,7 @@ export default function BranchOperations() {
           await refreshCatalog({ silent: true });
         } catch (e) {
           setErr(e.message || String(e));
+          throw e; // lets the dialog re-enable Confirm; nothing was saved, so a retry is safe
         }
       },
     });
@@ -1948,32 +1885,21 @@ export default function BranchOperations() {
     }
   }
 
-  async function acceptTransferRequest(req, item, qty) {
+  async function acceptTransferRequest(req, item) {
     try {
       setErr("");
-      const acceptQty = qty ?? item.approved_qty ?? item.requested_qty;
-      if (!acceptQty || acceptQty <= 0) throw new Error("Invalid quantity");
-
+      // For the on-screen update only; the database uses the request's own quantity.
+      const acceptQty = item.approved_qty ?? item.requested_qty;
       const productId = item.product?.id;
 
-      // 1. Record as an official sale WITHOUT stock deduction, dated to the
-      //    original request's day (so a resent/accepted line keeps that date).
-      const payload = {
-        note: `Transfer accepted from ${item.source_location?.location_name || "external location"}`,
-        created_at: req.created_at,
-        items: [{ product_id: productId, qty: acceptQty, source_location_id: item.source_location?.id }],
-      };
-      const { data: txId, error: saleErr } = await supabase.rpc("fn_branch_accept_transfer", { p: payload });
+      // 1. Atomic in DB: checks the item is still approved, records the sale (dated to the
+      //    request's day, no stock deduction), uses up in_transit, marks the item fulfilled.
+      const { data: txId, error: saleErr } = await supabase.rpc("fn_branch_accept_sale_item", {
+        p_item_id: item.id,
+      });
       if (saleErr) throw saleErr;
 
-      // 2. Mark this request item as fulfilled
-      const { error: itemErr } = await supabase
-        .from("branch_request_items")
-        .update({ status: "fulfilled" })
-        .eq("id", item.id);
-      if (itemErr) throw itemErr;
-
-      // 3. If all items in the request are now fulfilled, close the request
+      // 2. If all items in the request are now fulfilled, close the request
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id")
@@ -1983,7 +1909,7 @@ export default function BranchOperations() {
         await supabase.from("branch_requests").update({ status: "closed" }).eq("id", req.id);
       }
 
-      // 4. Remove accepted item from pending list (local state — no reload)
+      // 3. Remove accepted item from pending list (local state — no reload)
       setSalePendingRequests(prev =>
         prev.map(r => {
           if (r.id !== req.id) return r;
@@ -1993,7 +1919,7 @@ export default function BranchOperations() {
         }).filter(Boolean)
       );
 
-      // 5. Fetch just the new transaction (single row) to get real IDs for returns
+      // 4. Fetch just the new transaction (single row) to get real IDs for returns
       let newEntry = null;
       if (txId) {
         const { data: newTx } = await supabase
@@ -2020,7 +1946,7 @@ export default function BranchOperations() {
         }
       }
 
-      // 6. Merge into sale history local state — add qty if same product exists, else prepend
+      // 5. Merge into sale history local state — add qty if same product exists, else prepend
       setSaleHistory(prev => {
         let merged = false;
         const updated = prev.map(tx => {
@@ -2042,7 +1968,7 @@ export default function BranchOperations() {
         const fallback = newEntry || {
           id: `pending-${Date.now()}`,
           created_at: new Date().toISOString(),
-          note: payload.note,
+          note: `Transfer accepted from ${item.source_location?.location_name || "external location"}`,
           items: [{
             id: `pending-item-${Date.now()}`,
             product_id: productId,
@@ -2061,6 +1987,9 @@ export default function BranchOperations() {
       loadPendingSaleTransfers();
     } catch (e) {
       setErr(e.message || String(e));
+      // It may have been accepted or reverted elsewhere: show the real state.
+      loadSaleHistory(saleHistoryDay || new Date());
+      loadPendingSaleTransfers();
     }
   }
 
@@ -2068,73 +1997,45 @@ export default function BranchOperations() {
   async function processReturnWithDestinations(items, destinations, retNote) {
     const loc = await getBranchLocation();
 
-    // 1. Commit ALL returned qty.
-    //    fn_branch_commit_return records the transaction AND adds the full
-    //    returned qty to this branch's product_list (available) in one shot.
-    const groups = new Map(); // parent_tx_id -> { return_kind, items }
+    // Returned qty per parent sale/loan
+    const byParent = new Map(); // parent_tx_id -> [{ product_id, qty }]
     for (const item of items) {
-      const g = groups.get(item.parent_tx_id) || { return_kind: item.return_kind, items: [] };
-      g.items.push({ product_id: item.product_id, qty: item.qty });
-      groups.set(item.parent_tx_id, g);
+      const list = byParent.get(item.parent_tx_id) || [];
+      list.push({ product_id: item.product_id, qty: item.qty });
+      byParent.set(item.parent_tx_id, list);
     }
 
-    if (groups.size > 1) {
-      // Multiple parent transactions — use atomic multi-function so all-or-nothing
-      const kindSet = new Set([...groups.values()].map((g) => g.return_kind));
-      const returnKind = [...kindSet][0];
-      const transactions = [...groups.entries()].map(([parent_tx_id, g]) => ({
-        parent_tx_id,
-        items: g.items,
-      }));
-      const { error } = await supabase.rpc("fn_branch_commit_return_multi", {
-        p: { note: retNote || "Return", return_kind: returnKind, transactions },
-      });
-      if (error) throw error;
-    } else {
-      for (const [parent_tx_id, g] of groups.entries()) {
-        const { error } = await supabase.rpc("fn_branch_commit_return", {
-          p: {
-            note: retNote || "Return",
-            return_kind: g.return_kind,
-            parent_tx_id,
-            items: g.items,
-          },
-        });
-        if (error) throw error;
-      }
-    }
-
-    // 2. For non-current-branch destinations, initiate pending stock transfers.
-    //    fn_initiate_transfer:
-    //      • Deducts the transfer qty from this branch's product_list immediately
-    //        (net: only the qty going to current branch stays here)
-    //      • Creates a pending stock_transfer — the "in transit" state
-    //    fn_accept_transfer (called by destination):
-    //      • Adds qty to destination's product_list
-    //    fn_reject_transfer (called by destination):
-    //      • Restores qty back to this branch's product_list
-    const transfersByDest = new Map(); // to_location_id -> [{product_id, qty}]
-    for (const item of items) {
-      const dests = destinations.get(item.product_id) || [];
-      for (const dest of dests) {
+    // Part sent on to other locations. Destinations are per product, and one product
+    // can span several parent sales, so read them once per product.
+    const transfersByDest = new Map(); // to_location_id -> [{ product_id, qty }]
+    for (const productId of new Set(items.map((i) => i.product_id))) {
+      for (const dest of destinations.get(productId) || []) {
         if (dest.location_id !== loc.id && dest.qty > 0) {
-          const arr = transfersByDest.get(dest.location_id) || [];
-          arr.push({ product_id: item.product_id, qty: dest.qty });
-          transfersByDest.set(dest.location_id, arr);
+          const list = transfersByDest.get(dest.location_id) || [];
+          list.push({ product_id: productId, qty: dest.qty });
+          transfersByDest.set(dest.location_id, list);
         }
       }
     }
-    for (const [to_location_id, transferItems] of transfersByDest.entries()) {
-      const { error } = await supabase.rpc("fn_initiate_transfer", {
-        p: {
-          from_location_id: loc.id,
+
+    // One database transaction: the return and the transfers are saved together or
+    // not at all, so retrying after an error can't save the return twice.
+    const { error } = await supabase.rpc("fn_branch_return_and_transfer", {
+      p: {
+        note: retNote || "Return",
+        return_kind: items[0]?.return_kind,
+        transactions: [...byParent.entries()].map(([parent_tx_id, list]) => ({
+          parent_tx_id,
+          items: list,
+        })),
+        transfers: [...transfersByDest.entries()].map(([to_location_id, list]) => ({
           to_location_id,
           note: retNote ? `Return: ${retNote}` : "Returned goods transfer",
-          items: transferItems,
-        },
-      });
-      if (error) throw error;
-    }
+          items: list,
+        })),
+      },
+    });
+    if (error) throw error;
   }
 
   async function commitSaleReturn(sale, item, qty, destinations, retNote) {

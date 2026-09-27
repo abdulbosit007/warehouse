@@ -26,6 +26,7 @@ window.supabase = supabase;
  * Automatically paginates in batches of 1,000.
  *
  * @param {() => object} queryFn – a function that returns a fresh Supabase query builder
+ * @param {{orderBy?: string}} [opts] – unique column used as the final sort tiebreaker (default "id")
  * @returns {Promise<{data: any[], error: any}>}
  *
  * Usage:
@@ -33,13 +34,17 @@ window.supabase = supabase;
  *     supabase.from("products").select("id, name").order("name")
  *   );
  */
-export async function fetchAll(queryFn) {
+export async function fetchAll(queryFn, { orderBy = "id" } = {}) {
   const PAGE = 1000;
   let allData = [];
   let from = 0;
 
   while (true) {
-    const { data, error } = await queryFn().range(from, from + PAGE - 1);
+    // Pages are separate requests; without a unique sort, rows updated between
+    // requests shift position and get skipped or duplicated.
+    const { data, error } = await queryFn()
+      .order(orderBy, { ascending: true })
+      .range(from, from + PAGE - 1);
     if (error) return { data: null, error };
     allData = allData.concat(data || []);
     if (!data || data.length < PAGE) break;

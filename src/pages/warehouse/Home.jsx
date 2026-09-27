@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
 import {
@@ -216,37 +217,25 @@ export default function WarehouseHome() {
   useEffect(() => {
     if (authLoading || authError || roleBase !== "warehouse") return;
     loadData();
-
-    // Live updates: refresh the table in place (no spinner), but ONLY when the
-    // changed product_list row belongs to one of this user's warehouse locations.
-    let t;
-    const reload = () => {
-      clearTimeout(t);
-      t = setTimeout(() => loadData({ silent: true }), 400);
-    };
-    const ch = supabase
-      .channel("warehouse-home-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "product_list" },
-        (payload) => {
-          const loc = payload.new?.location_id || payload.old?.location_id;
-          if (loc && warehouseIdsRef.current.includes(loc)) reload();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(t);
-      supabase.removeChannel(ch);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, userLocationId, isSuperWarehouse]);
 
+  // Live: refresh the table in place (no spinner), but ONLY when the changed
+  // product_list row belongs to one of this user's warehouse locations.
+  useLiveRefresh(["product_list"], () => loadData({ silent: true }), {
+    enabled: !authLoading && !authError && roleBase === "warehouse",
+    match: (c) => {
+      const loc = c.new?.location_id || c.old?.location_id;
+      return !loc || warehouseIdsRef.current.includes(loc); // unknown (delete) -> reload
+    },
+  });
+
   async function loadData({ silent = false } = {}) {
     // silent = refresh the table data in place (no full-page spinner).
-    if (!silent) setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       // Fetch warehouse locations - super user sees all, regular user sees only their assigned location
@@ -316,10 +305,12 @@ export default function WarehouseHome() {
       setProductList(listRes.data || []);
       setAllStocked(allStockedRes.data || []);
       setCategories(categoriesRes.data || []);
+      setError(null);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Error loading data:", err);
-      setError(err.message || t("warehouseHome.errors.failedToLoad"));
+      // a failed quiet refresh keeps the table on screen
+      if (!silent) setError(err.message || t("warehouseHome.errors.failedToLoad"));
     } finally {
       if (!silent) setLoading(false);
     }

@@ -7,9 +7,10 @@
 // scoped to the 'available' bucket so it reconciles to the audit baseline with
 // no double-counting.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase, fetchAll } from "../lib/supabaseClient";
+import useLiveRefresh from "../hooks/useLiveRefresh";
 import CustomSelect from "./CustomSelect";
 import {
   Boxes, AlertTriangle, ArrowUpRight, ArrowDownRight, Search, RefreshCw,
@@ -54,8 +55,6 @@ export default function StockMonitor() {
   const [selectedPid, setSelectedPid] = useState(null);
   const [loanInfo, setLoanInfo] = useState(() => new Map()); // "productId|ts(ms)" -> { sold }
 
-  const reloadTimer = useRef(null);
-
   /* ── locations + users (once) ─────────────────────────────────────────── */
   useEffect(() => {
     (async () => {
@@ -67,7 +66,10 @@ export default function StockMonitor() {
       setLocations(list);
       if (list.length && !locationId) setLocationId(list[0].id);
 
-      const { data: users } = await fetchAll(() => supabase.from("users_list").select("user_id, name"));
+      const { data: users } = await fetchAll(
+        () => supabase.from("users_list").select("user_id, name"),
+        { orderBy: "user_id" }
+      );
       const um = {};
       (users || []).forEach((u) => { um[u.user_id] = u.name; });
       setUserMap(um);
@@ -278,23 +280,12 @@ export default function StockMonitor() {
     setSelectedPid((prev) => (prev && rows.some((r) => r.pid === prev) ? prev : rows[0].pid));
   }, [rows]);
 
-  /* ── realtime: silent refresh on new movements at this location ───────── */
-  useEffect(() => {
-    if (!locationId) return;
-    const ch = supabase
-      .channel(`stock-monitor-${locationId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "stock_movements", filter: `location_id=eq.${locationId}` },
-        () => {
-          clearTimeout(reloadTimer.current);
-          reloadTimer.current = setTimeout(() => loadData(true), 600);
-        }
-      )
-      .subscribe();
-    return () => { clearTimeout(reloadTimer.current); supabase.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationId, anchor?.ts]);
+  /* ── live: silent refresh on new movements at this location ───────────── */
+  useLiveRefresh(["stock_movements"], () => loadData(true), {
+    enabled: !!locationId,
+    match: (c) => c.eventType === "INSERT" && c.new?.location_id === locationId,
+    delay: 600,
+  });
 
   /* ── derived ──────────────────────────────────────────────────────────── */
   const filtered = useMemo(() => {

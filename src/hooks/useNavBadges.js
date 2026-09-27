@@ -1,8 +1,16 @@
 // src/hooks/useNavBadges.js
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
+import useLiveRefresh from "./useLiveRefresh";
 
 const POLL_INTERVAL = 60_000; // 60s fallback
+
+// Tables whose changes can change each role's badge counts
+const LIVE_TABLES = {
+  warehouse: ["incoming_batch_items", "branch_requests", "branch_request_items"],
+  branch: ["branch_requests", "branch_request_items"],
+  owner: ["inventory_corrections"],
+};
 
 /**
  * Fetches notification badge counts for navigation items.
@@ -262,17 +270,17 @@ export default function useNavBadges({ roleBase, locationId, isSuperWarehouse } 
     }
   }, []);
 
-  // ── Main effect: fetch + subscribe + poll ──
+  const fetchFn =
+    roleBase === "warehouse" ? fetchWarehouseBadges
+    : roleBase === "branch" ? fetchBranchBadges
+    : roleBase === "owner" ? fetchOwnerBadges
+    : null;
+
+  // ── Main effect: fetch + poll ──
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!roleBase) return;
-
-    let fetchFn;
-    if (roleBase === "warehouse") fetchFn = fetchWarehouseBadges;
-    else if (roleBase === "branch") fetchFn = fetchBranchBadges;
-    else if (roleBase === "owner") fetchFn = fetchOwnerBadges;
-    else return;
+    if (!fetchFn) return;
 
     // Initial fetch
     fetchFn();
@@ -284,78 +292,15 @@ export default function useNavBadges({ roleBase, locationId, isSuperWarehouse } 
     const handleRefresh = () => fetchFn();
     window.addEventListener("nav-badges-refresh", handleRefresh);
 
-    // Real-time subscriptions
-    const channels = [];
-
-    if (roleBase === "warehouse") {
-      // Listen for incoming batch item changes
-      channels.push(
-        supabase
-          .channel("nav-badge-incoming")
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "incoming_batch_items" },
-            () => fetchFn()
-          )
-          .subscribe()
-      );
-
-      // Listen for branch request changes
-      channels.push(
-        supabase
-          .channel("nav-badge-branch-req-wh")
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "branch_requests" },
-            () => fetchFn()
-          )
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "branch_request_items" },
-            () => fetchFn()
-          )
-          .subscribe()
-      );
-    }
-
-    if (roleBase === "branch") {
-      channels.push(
-        supabase
-          .channel("nav-badge-branch-req")
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "branch_requests" },
-            () => fetchFn()
-          )
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "branch_request_items" },
-            () => fetchFn()
-          )
-          .subscribe()
-      );
-    }
-
-    if (roleBase === "owner") {
-      channels.push(
-        supabase
-          .channel("nav-badge-corrections")
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "inventory_corrections" },
-            () => fetchFn()
-          )
-          .subscribe()
-      );
-    }
-
     return () => {
       mountedRef.current = false;
       clearInterval(interval);
       window.removeEventListener("nav-badges-refresh", handleRefresh);
-      channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [roleBase, fetchWarehouseBadges, fetchBranchBadges, fetchOwnerBadges]);
+  }, [fetchFn]);
+
+  // Live: recount when the data behind the badges changes
+  useLiveRefresh(LIVE_TABLES[roleBase] || [], () => fetchFn?.(), { enabled: !!fetchFn });
 
   return badges;
 }

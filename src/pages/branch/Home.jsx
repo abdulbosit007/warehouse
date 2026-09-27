@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
 import {
@@ -199,35 +200,24 @@ export default function BranchHome() {
       return;
     }
     loadData();
-
-    // Live updates: refresh the table in place (no spinner) when stock changes.
-    // A sale/loan/return/receipt at any location mutates product_list.
-    let t;
-    const reload = () => {
-      clearTimeout(t);
-      t = setTimeout(() => loadData({ silent: true }), 400);
-    };
-    const ch = supabase
-      .channel(`branch-home-live-${locationId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "product_list",
-          filter: `location_id=eq.${locationId}` },
-        reload
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(t);
-      supabase.removeChannel(ch);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, locationId]);
 
+  // Live: refresh the table in place (no spinner) when this branch's stock changes.
+  useLiveRefresh(["product_list"], () => loadData({ silent: true }), {
+    enabled: !authLoading && !authError && roleBase === "branch" && !!locationId,
+    match: (c) => {
+      const loc = c.new?.location_id || c.old?.location_id;
+      return !loc || loc === locationId; // unknown (delete) -> reload
+    },
+  });
+
   async function loadData({ silent = false } = {}) {
     // silent = refresh the table data in place (no full-page spinner).
-    if (!silent) setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const [productsRes, listRes, allListRes, categoriesRes] = await Promise.all([
@@ -266,9 +256,11 @@ export default function BranchHome() {
       setProductList(listRes.data || []);
       setAllProductList(allListRes.data || []);
       setCategories(categoriesRes.data || []);
+      setError(null);
     } catch (err) {
       console.error("Error loading data:", err);
-      setError(err.message || t("branch1.home.errors.loadFailed"));
+      // a failed quiet refresh keeps the table on screen
+      if (!silent) setError(err.message || t("branch1.home.errors.loadFailed"));
     } finally {
       if (!silent) setLoading(false);
     }
