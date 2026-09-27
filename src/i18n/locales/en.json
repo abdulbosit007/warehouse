@@ -829,7 +829,8 @@
       "approveFail": "Failed to approve request",
       "rejectInfo": "Request rejected",
       "confirmReceiptSuccess": "Items received! Inventory updated.",
-      "confirmReceiptFail": "Failed to confirm receipt"
+      "confirmReceiptFail": "Failed to confirm receipt",
+      "alreadyProcessed": "This item was already processed. The list has been refreshed."
     },
     "modeToggle": {
       "requests": "Branch Requests",
@@ -1330,7 +1331,9 @@
       "approvedFail": "Failed to approve",
       "rejected": "Request rejected",
       "receivedOk": "Items received! Inventory updated.",
-      "receivedFail": "Failed to confirm receipt"
+      "receivedFail": "Failed to confirm receipt",
+      "cancelFail": "Failed to cancel request",
+      "alreadyProcessed": "This item was already processed. The list has been refreshed."
     },
     "new": {
       "searchTitle": "Search Products",

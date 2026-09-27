@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   Package,
@@ -480,41 +481,23 @@ export default function OwnerHome() {
   useEffect(() => {
     if (authLoading || authError || roleBase !== "owner") return;
     loadData();
-
-    // Live updates: reload (debounced) when stock or in-delivery data changes.
-    // A sale/loan/return/approval all mutate product_list; the in-delivery
-    // figures come from branch_request_items + stock_transfer_items.
-    let t;
-    const reload = () => {
-      clearTimeout(t);
-      t = setTimeout(() => loadData({ silent: true }), 400);
-    };
-    // TEMP diagnostic: logs every realtime event that actually arrives.
-    const onEvent = (payload) => {
-      console.log("[owner-home event]", payload?.table, payload?.eventType, payload);
-      reload();
-    };
-    const ch = supabase
-      .channel("owner-home-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_list" }, onEvent)
-      .on("postgres_changes", { event: "*", schema: "public", table: "branch_request_items" }, onEvent)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, onEvent)
-      .subscribe((status, err) => {
-        // TEMP diagnostic: shows SUBSCRIBED vs CHANNEL_ERROR/TIMED_OUT/CLOSED per tab.
-        console.log("[owner-home realtime]", status, err || "");
-      });
-
-    return () => {
-      clearTimeout(t);
-      supabase.removeChannel(ch);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
 
+  // Live: a sale/loan/return/approval all mutate product_list; the in-delivery
+  // figures come from branch_request_items + stock_transfer_items.
+  useLiveRefresh(
+    ["product_list", "branch_request_items", "stock_transfer_items"],
+    () => loadData({ silent: true }),
+    { enabled: !authLoading && !authError && roleBase === "owner" }
+  );
+
   async function loadData({ silent = false } = {}) {
     // silent = refresh the table data in place (no full-page spinner).
-    if (!silent) setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes] = await Promise.all([
@@ -578,9 +561,11 @@ export default function OwnerHome() {
       setInDeliveryList([...branchInDelivery, ...transferInTransit]);
       setLocations(locationsRes.data || []);
       setCategories(categoriesRes.data || []);
+      setError(null);
     } catch (err) {
       console.error("Error loading data:", err);
-      setError(err?.message || t("ownerHome.errors.failedLoad"));
+      // a failed quiet refresh keeps the table on screen
+      if (!silent) setError(err?.message || t("ownerHome.errors.failedLoad"));
     } finally {
       if (!silent) setLoading(false);
     }

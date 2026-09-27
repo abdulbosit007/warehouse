@@ -5,11 +5,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
+import useLiveRefresh from "../hooks/useLiveRefresh";
 import {
   Send, Inbox, History, Search, Package,
   CheckCircle2, XCircle, Clock, X, Truck,
   Trash2, RefreshCw, ChevronDown, ChevronRight,
 } from "lucide-react";
+
+// Live-refresh filter: a stock_transfers row matters when one of `columns` is this
+// location (unknown on deletes -> refresh). Item rows carry no location, so they always count.
+const transferMatch = (locationId, ...columns) => (c) => {
+  if (c.table !== "stock_transfers") return true;
+  const row = c.new?.id ? c.new : c.old;
+  if (!columns.some((col) => row?.[col] !== undefined)) return true;
+  return columns.some((col) => row[col] === locationId);
+};
 
 function StatusBadge({ status }) {
   const { t } = useTranslation();
@@ -75,12 +85,12 @@ export default function TransfersSection({ location }) {
 
   useEffect(() => {
     refreshBadge();
-    const ch = supabase
-      .channel("transfers-badge")
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers" }, refreshBadge)
-      .subscribe();
-    return () => supabase.removeChannel(ch);
   }, [refreshBadge]);
+
+  useLiveRefresh(["stock_transfers"], refreshBadge, {
+    enabled: !!location,
+    match: transferMatch(location?.id, "to_location_id"),
+  });
 
   const tabs = [
     { key: "send",     label: t("stockTransfers.tabs.send"),     Icon: Send },
@@ -428,8 +438,8 @@ function OutgoingTab({ location }) {
   const [expanded, setExpanded] = useState({});
   const [err, setErr] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from("stock_transfers")
       .select(`
@@ -443,21 +453,19 @@ function OutgoingTab({ location }) {
       .eq("from_location_id", location.id)
       .order("created_at", { ascending: false })
       .limit(100);
-    if (error) setErr(error.message);
+    if (error) { if (!silent) setErr(error.message); } // a failed quiet refresh keeps the list
     else setTransfers(data || []);
     setLoading(false);
   }, [location.id]);
 
   useEffect(() => {
     load();
-    const ch = supabase
-      .channel(`st-outgoing-${location.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers",
-          filter: `from_location_id=eq.${location.id}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, load)
-      .subscribe();
-    return () => supabase.removeChannel(ch);
   }, [load]);
+
+  // Live: the receiver accepts / rejects items
+  useLiveRefresh(["stock_transfers", "stock_transfer_items"], () => load({ silent: true }), {
+    match: transferMatch(location.id, "from_location_id"),
+  });
 
   const cancelItem = async (itemId) => {
     setCancelling(itemId);
@@ -526,8 +534,8 @@ function IncomingTab({ location, onAction }) {
   const [expanded, setExpanded] = useState({});
   const [err, setErr] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from("stock_transfers")
       .select(`
@@ -543,7 +551,7 @@ function IncomingTab({ location, onAction }) {
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
-      setErr(error.message);
+      if (!silent) setErr(error.message); // a failed quiet refresh keeps the list
     } else {
       setTransfers(data || []);
       // Auto-expand transfers that haven't been seen yet; preserve user toggles
@@ -558,14 +566,12 @@ function IncomingTab({ location, onAction }) {
 
   useEffect(() => {
     load();
-    const ch = supabase
-      .channel(`st-incoming-${location.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers",
-          filter: `to_location_id=eq.${location.id}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfer_items" }, load)
-      .subscribe();
-    return () => supabase.removeChannel(ch);
   }, [load]);
+
+  // Live: new transfers, and items the sender cancels
+  useLiveRefresh(["stock_transfers", "stock_transfer_items"], () => load({ silent: true }), {
+    match: transferMatch(location.id, "to_location_id"),
+  });
 
   const actOnItem = async (itemId, rpc) => {
     setActingItem(itemId);
@@ -641,9 +647,9 @@ function HistoryTab({ location }) {
   const [filter, setFilter] = useState("all"); // all | sent | received
   const [sortBy, setSortBy] = useState("closed"); // "opened" | "closed"
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    const { data, error } = await supabase
       .from("stock_transfers")
       .select(`
         id, status, note, created_at, updated_at,
@@ -659,18 +665,18 @@ function HistoryTab({ location }) {
       .order(sortBy === "closed" ? "updated_at" : "created_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(200);
-    setTransfers(data || []);
+    if (!(error && silent)) setTransfers(data || []); // a failed quiet refresh keeps the list
     setLoading(false);
   }, [location.id, sortBy]);
 
   useEffect(() => {
     load();
-    const ch = supabase
-      .channel(`st-history-${location.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stock_transfers" }, load)
-      .subscribe();
-    return () => supabase.removeChannel(ch);
   }, [load]);
+
+  // Live: transfers to or from this location that finish
+  useLiveRefresh(["stock_transfers"], () => load({ silent: true }), {
+    match: transferMatch(location.id, "from_location_id", "to_location_id"),
+  });
 
   const pills = [
     { key: "all",      label: t("stockTransfers.history.filterAll") },

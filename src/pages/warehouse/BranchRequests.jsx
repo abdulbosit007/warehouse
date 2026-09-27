@@ -1,9 +1,9 @@
 /* eslint-disable no-unused-vars */
 // src/pages/warehouse/BranchRequests.jsx
 // Same design as branch version for consistency
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import { useTranslation } from "react-i18next";
 import CustomSelect from "../../components/CustomSelect";
@@ -61,6 +61,16 @@ const STATUS_CONFIG = {
     icon: X,
   },
 };
+
+// True when someone else already moved this request item on (approved, cancelled, received, ...).
+async function itemStatusChanged(itemId, expectedStatus) {
+  const { data } = await supabase
+    .from("branch_request_items")
+    .select("status")
+    .eq("id", itemId)
+    .maybeSingle();
+  return !!data && data.status !== expectedStatus;
+}
 
 function StatusBadge({ status, t }) {
   const config = STATUS_CONFIG[status] || {
@@ -206,23 +216,11 @@ export default function BranchRequests() {
   useEffect(() => {
     if (locations.length <= 1) return;
     fetchLocationBadges();
-
-    const channel = supabase
-      .channel("wh-location-badges")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "branch_requests" },
-        () => fetchLocationBadges()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "branch_request_items" },
-        () => fetchLocationBadges()
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [locations, fetchLocationBadges]);
+
+  useLiveRefresh(["branch_requests", "branch_request_items"], fetchLocationBadges, {
+    enabled: locations.length > 1,
+  });
 
   // Fetch lightweight tab badge counts
   const fetchTabBadges = useCallback(async () => {
@@ -312,23 +310,11 @@ export default function BranchRequests() {
   useEffect(() => {
     if (!selectedLocation) return;
     fetchTabBadges();
-
-    const channel = supabase
-      .channel("warehouse-tab-badges")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "branch_requests" },
-        () => fetchTabBadges()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "branch_request_items" },
-        () => fetchTabBadges()
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [selectedLocation, fetchTabBadges]);
+
+  useLiveRefresh(["branch_requests", "branch_request_items"], fetchTabBadges, {
+    enabled: !!selectedLocation,
+  });
 
   // Loading/Error states
   if (authLoading) {
@@ -976,9 +962,12 @@ function OutgoingTab({ t, location, showToast }) {
     });
   }, []);
 
-  const loadRequests = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
+  // Requests already shown: new ones open expanded, shown ones keep the user's open/closed choice
+  const seenIdsRef = useRef(new Set());
+
+  const loadRequests = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    const { data, error } = await supabase
       .from("branch_requests")
       .select(`
         id, status, created_at, purpose,
@@ -993,47 +982,22 @@ function OutgoingTab({ t, location, showToast }) {
       .in("status", ["sent", "approved"])
       .order("created_at", { ascending: false });
 
-    setRequests(data || []);
-    setExpandedIds(new Set((data || []).map((r) => r.id)));
+    if (error && silent) return; // keep what is on screen
+
+    const rows = data || [];
+    const seen = seenIdsRef.current;
+    seenIdsRef.current = new Set(rows.map((r) => r.id));
+    setRequests(rows);
+    setExpandedIds((prev) => new Set(rows.filter((r) => prev.has(r.id) || !seen.has(r.id)).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
   useEffect(() => {
     loadRequests();
-
-    // Subscribe to real-time item status changes (approvals, rejections from other side)
-    const channel = supabase
-      .channel("outgoing-item-updates-warehouse")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "branch_request_items" },
-        (payload) => {
-          const updated = payload.new;
-          setRequests((prev) => {
-            const next = prev.map((req) => {
-              const matchIdx = req.items?.findIndex((it) => it.id === updated.id);
-              if (matchIdx === -1 || matchIdx == null) return req;
-              const updatedItems = req.items.map((it) =>
-                it.id === updated.id
-                  ? { ...it, status: updated.status, approved_qty: updated.approved_qty }
-                  : it
-              );
-              const hasActionable = updatedItems.some((it) =>
-                ["requested", "approved"].includes(it.status)
-              );
-              if (!hasActionable) return null;
-              return { ...req, items: updatedItems };
-            });
-            return next.filter(Boolean);
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [loadRequests]);
+
+  // Live: approvals / rejections by the other side, and changes made on other devices
+  useLiveRefresh(["branch_requests", "branch_request_items"], () => loadRequests({ silent: true }));
 
   // Helper: update a single item's status in local state
   function updateItemLocally(requestId, itemId, newStatus) {
@@ -1053,23 +1017,23 @@ function OutgoingTab({ t, location, showToast }) {
     });
   }
 
-  async function handleCancel(requestId) {
-    if (processingIds.has(requestId)) return;
-    setProcessingIds((prev) => new Set(prev).add(requestId));
-    try {
-      await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", requestId);
-      showToast(t("warehouseRequests.toast.cancelled"), "info");
-      setRequests((prev) => prev.filter((r) => r.id !== requestId));
-    } finally {
-      setProcessingIds((prev) => { const next = new Set(prev); next.delete(requestId); return next; });
-    }
-  }
-
   async function handleCancelItem(request, item) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      await supabase.from("branch_request_items").update({ status: "cancelled" }).eq("id", item.id);
+      // Only while still waiting: the source may have approved it in the meantime.
+      const { data: cancelled, error } = await supabase
+        .from("branch_request_items")
+        .update({ status: "cancelled" })
+        .eq("id", item.id)
+        .eq("status", "requested")
+        .select("id");
+      if (error) throw error;
+      if (!cancelled || cancelled.length === 0) {
+        showToast(t("warehouseRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+        return;
+      }
 
       const { data: remaining } = await supabase
         .from("branch_request_items")
@@ -1118,7 +1082,12 @@ function OutgoingTab({ t, location, showToast }) {
       updateItemLocally(request.id, item.id, "completed");
     } catch (err) {
       console.error("Confirm receipt item error:", err);
-      showToast(t("warehouseRequests.toast.receivedFail"), "error");
+      if (await itemStatusChanged(item.id, "approved")) {
+        showToast(t("warehouseRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+      } else {
+        showToast(t("warehouseRequests.toast.receivedFail"), "error");
+      }
     } finally {
       setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }
@@ -1272,20 +1241,6 @@ function OutgoingTab({ t, location, showToast }) {
                       </p>
                     </div>
                   </div>
-                </div>
-
-                {/* Actions on header */}
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  {isPending && (
-                    <button
-                      onClick={() => handleCancel(req.id)}
-                      disabled={processingIds.has(req.id)}
-                      className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors disabled:opacity-50"
-                    >
-                      {t("warehouseRequests.actions.cancel")}
-                    </button>
-                  )}
-
                 </div>
               </button>
 
@@ -1463,9 +1418,12 @@ function IncomingTab({ t, location, showToast }) {
     });
   }, []);
 
-  const loadRequests = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
+  // Requests already shown: new ones open expanded, shown ones keep the user's open/closed choice
+  const seenIdsRef = useRef(new Set());
+
+  const loadRequests = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    const { data, error } = await supabase
       .from("branch_requests")
       .select(`
         id, status, created_at, purpose,
@@ -1479,58 +1437,25 @@ function IncomingTab({ t, location, showToast }) {
       .in("status", ["sent", "approved"])
       .order("created_at", { ascending: false });
 
+    if (error && silent) return; // keep what is on screen
+
     const filtered = (data || []).filter((req) =>
       req.items?.some((item) => item.source_location?.id === location.id)
     );
 
+    const seen = seenIdsRef.current;
+    seenIdsRef.current = new Set(filtered.map((r) => r.id));
     setRequests(filtered);
-    setExpandedIds(new Set((filtered || []).map((r) => r.id)));
+    setExpandedIds((prev) => new Set(filtered.filter((r) => prev.has(r.id) || !seen.has(r.id)).map((r) => r.id)));
     setLoading(false);
   }, [location.id]);
 
   useEffect(() => {
     loadRequests();
-
-    // Subscribe to real-time item status changes (cancellations from requester side)
-    const channel = supabase
-      .channel("incoming-item-updates-warehouse")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "branch_request_items" },
-        (payload) => {
-          const updated = payload.new;
-          setRequests((prev) => {
-            const next = prev.map((req) => {
-              const matchIdx = req.items?.findIndex((it) => it.id === updated.id);
-              if (matchIdx === -1 || matchIdx == null) return req;
-              const updatedItems = req.items.map((it) =>
-                it.id === updated.id
-                  ? { ...it, status: updated.status, approved_qty: updated.approved_qty }
-                  : it
-              );
-              // Remove only when ALL items are finalized (no requested or approved remaining)
-              const hasActive = updatedItems.some((it) =>
-                ["requested", "approved"].includes(it.status)
-              );
-              if (!hasActive) return null;
-              return { ...req, items: updatedItems };
-            });
-            return next.filter(Boolean);
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "branch_request_items",
-          filter: `source_location_id=eq.${location.id}` },
-        () => loadRequests()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [loadRequests]);
+
+  // Live: new requests, cancellations by the requester, and changes made on other devices
+  useLiveRefresh(["branch_requests", "branch_request_items"], () => loadRequests({ silent: true }));
 
   // Helper: update a single item's status in local state
   function updateItemLocally(requestId, itemId, newStatus, extraFields = {}) {
@@ -1582,7 +1507,12 @@ function IncomingTab({ t, location, showToast }) {
       updateItemLocally(request.id, item.id, "approved", { approved_qty: item.requested_qty });
     } catch (err) {
       console.error(err);
-      showToast(t("warehouseRequests.toast.approvedFail"), "error");
+      if (await itemStatusChanged(item.id, "requested")) {
+        showToast(t("warehouseRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+      } else {
+        showToast(t("warehouseRequests.toast.approvedFail"), "error");
+      }
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);
@@ -1597,10 +1527,19 @@ function IncomingTab({ t, location, showToast }) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
-      await supabase
+      // Only while still waiting: another user may have approved it in the meantime.
+      const { data: rejected, error } = await supabase
         .from("branch_request_items")
         .update({ status: "rejected" })
-        .eq("id", item.id);
+        .eq("id", item.id)
+        .eq("status", "requested")
+        .select("id");
+      if (error) throw error;
+      if (!rejected || rejected.length === 0) {
+        showToast(t("warehouseRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+        return;
+      }
 
       const { data: remaining } = await supabase
         .from("branch_request_items")
@@ -2037,12 +1976,7 @@ function HistoryTab({ t, location }) {
   );
 
   // Live: silently refresh history when any request or item changes.
-  useRealtimeRefresh(
-    `wh-req-history-${location.id}`,
-    [{ table: "branch_requests" }, { table: "branch_request_items" }],
-    () => loadHistory(0, false, true),
-    [location.id]
-  );
+  useLiveRefresh(["branch_requests", "branch_request_items"], () => loadHistory(0, false, true));
 
   useEffect(() => {
     setPage(0);

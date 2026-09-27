@@ -41,13 +41,15 @@ async function fetchProducts() {
 }
 
 /**
- * Fetch product_list for stock quantities per location
+ * Fetch on-hand (available) stock per product and location.
+ * Loaned units have their own "Qarzda" column; in-transit units aren't at the location yet.
  */
 async function fetchProductList() {
   const { data, error } = await fetchAll(() =>
     supabase
       .from("product_list")
       .select("product_id, location_id, quantity")
+      .eq("status", "available")
   );
 
   if (error) throw error;
