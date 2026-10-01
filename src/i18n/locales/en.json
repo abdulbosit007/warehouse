@@ -1316,7 +1316,9 @@
       "completed": "Completed",
       "cancelled": "Cancelled",
       "awaitingReceipt": "Awaiting receipt",
-      "received": "Received"
+      "received": "Received",
+      "accepted": "Accepted",
+      "closed": "Closed"
     },
     "actions": {
       "cancel": "Cancel",

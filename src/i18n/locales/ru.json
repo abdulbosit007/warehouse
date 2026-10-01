@@ -1315,7 +1315,9 @@
       "completed": "Завершено",
       "cancelled": "Отменено",
       "awaitingReceipt": "Ожидает получения",
-      "received": "Получено"
+      "received": "Получено",
+      "accepted": "Принято",
+      "closed": "Закрыто"
     },
     "actions": {
       "cancel": "Отменить",
