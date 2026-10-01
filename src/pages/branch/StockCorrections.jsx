@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -170,10 +171,29 @@ export default function BranchStockCorrections({ asTab = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchLocation]);
 
-  async function loadCorrections() {
+  // Live: the owner approves / rejects, or a correction is made on another device
+  useLiveRefresh(["inventory_corrections"], () => loadCorrections({ silent: true }), {
+    enabled: !!branchLocation,
+    match: (c) => rowIs(c, "location_id", branchLocation?.id),
+  });
+
+  // Live: keep the form's system quantity current while a correction is being written
+  useLiveRefresh(
+    ["product_list"],
+    () => loadSystemQty(selectedProduct.id, branchLocation.id, { silent: true }),
+    {
+      enabled: !!(selectedProduct && branchLocation),
+      match: (c) =>
+        rowIs(c, "location_id", branchLocation?.id) && rowIs(c, "product_id", selectedProduct?.id),
+    }
+  );
+
+  async function loadCorrections({ silent = false } = {}) {
     if (!branchLocation) return;
-    setListLoading(true);
-    setListError(null);
+    if (!silent) {
+      setListLoading(true);
+      setListError(null);
+    }
 
     const { data, error: err } = await supabase
       .from("inventory_corrections")
@@ -202,10 +222,13 @@ export default function BranchStockCorrections({ asTab = false }) {
 
     if (err) {
       console.error("Branch corrections: load error:", err);
+      if (silent) return; // a failed quiet refresh keeps the list
       setListError(err.message || t("branch.stockCorrections.errors.loadFailed"));
       setCorrections([]);
     } else {
       setCorrections(data || []);
+      // the open detail shows the fresh version (e.g. the owner's decision)
+      setSelected((prev) => (prev && (data || []).find((c) => c.id === prev.id)) || prev);
     }
 
     setListLoading(false);
@@ -256,8 +279,8 @@ export default function BranchStockCorrections({ asTab = false }) {
     }
   }
 
-  async function loadSystemQty(productId, locationId) {
-    setSystemQtyLoading(true);
+  async function loadSystemQty(productId, locationId, { silent = false } = {}) {
+    if (!silent) setSystemQtyLoading(true);
     const { data, error: err } = await supabase
       .from("product_list")
       .select("quantity, status")
@@ -266,6 +289,7 @@ export default function BranchStockCorrections({ asTab = false }) {
 
     if (err) {
       console.error("Error loading system quantity:", err);
+      if (silent) return; // keep the number on screen
       setSystemQty(0);
       setSystemQtyLoading(false);
       return;

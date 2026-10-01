@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import CustomSelect from "../../components/CustomSelect";
 import { useTranslation } from "react-i18next";
 import {
@@ -423,11 +424,20 @@ export default function BranchAuditReview({ asTab = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, locationId]);
 
-  async function loadData() {
+  // Live: the owner starts or closes an audit, or this branch's responses change
+  // (paused while submitting: every product saved is a change)
+  useLiveRefresh(["inventory_audit_sessions", "inventory_audit_responses"], () => loadData({ silent: true }), {
+    enabled: !authLoading && !authError && roleBase === "branch" && !!locationId && !submitting,
+    match: (c) => c.table === "inventory_audit_sessions" || rowIs(c, "location_id", locationId),
+  });
+
+  async function loadData({ silent = false } = {}) {
     if (!locationId) return;
 
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const { data: sessions, error: sessErr } = await supabase
@@ -463,10 +473,11 @@ export default function BranchAuditReview({ asTab = false }) {
             .select("id, status, created_at")
             .order("created_at", { ascending: false });
 
-          const { data: pastData } = await supabase
+          // paged: one audit can be over the 1,000-row limit per request
+          const { data: pastData } = await fetchAll(() => supabase
             .from("inventory_audit_responses")
             .select("*")
-            .eq("location_id", locationId);
+            .eq("location_id", locationId));
 
           const { data: productsData } = await fetchAll(() =>
             supabase.from("products").select("id, name, sku")
@@ -514,6 +525,7 @@ export default function BranchAuditReview({ asTab = false }) {
       if (productsRes.error) throw productsRes.error;
       if (plRes.error) throw plRes.error;
 
+      setSubmitted(false); // an open audit with nothing submitted yet (e.g. a new one)
       setProducts(productsRes.data || []);
       setProductList(plRes.data || []);
 
@@ -539,10 +551,11 @@ export default function BranchAuditReview({ asTab = false }) {
           .select("id, status, created_at")
           .order("created_at", { ascending: false });
 
-        const { data: pastData } = await supabase
+        // paged: one audit can be over the 1,000-row limit per request
+        const { data: pastData } = await fetchAll(() => supabase
           .from("inventory_audit_responses")
           .select("*")
-          .eq("location_id", locationId);
+          .eq("location_id", locationId));
 
         if (allSessions && pastData) {
           const responsesBySession = {};
@@ -572,7 +585,8 @@ export default function BranchAuditReview({ asTab = false }) {
       }
     } catch (err) {
       console.error("Error loading audit data:", err);
-      setError(err.message || t("branchAudit.errors.loadFailed"));
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err.message || t("branchAudit.errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -825,10 +839,11 @@ export default function BranchAuditReview({ asTab = false }) {
         const { data: allLocations } = await supabase
           .from("locations")
           .select("id");
-        const { data: allResponses } = await supabase
+        // paged: one audit has thousands of responses (over the 1,000-row limit per request)
+        const { data: allResponses } = await fetchAll(() => supabase
           .from("inventory_audit_responses")
           .select("location_id")
-          .eq("session_id", openSession.id);
+          .eq("session_id", openSession.id));
 
         if (allLocations && allResponses) {
           const submittedLocationIds = new Set(allResponses.map((r) => r.location_id));

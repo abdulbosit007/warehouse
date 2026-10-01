@@ -1586,7 +1586,7 @@ function IncomingTab({ t, location, showToast }) {
       updateItemLocally(request.id, item.id, "rejected");
     } catch (err) {
       console.error(err);
-      showToast(t("warehouseRequests.toast.approvedFail"), "error");
+      showToast(t("warehouseRequests.toast.rejectFail"), "error");
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);
@@ -1625,11 +1625,11 @@ function IncomingTab({ t, location, showToast }) {
           .eq("id", request.id);
       }
 
-      showToast(t("warehouseRequests.toast.undoOk") || "Approval Cancelled", "success");
+      showToast(t("warehouseRequests.toast.undoOk"), "success");
       updateItemLocally(request.id, item.id, "requested", { approved_qty: null });
     } catch (err) {
       console.error(err);
-      showToast(t("warehouseRequests.toast.undoFail") || "Failed to cancel approval", "error");
+      showToast(t("warehouseRequests.toast.undoFail"), "error");
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);

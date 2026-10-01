@@ -1,8 +1,9 @@
 // src/pages/owner/InventoryBatches.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   Warehouse,
@@ -131,18 +132,28 @@ export default function InventoryBatches() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
 
-  async function loadData() {
-    setLoading(true);
-    setError(null);
+  // Live: new corrections and audit progress from every location
+  useLiveRefresh(
+    ["inventory_corrections", "inventory_audit_sessions", "inventory_audit_responses"],
+    () => loadData({ silent: true }),
+    { enabled: !authLoading && !authError && roleBase === "owner" }
+  );
+
+  async function loadData({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const [locRes, sessRes, sessItemsRes, corrRes, auditRes, auditRespRes] = await Promise.all([
         supabase.from("locations").select("id, name, location_name, kind, code"),
         supabase.from("inventory_sessions").select("id, name, created_at, status, notes"),
         supabase.from("inventory_session_items").select("id, session_id, location_id"),
-        supabase.from("inventory_corrections").select("id, location_id, status"),
+        // paged: one audit alone can be over the 1,000-row limit per request
+        fetchAll(() => supabase.from("inventory_corrections").select("id, location_id, status")),
         supabase.from("inventory_audit_sessions").select("*").order("created_at", { ascending: false }),
-        supabase.from("inventory_audit_responses").select("id, session_id, location_id, status"),
+        fetchAll(() => supabase.from("inventory_audit_responses").select("id, session_id, location_id, status")),
       ]);
 
       if (locRes.error) throw locRes.error;
@@ -158,7 +169,8 @@ export default function InventoryBatches() {
       setAuditResponses(auditRespRes.data || []);
     } catch (err) {
       console.error("Error loading data:", err);
-      setError(err?.message || t("common.failedLoad"));
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err?.message || t("common.failedLoad"));
     } finally {
       setLoading(false);
     }
@@ -247,7 +259,14 @@ export default function InventoryBatches() {
       navigate(`/owner/audit/${session.id}`);
     } catch (err) {
       console.error("Error creating audit:", err);
-      setError(err?.message || t("ownerInventoryBatches.errors.failedCreateAudit"));
+      // 23505 = the database allows only one open audit (another device just started one):
+      // reload so the button turns into "view open audit"
+      if (err?.code === "23505") {
+        loadData();
+        setError(t("ownerInventoryBatches.errors.failedCreateAudit"));
+      } else {
+        setError(err?.message || t("ownerInventoryBatches.errors.failedCreateAudit"));
+      }
     } finally {
       setCreatingAudit(false);
     }

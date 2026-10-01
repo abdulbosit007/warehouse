@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getBatchesSummaryWithOrigin } from "../../lib/incoming";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import {
   Package,
   RefreshCw,
@@ -96,11 +97,16 @@ export default function WarehouseBatches() {
   const [err, setErr] = useState("");
   const navigate = useNavigate();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr("");
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setErr("");
+    }
     const { data, error } = await getBatchesSummaryWithOrigin();
-    if (error) setErr(error.message);
+    if (error) {
+      if (silent) return; // a failed quiet refresh keeps the list
+      setErr(error.message);
+    }
     const sorted = (data || []).slice().sort((a, b) => {
       const ta = new Date(a.created_at || 0).getTime();
       const tb = new Date(b.created_at || 0).getTime();
@@ -113,6 +119,11 @@ export default function WarehouseBatches() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live: batches the owner sends, items decided here or on another device
+  useLiveRefresh(["incoming_batches", "incoming_batch_items"], () => load({ silent: true }), {
+    match: (c) => c.new?.status !== "draft", // the owner's draft edits don't change this list
+  });
 
   // Stats
   const needsAction = rows.filter((r) => (r.sent_count || 0) > 0).length;

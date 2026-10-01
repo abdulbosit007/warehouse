@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -164,9 +165,11 @@ export default function OwnerAuditDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, sessionId]);
 
-  async function loadData() {
-    setLoading(true);
-    setError(null);
+  async function loadData({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const [sessRes, locRes, respRes, productsRes] = await Promise.all([
@@ -188,7 +191,8 @@ export default function OwnerAuditDetail() {
       setTotalProducts(productsRes.data?.length || 0);
     } catch (err) {
       console.error("Error loading audit:", err);
-      setError(err.message || t("ownerAuditDetail.errors.loadFailed"));
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err.message || t("ownerAuditDetail.errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -243,9 +247,16 @@ export default function OwnerAuditDetail() {
   }, [locationStats, locations]);
 
   /* ─────────────────────────────────────────────────────────────────────────
-     CLOSE SESSION — applies corrections then marks closed
+     CLOSE SESSION — ends the audit (no stock changes; see handleClose)
   ───────────────────────────────────────────────────────────────────────── */
   const [closing, setClosing] = useState(false);
+
+  // Live: locations submit their counts (paused while closing)
+  useLiveRefresh(["inventory_audit_sessions", "inventory_audit_responses"], () => loadData({ silent: true }), {
+    enabled: !authLoading && !authError && roleBase === "owner" && !closing,
+    match: (c) =>
+      c.table === "inventory_audit_sessions" ? rowIs(c, "id", sessionId) : rowIs(c, "session_id", sessionId),
+  });
 
   async function handleClose() {
     const ok = window.confirm(t("ownerAuditDetail.confirm.close"));
@@ -255,31 +266,9 @@ export default function OwnerAuditDetail() {
     setError(null);
 
     try {
-      // 1. Find all rejected responses (discrepancies) for this session
-      const rejected = responses.filter((r) => r.status === "rejected" && r.reported_qty != null);
-
-      // 2. For each discrepancy, update product_list to match the reported (physical) quantity
-      if (rejected.length > 0) {
-        const productUpdates = rejected.map(resp => ({
-          product_id: resp.product_id,
-          location_id: resp.location_id,
-          status: "available",
-          quantity: resp.reported_qty ?? 0
-        }));
-
-        for (let i = 0; i < productUpdates.length; i += 500) {
-          const chunk = productUpdates.slice(i, i + 500);
-          const { error: upsertErr } = await supabase
-            .from("product_list")
-            .upsert(chunk, { onConflict: "product_id,location_id,status" });
-            
-          // Fatal: don't mark the session closed if a correction failed to
-          // apply. Re-running handleClose is safe (idempotent upsert).
-          if (upsertErr) throw upsertErr;
-        }
-      }
-
-      // 3. Mark session as closed
+      // Only ends the audit. Stock is NOT written here: each location's Submit already
+      // set its counted quantities, and writing them again would undo every sale,
+      // transfer or receipt made since that location submitted.
       const { error: closeErr } = await supabase
         .from("inventory_audit_sessions")
         .update({ status: "closed" })
@@ -287,7 +276,7 @@ export default function OwnerAuditDetail() {
 
       if (closeErr) throw closeErr;
 
-      console.log(`[closeAudit] Session closed. ${rejected.length} corrections applied.`);
+      console.log("[closeAudit] Session closed.");
       navigate("/owner/inventory-batches");
     } catch (err) {
       console.error("Error closing session:", err);

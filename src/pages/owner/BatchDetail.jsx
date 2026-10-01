@@ -14,6 +14,7 @@ import {
   ownerApproveNoSuchProduct,
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
 import { useTranslation } from "react-i18next";
 import {
@@ -360,22 +361,40 @@ export default function BatchDetail() {
 
   const isOpen = (batch?.status || "").toLowerCase() === "open";
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr("");
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setErr("");
+    }
     const [{ data: b, error: bErr }, { data: it, error: iErr }] = await Promise.all([
       getBatch(id),
       getBatchItems(id),
     ]);
+    if ((bErr || iErr) && silent) return; // a failed quiet refresh keeps the page
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
 
     setBatch(b || null);
-    setItems((it || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+    const fresh = (it || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    setItems((prev) => {
+      if (!silent) return fresh;
+      // Keep the draft rows already on screen: DraftRow copies changed values back into
+      // its inputs, which would undo what the owner is typing right now.
+      const shownDrafts = new Map(prev.filter((r) => r.status === "draft").map((r) => [r.id, r]));
+      return fresh.map((r) => (r.status === "draft" && shownDrafts.get(r.id)) || r);
+    });
     setLoading(false);
   }, [id]);
 
   useEffect(() => void load(), [load]);
+
+  // Live: the warehouse approves / rejects sent items (draft edits are the owner's own)
+  useLiveRefresh(["incoming_batches", "incoming_batch_items"], () => load({ silent: true }), {
+    match: (c) =>
+      c.table === "incoming_batches"
+        ? rowIs(c, "id", id)
+        : rowIs(c, "batch_id", id) && c.new?.status !== "draft",
+  });
   useEffect(() => {
     (async () => {
       const { data: cats } = await getCategories();

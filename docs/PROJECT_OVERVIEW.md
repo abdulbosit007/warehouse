@@ -355,13 +355,17 @@ Screens reload their data quietly (no spinner) when the tables they show change,
   - the three Home pages (own stock);
   - the branch Sale page: catalog of all locations, pending sale/loan requests, sale history and calendar
     dots, loans;
-  - Stock Monitor.
-- **Not live yet:**
-  - incoming batches;
-  - stock corrections;
-  - the audit pages;
-  - owner Branch Requests and History;
-  - Smart Restock.
+  - Stock Monitor;
+  - incoming batches (lists and details, owner and warehouse). The owner's draft edits don't trigger reloads,
+    and a reload never touches draft rows being typed;
+  - stock corrections, including the system quantity in the new-correction form;
+  - audit pages, owner and staff. Paused while submitting or closing an audit;
+  - owner Branch Requests;
+  - owner History (Analytics and Logs tabs, grouped over 3 s).
+- **Deliberately not live:**
+  - Smart Restock, a forecast built from sales history;
+  - search boxes;
+  - the request "New request" stock numbers.
 - **Database side:** a table sends changes only if it is in the `supabase_realtime` publication (Supabase
   dashboard: Database → Publications). Each user receives only rows their RLS rules let them read.
 

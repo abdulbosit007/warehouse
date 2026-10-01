@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import CustomSelect from "../../components/CustomSelect";
 import {
   Package,
@@ -403,11 +404,20 @@ export default function WarehouseAuditReview({ asTab = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [warehouseLocation]);
 
-  async function loadData() {
+  // Live: the owner starts or closes an audit, or this location's responses change
+  // (paused while submitting: every product saved is a change)
+  useLiveRefresh(["inventory_audit_sessions", "inventory_audit_responses"], () => loadData({ silent: true }), {
+    enabled: !!warehouseLocation && !submitting,
+    match: (c) => c.table === "inventory_audit_sessions" || rowIs(c, "location_id", warehouseLocation?.id),
+  });
+
+  async function loadData({ silent = false } = {}) {
     if (!warehouseLocation) return;
 
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const { data: sessions, error: sessErr } = await supabase
@@ -443,10 +453,11 @@ export default function WarehouseAuditReview({ asTab = false }) {
             .select("id, status, created_at")
             .order("created_at", { ascending: false });
 
-          const { data: pastData } = await supabase
+          // paged: one audit can be over the 1,000-row limit per request
+          const { data: pastData } = await fetchAll(() => supabase
             .from("inventory_audit_responses")
             .select("*")
-            .eq("location_id", warehouseLocation.id);
+            .eq("location_id", warehouseLocation.id));
 
           const { data: productsData, error: productsError } = await fetchAll(() =>
             supabase.from("products").select("id, name, sku")
@@ -493,6 +504,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
       if (productsRes.error) throw productsRes.error;
       if (plRes.error) throw plRes.error;
 
+      setSubmitted(false); // an open audit with nothing submitted yet (e.g. a new one)
       setProducts(productsRes.data || []);
       setProductList(plRes.data || []);
 
@@ -518,10 +530,11 @@ export default function WarehouseAuditReview({ asTab = false }) {
           .select("id, status, created_at")
           .order("created_at", { ascending: false });
 
-        const { data: pastData } = await supabase
+        // paged: one audit can be over the 1,000-row limit per request
+        const { data: pastData } = await fetchAll(() => supabase
           .from("inventory_audit_responses")
           .select("*")
-          .eq("location_id", warehouseLocation.id);
+          .eq("location_id", warehouseLocation.id));
 
         if (allSessions && pastData) {
           const responsesBySession = {};
@@ -551,7 +564,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
       }
     } catch (err) {
       console.error("Error loading audit data:", err);
-      setError(err.message || t("warehouseAudit.errors.failedLoad"));
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err.message || t("warehouseAudit.errors.failedLoad"));
     } finally {
       setLoading(false);
     }
@@ -690,10 +704,11 @@ export default function WarehouseAuditReview({ asTab = false }) {
         const { data: allLocations } = await supabase
           .from("locations")
           .select("id");
-        const { data: allResponses } = await supabase
+        // paged: one audit has thousands of responses (over the 1,000-row limit per request)
+        const { data: allResponses } = await fetchAll(() => supabase
           .from("inventory_audit_responses")
           .select("location_id")
-          .eq("session_id", openSession.id);
+          .eq("session_id", openSession.id));
 
         if (allLocations && allResponses) {
           const submittedLocationIds = new Set(allResponses.map((r) => r.location_id));
