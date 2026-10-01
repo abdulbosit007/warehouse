@@ -397,7 +397,9 @@ export default function BranchOperations() {
       const m = out.get(pid);
       
       // Check if this was a "sold" transaction based on note
-      const isSold = (r.note || "").toLowerCase().includes("sold");
+      // Exactly the notes written by convertLoanToSale / sellAllLoanItems below. A typed
+      // return note containing "sold" (e.g. "not sold, damaged") is a real return.
+      const isSold = r.note === "Sold (money received)" || r.note === "Sold (all items)";
       
       for (const it of r.items || []) {
         const k = it.product_id;

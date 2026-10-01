@@ -8,7 +8,6 @@ import BranchLayout from "../layouts/BranchLayout";
 
 // Warehouse Pages
 import WarehouseBranchRequests from "../pages/warehouse/BranchRequests";
-import WarehouseHistory from "../pages/warehouse/History";
 import WarehouseOwnerRequests from "../pages/warehouse/OwnerRequests";
 import WarehouseBatchReview from "../pages/warehouse/BatchDetail";
 import WarehouseHome from "../pages/warehouse/Home";
@@ -88,7 +87,6 @@ export default function AllRouters({ user }) {
         >
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<WarehouseHome />} />
-          <Route path="history" element={<WarehouseHistory />} />
           <Route path="branch-requests" element={<WarehouseBranchRequests />} />
           <Route path="owner-requests" element={<WarehouseOwnerRequests />} />
           <Route path="stock-corrections" element={<WarehouseStockCorrections />} />

@@ -335,7 +335,8 @@
     "missing": "yo‘q",
     "validation": {
       "category": "kategoriya",
-      "quantity": "son"
+      "quantity": "son",
+      "sku": "SKU"
     },
     "errors": {
       "fetchDraftFailed": "Qoralama pozitsiyalarni olishda xatolik.",

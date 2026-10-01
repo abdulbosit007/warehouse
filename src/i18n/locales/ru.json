@@ -335,7 +335,8 @@
     "missing": "не указано",
     "validation": {
       "category": "категория",
-      "quantity": "количество"
+      "quantity": "количество",
+      "sku": "артикул (SKU)"
     },
     "errors": {
       "fetchDraftFailed": "Не удалось получить черновики.",

@@ -336,7 +336,8 @@
     "missing": "missing",
     "validation": {
       "category": "category",
-      "quantity": "quantity"
+      "quantity": "quantity",
+      "sku": "SKU"
     },
     "errors": {
       "fetchDraftFailed": "Failed to fetch draft items.",
