@@ -832,7 +832,10 @@
       "alreadyProcessed": "Bu mahsulot allaqachon ko‘rib chiqilgan. Ro‘yxat yangilandi.",
       "undoOk": "Tasdiq bekor qilindi",
       "undoFail": "Tasdiqni bekor qilib bo‘lmadi",
-      "rejectFail": "Rad etib bo‘lmadi"
+      "rejectFail": "Rad etib bo‘lmadi",
+      "acceptSaleOk": "Sotuv yozildi",
+      "acceptLoanOk": "Qarz yozildi",
+      "acceptFail": "Qabul qilib bo‘lmadi"
     },
     "modeToggle": {
       "requests": "Filial so’rovlari",
@@ -902,7 +905,14 @@
       "pending": "Kutilmoqda",
       "approved": "Tasdiqlangan",
       "cancelBtn": "Bekor qilish",
-      "receivedBtn": "Qabul qilindi"
+      "receivedBtn": "Qabul qilindi",
+      "saleRequest": "Sotuv so‘rovi",
+      "loanRequest": "Qarz so‘rovi",
+      "loanAcceptHint": "{{name}} uchun qarz: barcha tasdiqlangan mahsulotlarni bitta qarz sifatida qabul qilish",
+      "acceptLoanBtn": "Qarzni qabul qilish · {{count}}",
+      "acceptSaleBtn": "Sotuvni qabul qilish",
+      "acceptedChip": "Qabul qilingan",
+      "resolveOnSalePage": "Sotuv sahifasida yoping yoki qayta yuboring"
     },
     "incoming": {
       "emptyTitle": "Kiruvchi so‘rovlar yo‘q",
@@ -1726,56 +1736,170 @@
       "monitor": "Ombor monitori"
     },
     "monitor": {
-      "title": "Ombor monitori",
-      "subtitle": "Oxirgi inventarizatsiyadan beri har bir lokatsiya bo‘yicha qoldiq o‘zgarishi",
+      "title": "Qoldiq monitori",
+      "subtitle": "Har bir lokatsiyadagi qoldiq o‘zgarishlari va raqamlar mos kelmagan joylar",
       "selectLocation": "Lokatsiyani tanlang",
-      "baselineFrom": "Inventarizatsiya asosi: {{date}}",
-      "noBaseline": "Bu lokatsiya uchun yakunlangan inventarizatsiya yo‘q — barcha kuzatilgan o‘zgarishlar ko‘rsatilmoqda",
       "search": "Mahsulot yoki SKU qidirish",
-      "allReasons": "Barcha o‘zgarish turlari",
-      "movedOnly": "Faqat o‘zgarganlar",
       "refresh": "Yangilash",
       "showing": "{{total}} tadan {{shown}} ta mahsulot ko‘rsatilmoqda",
-      "pickPrompt": "To‘liq qoldiq tarixini ko‘rish uchun mahsulotni tanlang",
-      "statementTitle": "Harakat tarixi",
-      "currentStock": "Joriy qoldiq",
+      "checkedSince": "{{date}} dan beri tekshirilmoqda (boshlang‘ich qoldiq). Oldingi tarix kulrang ko‘rsatiladi.",
+      "noOpening": "Tekshiruv hali boshlanmagan: qoldiq jurnalida boshlang‘ich qoldiq yo‘q.",
+      "lastAudit": "Oxirgi audit: {{date}}",
+      "noAudit": "Hali audit bo‘lmagan",
+      "problemsFirst": "Avval muammolar",
+      "showAll": "Barcha mahsulotlarni ko‘rsatish",
+      "noProducts": "Ko‘rsatiladigan mahsulot yo‘q",
+      "pickPrompt": "Qoldiq tarixini ko‘rish uchun mahsulotni tanlang",
+      "loadFailed": "Qoldiq monitorini yuklab bo‘lmadi. Qayta urinib ko‘ring.",
+      "system": "Tizim",
       "cards": {
-        "productsChanged": "O‘zgargan mahsulot",
-        "movements": "Jami o‘zgarish",
-        "flagged": "Tushuntirilmagan",
-        "netUnits": "Sof miqdor"
+        "noDoc": "Hujjatsiz",
+        "transitOff": "Yo‘ldagi mos emas",
+        "loanOff": "Qarzdagi mos emas",
+        "auditDiff": "Audit farqlari",
+        "statementOff": "Mos kelmaydi"
+      },
+      "hints": {
+        "noDoc": "Qoldiq o‘zgargan, lekin ilovaning hech bir funksiyasi sababini yozmagan.",
+        "transitOff": "Yo‘ldagi qoldiq bu lokatsiyaga ochiq so‘rovlar va ko‘chirishlarga teng emas.",
+        "loanOff": "Qarzdagi qoldiq bu yerdagi hali ochiq qarzlarga teng emas.",
+        "auditDiff": "Oxirgi audit sanog‘i tizimdagi raqamdan farq qilgan.",
+        "statementOff": "Qoldiq jurnali haqiqiy qoldiqda tugamaydi: uni jurnaldan tashqari o‘zgartirishgan."
+      },
+      "status": {
+        "ok": "joyida"
+      },
+      "bucket": {
+        "available": "Mavjud",
+        "in_transit": "Yo‘lda",
+        "loaned": "Qarzda"
+      },
+      "earlier": "Oldingi {{count}} ta qator",
+      "earlierOld": "Oldingi {{count}} ta qator (boshlang‘ich qoldiqdan oldin, tekshirilmagan)",
+      "nowInStock": "Hozirgi qoldiq",
+      "matches": "jurnal bilan mos",
+      "logSays": "jurnal bo‘yicha {{qty}}",
+      "transitCheck": "Yo‘lda {{now}} · ochiq so‘rov va ko‘chirishlar bilan izohlangan: {{expected}}",
+      "loanCheck": "Qarzda {{now}} · ochiq qarzlar bilan izohlangan: {{expected}}",
+      "notExplained": "{{qty}} ta izohsiz",
+      "openRequest": "So‘rovni tasdiqladi: {{other}} · {{qty}} · {{date}}",
+      "openTransfer": "Ko‘chirish: {{other}} dan · {{qty}} · {{date}}",
+      "openLoan": "Qarz: {{name}} · {{date}}",
+      "nothingOpen": "Ochiq hech narsa yo‘q",
+      "by": "{{name}}",
+      "line": {
+        "opening": "Boshlang‘ich qoldiq",
+        "sale": "Shu yerda sotildi",
+        "sale_from_request": "Sotildi ({{other}} dan olingan)",
+        "loan": "Qarzga berildi",
+        "loan_from_request": "Qarzga berildi ({{other}} dan olingan)",
+        "sale_return": "Xaridor qaytardi",
+        "loan_return": "Qarz qaytarildi",
+        "loan_sold": "Qarz sotildi",
+        "request_approve_out": "So‘rov tasdiqlandi: {{other}} uchun",
+        "request_approve_in": "{{other}} dan yo‘lda (so‘rov)",
+        "request_receive": "So‘rov qabul qilindi: {{other}} dan",
+        "request_undo": "So‘rov tasdig‘i bekor qilindi ({{other}})",
+        "request_cancel": "So‘rov bekor qilindi ({{other}})",
+        "transfer_send_out": "Ko‘chirish yuborildi: {{other}} ga",
+        "transfer_send_in": "{{other}} dan yo‘lda (ko‘chirish)",
+        "transfer_accept": "Ko‘chirish qabul qilindi: {{other}} dan",
+        "transfer_reject": "Ko‘chirish rad etildi ({{other}})",
+        "transfer_cancel": "Ko‘chirish bekor qilindi ({{other}})",
+        "incoming": "Kirim partiyasi ({{origin}})",
+        "incoming_fix": "Kirim sonini tuzatish",
+        "correction": "Tuzatish tasdiqlandi ({{from}} → {{to}})",
+        "audit": "Audit: sanaldi {{counted}}, tizimda {{system}}",
+        "audit_ok": "Audit: sanaldi, mos",
+        "loaned_fix": "Qarz tuzatildi",
+        "noDoc": "Hujjatsiz o‘zgartirilgan",
+        "old": "Eski o‘zgarish: {{reason}}",
+        "transit_fix": "Osilib qolgan «yo‘lda» tozalandi (ortida haqiqiy tovar yo‘q)",
+        "transit_fix_undo": "Osilib qolgan «yo‘lda» tozalash bekor qilindi"
+      },
+      "reasons": {
+        "stock_in": "kirim",
+        "stock_out": "chiqim",
+        "transit_in": "yo‘lga qo‘shildi",
+        "transit_out": "yo‘ldan olindi",
+        "loan_out": "qarzga berildi",
+        "loan_return": "qarz qaytarildi",
+        "init": "yangi qoldiq qatori",
+        "adjust": "tuzatish",
+        "unknown": "noma’lum",
+        "sale": "sotuv",
+        "loan": "qarz",
+        "sale_return": "qaytarish"
+      },
+      "docHistory": "Bu mahsulotning shu yerga so‘rov va ko‘chirishlari",
+      "docRequest": "So‘rov: {{other}} dan",
+      "docSaleRequest": "Sotuv so‘rovi: {{other}} dan",
+      "docLoanRequest": "Qarz so‘rovi: {{other}} dan",
+      "docTransfer": "Ko‘chirish: {{other}} dan",
+      "noDocs": "So‘rov yoki ko‘chirish topilmadi",
+      "docStatus": {
+        "requested": "kutilmoqda",
+        "approved": "tasdiqlangan, qabul qilinmagan",
+        "completed": "qabul qilingan",
+        "fulfilled": "qabul qilingan",
+        "rejected": "rad etilgan",
+        "cancelled": "bekor qilingan",
+        "pending": "yo‘lda",
+        "accepted": "qabul qilingan"
+      },
+      "waiting": {
+        "title": "Qabul qilinishi kutilmoqda",
+        "open": "Ochiq: {{count}}",
+        "old": "{{days}} kundan ortiq: {{count}}",
+        "hint": "Tasdiqlangan so‘rovlar va yuborilgan o‘tkazmalar, hali hech kim qabul qilmagan, barcha joylar bo‘yicha, eng eskisi birinchi. {{days}} kundan ortig‘i, ehtimol, unutilgan: joydan «Qabul qilindi» / «Qabul qilish» tugmasini bosishni so‘rang yoki nega yetib kelmaganini aniqlang.",
+        "none": "Hech narsa kutilmayapti.",
+        "days": "{{days}} kun",
+        "kind": {
+          "request": "So‘rov",
+          "sale": "Sotuv so‘rovi",
+          "loan": "Qarz so‘rovi",
+          "transfer": "O‘tkazma"
+        },
+        "col": {
+          "waiting": "Kutmoqda",
+          "kind": "Turi",
+          "route": "Qayerdan → qayerga",
+          "product": "Mahsulot",
+          "qty": "Soni"
+        }
+      },
+      "sum": {
+        "start": "Boshlanish",
+        "changes": "O‘zgarishlar",
+        "fromOpening": "Boshlang‘ich qoldiq · {{date}}",
+        "fromAudit": "Audit · {{date}}",
+        "noStart": "Boshida yo‘q edi",
+        "inOut": "kirim {{in}} · chiqim {{out}}",
+        "noChanges": "O‘zgarish yo‘q",
+        "notExplained": "jurnal mos, hujjatlar tushuntirmaydi"
       },
       "col": {
-        "product": "Mahsulot",
-        "baseline": "Asos",
-        "current": "Joriy",
-        "net": "O‘zgarish",
-        "changes": "O‘zgarishlar"
+        "what": "Nima bo‘ldi",
+        "change": "O‘zgarish",
+        "balance": "Qoldiq"
       },
-      "unexplained": "Tushuntirilmagan",
-      "unexplainedHint": "Joriy qoldiq asos va kuzatilgan o‘zgarishlardan {{qty}} ga farq qiladi. Bu o‘zgarish monitoring boshlanishidan oldin yoki tizimdan tashqarida sodir bo‘lgan.",
-      "noMovements": "Bu lokatsiya uchun hali qoldiq o‘zgarishi yo‘q",
-      "noMatch": "Filtringizga mos mahsulot yo‘q",
-      "actorUnknown": "Tizim",
-      "reasons": {
-        "stock_in": "Kirim",
-        "stock_out": "Chiqim",
-        "transit_in": "Yo‘lda (qo‘shildi)",
-        "transit_out": "Yo‘lda (yechildi)",
-        "loan_out": "Qarzga berildi",
-        "loan_return": "Qarz qaytdi",
-        "init": "Boshlang‘ich qoldiq",
-        "adjust": "Tuzatish",
-        "unknown": "Noma’lum",
-        "sale": "Sotuv",
-        "sale_return": "Qaytarish",
-        "loan": "Qarz",
-        "loanSold": "Qarz → Sotildi",
-        "transfer": "Ko‘chirish",
-        "request": "Filial so‘rovi",
-        "incoming": "Qabul",
-        "correction": "Korreksiya",
-        "audit": "Inventarizatsiya"
+      "startingPoint": "Hisob boshlanishi",
+      "notChecked": "tekshirilmagan",
+      "noLines": "Bu mahsulot uchun bu yerda qoldiq o‘zgarishlari yo‘q.",
+      "explain": {
+        "transitNow": "Hozir yo‘lda",
+        "transitDocs": "Ochiq so‘rovlar va o‘tkazmalar",
+        "loanNow": "Hozir qarzda",
+        "loanDocs": "Ochiq qarzlar",
+        "ok": "Tushuntirilgan"
+      },
+      "openSaleRequest": "Sotuv so‘rovini tasdiqladi: {{other}} · {{qty}} · {{date}}",
+      "openLoanRequest": "Qarz so‘rovini tasdiqladi: {{other}} · {{qty}} · {{date}}",
+      "notHere": {
+        "title": "{{location}} ro‘yxatida yo‘q",
+        "never": "bu joyda hech qachon bo‘lmagan",
+        "quiet": "boshlang‘ich qoldiqdan beri bu yerda qoldiq ham, o‘zgarish ham yo‘q",
+        "noMatch": "«{{q}}» bo‘yicha mahsulot topilmadi"
       }
     },
     "summary": {
@@ -1957,5 +2081,11 @@
       "colQty": "Miqdor",
       "colStatus": "Holat"
     }
+  },
+  "auditWaiting": {
+    "title": "Hali qabul qilinmagan: {{count}}",
+    "body": "Agar ular yetib kelgan bo‘lsa, avval qabul qiling ({{requests}}, {{transfers}}), keyin sanang. Aks holda ikki marta sanaladi.",
+    "since": "{{date}} dan",
+    "more": "yana {{count}} ta"
   }
 }

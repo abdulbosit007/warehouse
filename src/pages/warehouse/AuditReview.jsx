@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
+import WaitingDeliveriesWarning from "../../components/WaitingDeliveriesWarning";
 import CustomSelect from "../../components/CustomSelect";
 import {
   Package,
@@ -320,7 +321,7 @@ function AuditDetailModal({ audit, products, onClose }) {
 ───────────────────────────────────────────────────────────────────────────── */
 export default function WarehouseAuditReview({ asTab = false }) {
   const { t } = useTranslation();
-  const { loading: authLoading, error: authError, roleBase, userRow, isSuperWarehouse, locationId } = useCurrentUser();
+  const { loading: authLoading, error: authError, roleBase, isSuperWarehouse, locationId } = useCurrentUser();
 
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [warehouseLocation, setWarehouseLocation] = useState(null);
@@ -655,72 +656,21 @@ export default function WarehouseAuditReview({ asTab = false }) {
     setError(null);
 
     try {
-      const responses = reviewedProducts.map((p) => ({
-        session_id: openSession.id,
-        location_id: warehouseLocation.id,
-        product_id: p.id,
-        status: reviews[p.id].status,
-        reported_qty: reviews[p.id].reportedQty ?? null,
-        system_qty_at_submit: getQtyAt(p.id),
-        submitted_by: userRow?.user_id ?? null,
-      }));
-
-      // Batch insert in chunks of 500 to avoid Supabase limits
-      for (let i = 0; i < responses.length; i += 500) {
-        const batch = responses.slice(i, i + 500);
-        // upsert (not insert) so a retry after a partial failure doesn't
-        // hit the unique(session_id, location_id, product_id) constraint.
-        const { error: insertErr } = await supabase
-          .from("inventory_audit_responses")
-          .upsert(batch, { onConflict: "session_id,location_id,product_id" });
-        if (insertErr) throw insertErr;
-      }
-
-      // Apply corrections via an idempotent, status-aware upsert.
-      // (Replaces the old maybeSingle lookup, which broke when a product had
-      // more than one row at a location — e.g. available + in_transit.)
-      const rejected = responses.filter((r) => r.status === "rejected");
-      if (rejected.length > 0) {
-        const productUpdates = rejected.map((resp) => ({
-          product_id: resp.product_id,
-          location_id: resp.location_id,
-          status: "available",
-          quantity: resp.reported_qty ?? 0,
-        }));
-
-        for (let i = 0; i < productUpdates.length; i += 500) {
-          const chunk = productUpdates.slice(i, i + 500);
-          const { error: upsertErr } = await supabase
-            .from("product_list")
-            .upsert(chunk, { onConflict: "product_id,location_id,status" });
-
-          // Fatal: don't let a failed correction look like a successful audit.
-          if (upsertErr) throw upsertErr;
-        }
-      }
-
-      // Auto-close session if all locations have now submitted
-      try {
-        const { data: allLocations } = await supabase
-          .from("locations")
-          .select("id");
-        // paged: one audit has thousands of responses (over the 1,000-row limit per request)
-        const { data: allResponses } = await fetchAll(() => supabase
-          .from("inventory_audit_responses")
-          .select("location_id")
-          .eq("session_id", openSession.id));
-
-        if (allLocations && allResponses) {
-          const submittedLocationIds = new Set(allResponses.map((r) => r.location_id));
-          const allSubmitted = allLocations.every((loc) => submittedLocationIds.has(loc.id));
-          if (allSubmitted) {
-            await supabase.from("inventory_audit_sessions").update({ status: "closed" }).eq("id", openSession.id);
-            console.log("[auditSubmit] All locations submitted — session auto-closed");
-          }
-        }
-      } catch (e) {
-        console.error("[auditSubmit] Auto-close check error:", e);
-      }
+      // One database call, all or nothing: saves the responses, sets mismatched
+      // products to the counted number (logged as "audit"), records matched ones
+      // as checked, and closes the audit once every location has submitted.
+      const { error: submitErr } = await supabase.rpc("fn_submit_audit", {
+        p: {
+          session_id: openSession.id,
+          location_id: warehouseLocation.id,
+          responses: reviewedProducts.map((p) => ({
+            product_id: p.id,
+            status: reviews[p.id].status,
+            reported_qty: reviews[p.id].reportedQty ?? null,
+          })),
+        },
+      });
+      if (submitErr) throw submitErr;
 
       const key = getStorageKey(openSession.id, warehouseLocation.id);
       localStorage.removeItem(key);
@@ -877,6 +827,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
           )}
         </div>
       )}
+
+      {openSession && !submitted && <WaitingDeliveriesWarning locationId={warehouseLocation?.id} pageKey="warehouseRequests" />}
 
       {!selectedAuditForReview && (
         <div className="space-y-6">
