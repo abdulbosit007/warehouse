@@ -7,6 +7,7 @@ import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 // lucide-react icons are used via child components (SaleSection, LoanSection, ReturnDestModal)
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
@@ -59,8 +60,18 @@ export default function BranchOperations() {
     })();
   }, []);
 
+  // Link from Requests → My Requests: ?tab=sale&day=YYYY-MM-DD opens Sale history
+  // on that day (where a rejected sale item can be closed or resent).
+  const [searchParams] = useSearchParams();
+  const linkedDay = useMemo(() => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(searchParams.get("day") || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+    // only the link the page was opened with
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ------------------------------ LOCAL STATE ---------------------------- */
-  const [tab, setTab] = useState("sale"); // "sale" | "loan"
+  const [tab, setTab] = useState(searchParams.get("tab") === "loan" ? "loan" : "sale"); // "sale" | "loan"
 
   // catalog
   const [catalog, setCatalog] = useState([]); // [{product_id,name,sku,category,display_price,sources,branchQty,overallQty}]
@@ -118,7 +129,7 @@ export default function BranchOperations() {
   const [loanHistoryLoading, setLoanHistoryLoading] = useState(false);
 
   // sale history state
-  const [saleHistoryDay, setSaleHistoryDay] = useState(new Date());
+  const [saleHistoryDay, setSaleHistoryDay] = useState(() => linkedDay || new Date());
   const [saleHistory, setSaleHistory] = useState([]);
   const [saleHistoryLoading, setSaleHistoryLoading] = useState(false);
   const [salePendingRequests, setSalePendingRequests] = useState([]);
@@ -329,6 +340,7 @@ export default function BranchOperations() {
     if (!isBranch || !locationName) return;
     loadPendingSaleTransfers();
     loadLoanPendingRequests();
+    if (linkedDay && tab === "sale") loadSaleHistory(linkedDay); // opened from a link
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBranch, locationName]);
 
@@ -1617,12 +1629,13 @@ export default function BranchOperations() {
       });
       if (saleErr) throw saleErr;
 
-      // 2. If all items in the request are now fulfilled, close the request
+      // 2. Close the request once every item is accepted or cancelled (a rejected
+      //    item keeps it open: it can still be closed or resent)
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id")
         .eq("request_id", req.id)
-        .neq("status", "fulfilled");
+        .not("status", "in", "(fulfilled,cancelled)");
       if (!remaining || remaining.length === 0) {
         await supabase.from("branch_requests").update({ status: "closed" }).eq("id", req.id);
       }
@@ -1911,6 +1924,7 @@ return (
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
             // Sale history props
+            initialMode={linkedDay ? "history" : "new"}
             saleHistoryDay={saleHistoryDay}
             setSaleHistoryDay={setSaleHistoryDay}
             saleHistory={saleHistory}

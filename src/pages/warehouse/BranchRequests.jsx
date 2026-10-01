@@ -60,6 +60,18 @@ const STATUS_CONFIG = {
     color: "bg-neutral-100 text-neutral-600 border-neutral-200",
     icon: X,
   },
+  // sale / loan requests: the item was sold or loaned at the branch
+  fulfilled: {
+    labelKey: "warehouseRequests.status.accepted",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    icon: PackageCheck,
+  },
+  // a finished sale / loan request
+  closed: {
+    labelKey: "warehouseRequests.status.closed",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    icon: PackageCheck,
+  },
 };
 
 // Status a request should close with once none of its items is waiting or approved:
@@ -1452,8 +1464,13 @@ function IncomingTab({ t, location, showToast }) {
 
     if (error && silent) return; // keep what is on screen
 
+    // Only requests where this warehouse still has something to do or watch: one of
+    // its items is waiting for approval, or approved and not received yet. (A sale
+    // request kept open for the branch's close / resend decision isn't its business.)
     const filtered = (data || []).filter((req) =>
-      req.items?.some((item) => item.source_location?.id === location.id)
+      req.items?.some((item) =>
+        item.source_location?.id === location.id && (item.status === "requested" || item.status === "approved")
+      )
     );
 
     const seen = seenIdsRef.current;
@@ -1843,6 +1860,11 @@ function IncomingTab({ t, location, showToast }) {
                                 <X className="w-3 h-3" />
                               </span>
                             )}
+                            {item.status === "fulfilled" && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                <PackageCheck className="w-3 h-3" />
+                              </span>
+                            )}
                             {isItemPending && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
                                 <Clock className="w-3 h-3" />
@@ -1850,6 +1872,9 @@ function IncomingTab({ t, location, showToast }) {
                             )}
                           </div>
                           <div className="col-span-3 flex items-center justify-end gap-2">
+                            {item.status === "fulfilled" && (
+                              <span className="text-xs text-emerald-600 font-medium">{t("warehouseRequests.status.accepted")}</span>
+                            )}
                             {isItemPending && (
                               <>
                                 {processingIds.has(item.id) ? (

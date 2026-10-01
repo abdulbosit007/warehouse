@@ -32,6 +32,13 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import TransfersSection from "../../components/TransfersSection";
+import { Link } from "react-router-dom";
+
+// "YYYY-MM-DD" of a timestamp in local time (the Sale page's day)
+const localDay = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 /* -------------------------------------------------------------------------- */
 /*                              STATUS CONFIG                                  */
@@ -1569,10 +1576,11 @@ function OutgoingTab({ location, showToast }) {
       const { error } = await supabase.rpc("fn_branch_accept_sale_item", { p_item_id: item.id });
       if (error) throw error;
 
-      // Same rule as the Sale page: the request closes once every item is accepted.
+      // Same rule as the Sale page: the request closes once every item is accepted or
+      // cancelled (a rejected item keeps it open: it can still be closed or resent).
       const { data: remaining } = await supabase
         .from("branch_request_items").select("id")
-        .eq("request_id", request.id).neq("status", "fulfilled");
+        .eq("request_id", request.id).not("status", "in", "(fulfilled,cancelled)");
       if (!remaining || remaining.length === 0) {
         await supabase.from("branch_requests").update({ status: "closed" }).eq("id", request.id);
       }
@@ -1838,8 +1846,17 @@ function OutgoingTab({ location, showToast }) {
                             {item.status === "completed" && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.outgoing.receivedBtn")}</span>}
                             {item.status === "fulfilled" && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.outgoing.acceptedChip")}</span>}
                             {isItemRejected && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.rejected")}</span>}
-                            {isItemRejected && (req.purpose === "sale" || req.purpose === "loan") && (
-                              <span className="text-[11px] text-neutral-500">{t("branchRequests.outgoing.resolveOnSalePage")}</span>
+                            {/* rejected sale item: closed or resent on the Sale page, on the request's day
+                                (a rejected loan item needs nothing: the Loan tab only shows it) */}
+                            {isItemRejected && req.purpose === "sale" && (
+                              <Link
+                                to={`../history?tab=sale&day=${localDay(req.created_at)}`}
+                                relative="path"
+                                className="inline-flex items-center gap-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                              >
+                                {t("branchRequests.outgoing.resolveOnSalePage")}
+                                <ChevronRight className="w-3 h-3" />
+                              </Link>
                             )}
                             {isItemPending && (
                               processingIds.has(item.id) ? (

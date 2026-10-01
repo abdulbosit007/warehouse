@@ -1313,7 +1313,9 @@
       "completed": "Якунланган",
       "cancelled": "Бекор қилинган",
       "awaitingReceipt": "Қабул кутилмоқда",
-      "received": "Қабул қилинди"
+      "received": "Қабул қилинди",
+      "accepted": "Қабул қилинган",
+      "closed": "Ёпилган"
     },
     "actions": {
       "cancel": "Бекор қилиш",

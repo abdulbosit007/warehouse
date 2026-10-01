@@ -52,9 +52,11 @@ export default function SaleSection({
   readyDays = new Set(),
   waitingDays = new Set(),
   loadSaleMonthData,
+  // "history" when the page was opened from a link to a day
+  initialMode = "new",
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState("new"); // "new" | "history"
+  const [mode, setMode] = useState(initialMode); // "new" | "history"
   const [showFilters, setShowFilters] = useState(false);
 
   const activeFilterCount = selectedCategory ? 1 : 0;
