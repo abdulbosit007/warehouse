@@ -834,7 +834,10 @@
       "alreadyProcessed": "This item was already processed. The list has been refreshed.",
       "undoOk": "Approval cancelled",
       "undoFail": "Failed to cancel the approval",
-      "rejectFail": "Failed to reject"
+      "rejectFail": "Failed to reject",
+      "acceptSaleOk": "Sale recorded",
+      "acceptLoanOk": "Loan recorded",
+      "acceptFail": "Failed to accept"
     },
     "modeToggle": {
       "requests": "Branch Requests",
@@ -904,7 +907,14 @@
       "pending": "Pending",
       "approved": "Approved",
       "cancelBtn": "Cancel",
-      "receivedBtn": "Received"
+      "receivedBtn": "Received",
+      "saleRequest": "Sale request",
+      "loanRequest": "Loan request",
+      "loanAcceptHint": "Loan for {{name}}: accept all approved items as one loan",
+      "acceptLoanBtn": "Accept loan · {{count}}",
+      "acceptSaleBtn": "Accept sale",
+      "acceptedChip": "Accepted",
+      "resolveOnSalePage": "Close or resend on the Sale page"
     },
     "incoming": {
       "emptyTitle": "No Incoming Requests",
@@ -1729,55 +1739,169 @@
     },
     "monitor": {
       "title": "Stock Monitor",
-      "subtitle": "Every stock change per location since the last completed audit",
+      "subtitle": "Every stock change per location, and where the numbers don't add up",
       "selectLocation": "Select location",
-      "baselineFrom": "Baseline from audit on {{date}}",
-      "noBaseline": "No completed audit for this location — showing all tracked changes",
       "search": "Search product or SKU",
-      "allReasons": "All change types",
-      "movedOnly": "Changed only",
       "refresh": "Refresh",
       "showing": "Showing {{shown}} of {{total}} products",
-      "pickPrompt": "Select a product to see its full stock history",
-      "statementTitle": "Movement history",
-      "currentStock": "Current stock",
+      "checkedSince": "Checked since {{date}} (opening). Older history is shown in grey.",
+      "noOpening": "Checking hasn't started yet: there is no opening in the stock log.",
+      "lastAudit": "Last audit: {{date}}",
+      "noAudit": "No audit yet",
+      "problemsFirst": "Problems first",
+      "showAll": "Show all products",
+      "noProducts": "No products to show",
+      "pickPrompt": "Select a product to see its stock statement",
+      "loadFailed": "Couldn't load the Stock Monitor. Try again.",
+      "system": "System",
       "cards": {
-        "productsChanged": "Products changed",
-        "movements": "Total changes",
-        "flagged": "Unexplained",
-        "netUnits": "Net units"
+        "noDoc": "No document",
+        "transitOff": "In transit off",
+        "loanOff": "On loan off",
+        "auditDiff": "Audit differences",
+        "statementOff": "Doesn't add up"
+      },
+      "hints": {
+        "noDoc": "Stock changed, but no app function recorded why.",
+        "transitOff": "In-transit stock doesn't equal the open requests and transfers to this location.",
+        "loanOff": "On-loan stock doesn't equal the loans still open here.",
+        "auditDiff": "The last audit's count differed from the system number.",
+        "statementOff": "The stock log doesn't end at the real stock: something changed it outside the log."
+      },
+      "status": {
+        "ok": "ok"
+      },
+      "bucket": {
+        "available": "Available",
+        "in_transit": "In transit",
+        "loaned": "On loan"
+      },
+      "earlier": "Earlier lines: {{count}}",
+      "earlierOld": "Before the opening, not checked: {{count}}",
+      "nowInStock": "Now in stock",
+      "matches": "matches the stock log",
+      "logSays": "the log says {{qty}}",
+      "transitCheck": "In transit {{now}} · explained by open requests and transfers: {{expected}}",
+      "loanCheck": "On loan {{now}} · explained by open loans: {{expected}}",
+      "notExplained": "{{qty}} not explained",
+      "openRequest": "Request approved by {{other}} · {{qty}} · {{date}}",
+      "openTransfer": "Transfer from {{other}} · {{qty}} · {{date}}",
+      "openLoan": "Loan to {{name}} · {{date}}",
+      "nothingOpen": "Nothing open",
+      "by": "by {{name}}",
+      "line": {
+        "opening": "Opening",
+        "sale": "Sold here",
+        "sale_from_request": "Sold (taken from {{other}})",
+        "loan": "Loaned out",
+        "loan_from_request": "Loaned out (taken from {{other}})",
+        "sale_return": "Customer return",
+        "loan_return": "Loan returned",
+        "loan_sold": "Loan sold",
+        "request_approve_out": "Request approved for {{other}}",
+        "request_approve_in": "On the way from {{other}} (request)",
+        "request_receive": "Request received from {{other}}",
+        "request_undo": "Request approval undone ({{other}})",
+        "request_cancel": "Request cancelled ({{other}})",
+        "transfer_send_out": "Transfer sent to {{other}}",
+        "transfer_send_in": "On the way from {{other}} (transfer)",
+        "transfer_accept": "Transfer accepted from {{other}}",
+        "transfer_reject": "Transfer rejected ({{other}})",
+        "transfer_cancel": "Transfer cancelled ({{other}})",
+        "incoming": "Incoming batch ({{origin}})",
+        "incoming_fix": "Incoming quantity fix",
+        "correction": "Correction approved ({{from}} → {{to}})",
+        "audit": "Audit: counted {{counted}}, system {{system}}",
+        "audit_ok": "Audit: counted, matches",
+        "loaned_fix": "On-loan fix",
+        "noDoc": "Changed with no document",
+        "old": "Old change: {{reason}}",
+        "transit_fix": "Stuck in-transit cleanup (nothing real behind it)",
+        "transit_fix_undo": "Stuck in-transit cleanup undone"
+      },
+      "reasons": {
+        "stock_in": "stock in",
+        "stock_out": "stock out",
+        "transit_in": "in transit added",
+        "transit_out": "in transit cleared",
+        "loan_out": "loaned out",
+        "loan_return": "loan returned",
+        "init": "new stock row",
+        "adjust": "adjustment",
+        "unknown": "unknown",
+        "sale": "sale",
+        "loan": "loan",
+        "sale_return": "return"
+      },
+      "docHistory": "Requests and transfers of this product to here",
+      "docRequest": "Request from {{other}}",
+      "docSaleRequest": "Sale request from {{other}}",
+      "docLoanRequest": "Loan request from {{other}}",
+      "docTransfer": "Transfer from {{other}}",
+      "noDocs": "No requests or transfers found",
+      "docStatus": {
+        "requested": "waiting",
+        "approved": "approved, not received",
+        "completed": "received",
+        "fulfilled": "accepted",
+        "rejected": "rejected",
+        "cancelled": "cancelled",
+        "pending": "on the way",
+        "accepted": "accepted"
+      },
+      "waiting": {
+        "title": "Waiting to be received",
+        "open": "{{count}} open",
+        "old": "{{count}} over {{days}} days",
+        "hint": "Approved requests and sent transfers that nobody has received yet, all locations, oldest first. Over {{days}} days was probably forgotten: ask the location to press Received / Accept, or find out why it didn't arrive.",
+        "none": "Nothing is waiting.",
+        "days": "{{days}} d",
+        "kind": {
+          "request": "Request",
+          "sale": "Sale request",
+          "loan": "Loan request",
+          "transfer": "Transfer"
+        },
+        "col": {
+          "waiting": "Waiting",
+          "kind": "Type",
+          "route": "From → to",
+          "product": "Product",
+          "qty": "Qty"
+        }
+      },
+      "sum": {
+        "start": "Start",
+        "changes": "Changes",
+        "fromOpening": "Opening · {{date}}",
+        "fromAudit": "Audit · {{date}}",
+        "noStart": "None at the opening",
+        "inOut": "in {{in}} · out {{out}}",
+        "noChanges": "No changes since",
+        "notExplained": "log adds up, documents don't explain it"
       },
       "col": {
-        "product": "Product",
-        "baseline": "Baseline",
-        "current": "Current",
-        "net": "Net change",
-        "changes": "Changes"
+        "what": "What happened",
+        "change": "Change",
+        "balance": "Balance"
       },
-      "unexplained": "Unexplained",
-      "unexplainedHint": "Current stock differs from baseline + tracked changes by {{qty}}. This change happened before monitoring started or outside the system.",
-      "noMovements": "No stock changes recorded for this location yet",
-      "noMatch": "No products match your filters",
-      "actorUnknown": "System",
-      "reasons": {
-        "stock_in": "Stock in",
-        "stock_out": "Stock out",
-        "transit_in": "In-transit added",
-        "transit_out": "In-transit cleared",
-        "loan_out": "Loaned out",
-        "loan_return": "Loan returned",
-        "init": "Initial stock",
-        "adjust": "Adjustment",
-        "unknown": "Unknown",
-        "sale": "Sale",
-        "sale_return": "Return",
-        "loan": "Loan",
-        "loanSold": "Loan → Sold",
-        "transfer": "Transfer",
-        "request": "Branch request",
-        "incoming": "Receiving",
-        "correction": "Correction",
-        "audit": "Audit"
+      "startingPoint": "Starting point",
+      "notChecked": "not checked",
+      "noLines": "No stock changes recorded here for this product.",
+      "explain": {
+        "transitNow": "In transit now",
+        "transitDocs": "Open requests and transfers",
+        "loanNow": "On loan now",
+        "loanDocs": "Open loans",
+        "ok": "Explained"
+      },
+      "openSaleRequest": "Sale request approved by {{other}} · {{qty}} · {{date}}",
+      "openLoanRequest": "Loan request approved by {{other}} · {{qty}} · {{date}}",
+      "notHere": {
+        "title": "Not in {{location}}'s list",
+        "never": "never been at this location",
+        "quiet": "no stock and no changes here since the opening",
+        "noMatch": "No product matches “{{q}}”"
       }
     },
     "summary": {
@@ -1959,5 +2083,11 @@
       "colQty": "Qty",
       "colStatus": "Status"
     }
+  },
+  "auditWaiting": {
+    "title": "Not received yet: {{count}}",
+    "body": "If these have arrived, receive them first ({{requests}}, {{transfers}}), then count. Otherwise they will be counted twice.",
+    "since": "since {{date}}",
+    "more": "and {{count}} more"
   }
 }

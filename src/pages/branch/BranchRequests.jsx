@@ -214,13 +214,12 @@ export default function BranchRequests() {
     if (!location) return;
     try {
       // Outgoing: requests where to_location_id = my location, status sent/approved
-      // Exclude sale/loan purpose requests — those are handled in History page only
+      // (sale / loan requests too: they can be accepted from the Outgoing tab as well)
       const { count: outCount } = await supabase
         .from("branch_requests")
         .select("id", { count: "exact", head: true })
         .eq("to_location_id", location.id)
-        .in("status", ["sent", "approved"])
-        .or("purpose.is.null,purpose.not.in.(sale,loan)");
+        .in("status", ["sent", "approved"]);
 
       // Incoming: only count requests that have items with status "requested"
       // (items the user still needs to approve/reject — not already acted on)
@@ -1406,7 +1405,7 @@ function OutgoingTab({ location, showToast }) {
     const { data, error } = await supabase
       .from("branch_requests")
       .select(`
-        id, status, created_at,
+        id, status, created_at, purpose, note,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
@@ -1414,9 +1413,9 @@ function OutgoingTab({ location, showToast }) {
           source_location:source_location_id (id, name, location_name)
         )
       `)
+      // all requests coming here, including sale / loan requests made on the Sale page
       .eq("to_location_id", location.id)
       .in("status", ["sent", "approved"])
-      .or("purpose.is.null,purpose.not.in.(sale,loan)")
       .order("created_at", { ascending: false });
 
     if (error && silent) return; // keep what is on screen
@@ -1559,6 +1558,86 @@ function OutgoingTab({ location, showToast }) {
     }
   }
 
+  const stopProcessing = (key) =>
+    setProcessingIds((prev) => { const next = new Set(prev); next.delete(key); return next; });
+
+  // Sale request (made on the Sale page): records the sale, exactly like Accept there.
+  async function handleAcceptSaleItem(request, item) {
+    if (processingIds.has(item.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(item.id));
+    try {
+      const { error } = await supabase.rpc("fn_branch_accept_sale_item", { p_item_id: item.id });
+      if (error) throw error;
+
+      // Same rule as the Sale page: the request closes once every item is accepted.
+      const { data: remaining } = await supabase
+        .from("branch_request_items").select("id")
+        .eq("request_id", request.id).neq("status", "fulfilled");
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({ status: "closed" }).eq("id", request.id);
+      }
+
+      showToast(t("branchRequests.toast.acceptSaleOk"), "success");
+      await loadRequests({ silent: true });
+    } catch (err) {
+      console.error("Accept sale item error:", err);
+      if (await itemStatusChanged(item.id, "approved")) {
+        showToast(t("branchRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+      } else {
+        showToast(t("branchRequests.toast.acceptFail"), "error");
+      }
+    } finally {
+      stopProcessing(item.id);
+    }
+  }
+
+  // Loan request (made on the Loan tab): records ONE loan for all approved items,
+  // exactly like Accept there (the borrower is stored in the request).
+  async function handleAcceptLoanRequest(request) {
+    if (processingIds.has(request.id)) return;
+    setProcessingIds((prev) => new Set(prev).add(request.id));
+    try {
+      const { error } = await supabase.rpc("fn_branch_accept_loan_request", { p_request_id: request.id });
+      if (error) throw error;
+
+      // Same rule as the Loan tab: close when no item is waiting or approved.
+      const { data: remaining } = await supabase
+        .from("branch_request_items").select("id")
+        .eq("request_id", request.id)
+        .not("status", "in", '("fulfilled","rejected","cancelled")');
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("branch_requests").update({ status: "closed" }).eq("id", request.id);
+      }
+
+      showToast(t("branchRequests.toast.acceptLoanOk"), "success");
+      await loadRequests({ silent: true });
+    } catch (err) {
+      console.error("Accept loan request error:", err);
+      // nothing approved left = it was accepted (or reverted) elsewhere
+      const { data: stillApproved } = await supabase
+        .from("branch_request_items").select("id")
+        .eq("request_id", request.id).eq("status", "approved");
+      if (stillApproved && stillApproved.length === 0) {
+        showToast(t("branchRequests.toast.alreadyProcessed"), "info");
+        await loadRequests();
+      } else {
+        showToast(t("branchRequests.toast.acceptFail"), "error");
+      }
+    } finally {
+      stopProcessing(request.id);
+    }
+  }
+
+  // Borrower details are stored as JSON in a loan request's note.
+  const borrowerOf = (req) => {
+    try {
+      return JSON.parse(req.note || "{}").borrower_name || "";
+    } catch {
+      return "";
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -1670,6 +1749,17 @@ function OutgoingTab({ location, showToast }) {
                           <Check className="w-3 h-3" /> {t("branchRequests.outgoing.approved")}
                         </span>
                       )}
+                      {req.purpose === "sale" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
+                          {t("branchRequests.outgoing.saleRequest")}
+                        </span>
+                      )}
+                      {req.purpose === "loan" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold">
+                          {t("branchRequests.outgoing.loanRequest")}
+                          {borrowerOf(req) && ` · ${borrowerOf(req)}`}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-neutral-500">
                       {req.items?.length || 0} {t("branchRequests.outgoing.columns.products").toLowerCase()}
@@ -1684,6 +1774,25 @@ function OutgoingTab({ location, showToast }) {
               {/* Expanded Items */}
               {isExpanded && (
                 <div className="border-t border-neutral-100">
+                  {/* A loan request is accepted as one loan for all its approved items */}
+                  {req.purpose === "loan" && req.items?.some((i) => i.status === "approved") && (
+                    <div className="flex items-center justify-between gap-3 px-5 py-3 bg-violet-50 border-b border-violet-100">
+                      <span className="text-sm text-violet-800">
+                        {t("branchRequests.outgoing.loanAcceptHint", { name: borrowerOf(req) || "—" })}
+                      </span>
+                      {processingIds.has(req.id) ? (
+                        <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
+                      ) : (
+                        <button
+                          onClick={() => handleAcceptLoanRequest(req)}
+                          className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-medium hover:bg-violet-700 transition-colors flex items-center gap-1"
+                        >
+                          <PackageCheck className="w-3.5 h-3.5" />
+                          {t("branchRequests.outgoing.acceptLoanBtn", { count: req.items.filter((i) => i.status === "approved").length })}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
                     <div className="col-span-4">{t("branchRequests.outgoing.columns.products")}</div>
                     <div className="col-span-2">SKU</div>
@@ -1706,9 +1815,14 @@ function OutgoingTab({ location, showToast }) {
                             )}
                           </div>
                           <div className="col-span-4 flex items-center justify-end gap-2">
-                            {isItemApproved && (
+                            {isItemApproved && req.purpose !== "loan" && (
                               processingIds.has(item.id) ? (
                                 <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
+                              ) : req.purpose === "sale" ? (
+                                <button onClick={() => handleAcceptSaleItem(req, item)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-medium hover:bg-orange-700 transition-colors flex items-center gap-1">
+                                  <PackageCheck className="w-3.5 h-3.5" /> {t("branchRequests.outgoing.acceptSaleBtn")}
+                                </button>
                               ) : (
                                 <button onClick={() => handleConfirmReceiptItem(req, item)} disabled={processingIds.has(item.id)}
                                   className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50">
@@ -1716,8 +1830,17 @@ function OutgoingTab({ location, showToast }) {
                                 </button>
                               )
                             )}
+                            {isItemApproved && req.purpose === "loan" && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 bg-violet-100 px-2 py-1 rounded-full">
+                                <Check className="w-3 h-3" />{t("branchRequests.outgoing.approved")}
+                              </span>
+                            )}
                             {item.status === "completed" && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.outgoing.receivedBtn")}</span>}
+                            {item.status === "fulfilled" && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.outgoing.acceptedChip")}</span>}
                             {isItemRejected && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.rejected")}</span>}
+                            {isItemRejected && (req.purpose === "sale" || req.purpose === "loan") && (
+                              <span className="text-[11px] text-neutral-500">{t("branchRequests.outgoing.resolveOnSalePage")}</span>
+                            )}
                             {isItemPending && (
                               processingIds.has(item.id) ? (
                                 <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
