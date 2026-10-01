@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   GitBranch,
@@ -99,9 +100,16 @@ export default function OwnerBranchRequests() {
     if (data) setLocations(data);
   }
 
-  async function loadRequests() {
-    setLoading(true);
-    setError(null);
+  // Live: requests and item decisions between all locations
+  useLiveRefresh(["branch_requests", "branch_request_items"], () => loadRequests({ silent: true }), {
+    enabled: !authLoading && !authError && roleBase === "owner",
+  });
+
+  async function loadRequests({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       // Fetch all branch requests with related items and location names
       const { data, error: reqErr } = await supabase
@@ -122,13 +130,16 @@ export default function OwnerBranchRequests() {
       if (reqErr) throw reqErr;
       
       setRequests(data || []);
-      // Expand top 10 by default
-      const defaultExpanded = new Set((data || []).slice(0, 10).map(r => r.id));
-      setExpandedIds(defaultExpanded);
-      
+      // Expand top 10 by default (a quiet refresh keeps the user's open/closed cards)
+      if (!silent) {
+        const defaultExpanded = new Set((data || []).slice(0, 10).map(r => r.id));
+        setExpandedIds(defaultExpanded);
+      }
+
     } catch (err) {
       console.error(err);
-      setError("Failed to load requests.");
+      // a failed quiet refresh keeps the list
+      if (!silent) setError("Failed to load requests.");
     } finally {
       setLoading(false);
     }

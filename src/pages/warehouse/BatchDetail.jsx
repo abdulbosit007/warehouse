@@ -10,6 +10,7 @@ import {
   getWarehouseLocations,
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import {
   ArrowLeft,
   Check,
@@ -406,10 +407,13 @@ export default function WarehouseBatchDetail() {
   const [rejectRow, setRejectRow] = useState(null);
   const [showRejectedInfo, setShowRejectedInfo] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr("");
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setErr("");
+    }
     const [{ data: b, error: bErr }, { data: it, error: iErr }] = await Promise.all([getBatch(id), getBatchItems(id)]);
+    if ((bErr || iErr) && silent) return; // a failed quiet refresh keeps the page
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
     setBatch(b || null);
@@ -420,6 +424,15 @@ export default function WarehouseBatchDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live: the owner sends / resends items, or another warehouse user decides them
+  // (the owner's draft edits are not shown here)
+  useLiveRefresh(["incoming_batches", "incoming_batch_items"], () => load({ silent: true }), {
+    match: (c) =>
+      c.table === "incoming_batches"
+        ? rowIs(c, "id", id)
+        : rowIs(c, "batch_id", id) && c.new?.status !== "draft",
+  });
 
   useEffect(() => {
     (async () => {

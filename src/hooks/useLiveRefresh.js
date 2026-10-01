@@ -21,6 +21,15 @@ supabase.auth.onAuthStateChange((event) => {
 });
 
 /**
+ * True when the changed row's `column` equals `value`. On deletes the old row has
+ * only the id, so an unknown value counts as a match (better one extra reload).
+ */
+export function rowIs(change, column, value) {
+  const row = change.new && Object.keys(change.new).length ? change.new : change.old;
+  return row?.[column] === undefined || row[column] === value;
+}
+
+/**
  * Re-run `refresh` whenever one of `tables` changes.
  *
  * - Bursts of changes are grouped: `refresh` runs once, `delay` ms after the last one

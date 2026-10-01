@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -734,9 +735,21 @@ export default function InventoryBatchDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, locationId]);
 
-  async function loadData() {
-    setLoading(true);
-    setError(null);
+  // Live: new corrections and audit responses from this location
+  useLiveRefresh(
+    ["inventory_corrections", "inventory_audit_sessions", "inventory_audit_responses"],
+    () => loadData({ silent: true }),
+    {
+      enabled: !authLoading && !authError && roleBase === "owner" && !!locationId,
+      match: (c) => c.table === "inventory_audit_sessions" || rowIs(c, "location_id", locationId),
+    }
+  );
+
+  async function loadData({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       // Load location
@@ -829,10 +842,13 @@ export default function InventoryBatchDetail() {
         });
 
         setAuditHistory(history);
+        // an open audit detail shows the fresh version
+        setSelectedAudit((prev) => (prev && history.find((h) => h.session_id === prev.session_id)) || prev);
       }
     } catch (err) {
       console.error("Error loading data:", err);
-      setError(err?.message || t("common.failedLoad"));
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err?.message || t("common.failedLoad"));
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,7 @@ import {
   updateBatch,
 } from "../../lib/incoming";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import {
   Package,
@@ -212,10 +213,13 @@ export default function IncomingBatches() {
 
   const navigate = useNavigate();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     const { data, error } = await getBatchesSummaryWithOrigin();
-    if (error) setErr(error.message);
+    if (error) {
+      if (silent) return; // a failed quiet refresh keeps the list
+      setErr(error.message);
+    }
 
     const sorted = (data || []).slice().sort((a, b) => {
       const ta = new Date(a.created_at || 0).getTime();
@@ -230,6 +234,11 @@ export default function IncomingBatches() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live: the warehouse approves / rejects items, batches change on another device
+  useLiveRefresh(["incoming_batches", "incoming_batch_items"], () => load({ silent: true }), {
+    match: (c) => c.new?.status !== "draft", // skip saves while drafts are being typed
+  });
 
   const hasOpenBatchForOrigin = useCallback(
     (origin) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"; // useRef used in DateRangePicker
 import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
+import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
@@ -333,9 +334,21 @@ export default function OwnerHistory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase, dateFrom, dateTo]);
 
-  async function loadData() {
-    setLoading(true);
-    setError(null);
+  // Live: sales / returns / loans and stock changes. This page loads a lot, so changes
+  // are grouped over 3s, and only the tabs built from this data listen
+  // (Restock and Stock Monitor load their own data).
+  useLiveRefresh(["transactions", "product_list"], () => loadData({ silent: true }), {
+    enabled:
+      !authLoading && !authError && roleBase === "owner" &&
+      (activeTab === "analytics" || activeTab === "logs"),
+    delay: 3000,
+  });
+
+  async function loadData({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       /* 1. All locations */
       const { data: locs, error: locErr } = await supabase
@@ -407,7 +420,8 @@ export default function OwnerHistory() {
 
     } catch (err) {
       console.error("Load history error", err);
-      setError(err?.message || "Failed to load data.");
+      // a failed quiet refresh keeps the page as it is
+      if (!silent) setError(err?.message || "Failed to load data.");
     } finally {
       setLoading(false);
     }
