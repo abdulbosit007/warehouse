@@ -521,15 +521,24 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
         });
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        // Only while still pending: an approved correction already changed stock.
+        // (The database sets owner_decided_at from its own clock.)
+        const { data: rejected, error } = await supabase
           .from("inventory_corrections")
           .update({
             status: decision,
             owner_decided_at: new Date().toISOString(),
             owner_decided_by: userRow?.user_id,
           })
-          .eq("id", id);
+          .eq("id", id)
+          .eq("status", "pending")
+          .select("id");
         if (error) throw error;
+        // nothing changed: it was decided elsewhere — reload to show its real status
+        if (!rejected || rejected.length === 0) {
+          await onReload();
+          return;
+        }
       }
 
       await onReload();

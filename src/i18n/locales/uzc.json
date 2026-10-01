@@ -335,7 +335,8 @@
     "missing": "йўқ",
     "validation": {
       "category": "категория",
-      "quantity": "сон"
+      "quantity": "сон",
+      "sku": "SKU"
     },
     "errors": {
       "fetchDraftFailed": "Қоралама позицияларни олишда хатолик.",

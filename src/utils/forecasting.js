@@ -67,13 +67,18 @@ export function scoreRestock(products) {
 
 // ─── ML Model Integration ─────────────────────────────────────────────────────
 
-const ML_API_URL = "http://localhost:8787";
+// Set VITE_ML_API_URL where an ML server exists. Without it the live site never
+// calls one (each visit used to wait on localhost, and Chrome may ask users for
+// local-network access); Smart Restock then uses the WMA forecast.
+const ML_API_URL =
+  import.meta.env.VITE_ML_API_URL || (import.meta.env.DEV ? "http://localhost:8787" : "");
 
 /**
  * Check if the ML prediction server is running.
  * @returns {Promise<boolean>}
  */
 export async function checkMLServerHealth() {
+  if (!ML_API_URL) return false;
   try {
     const res = await fetch(`${ML_API_URL}/health`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) return false;

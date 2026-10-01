@@ -12,10 +12,14 @@ SELECT count(*) AS open_audits
 FROM public.inventory_audit_sessions
 WHERE status = 'open';
 
--- STEP 2: create the rule (run after STEP 1 shows 0 or 1)
+-- STEP 2: create the rule (run after STEP 1 shows 0 or 1).
+-- Committed on its own: the test below ends with an error, and without this
+-- COMMIT the editor would undo the rule together with the test.
+BEGIN;
 CREATE UNIQUE INDEX IF NOT EXISTS inventory_audit_sessions_one_open
   ON public.inventory_audit_sessions ((true))
   WHERE status = 'open';
+COMMIT;
 
 -- STEP 3 (test, changes nothing): tries to open two audits inside a block that is
 -- always rolled back. Expected error text: "TEST PASSED: a second open audit is blocked".

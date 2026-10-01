@@ -438,12 +438,15 @@ export default function BatchDetail() {
         name: d.product_name || "—",
         missingCategory: !d.category_id,
         badQty: d.quantity == null || Number(d.quantity) <= 0,
+        // without a SKU the warehouse can't approve it (no product, no stock)
+        missingSku: !String(d.sku ?? "").trim(),
       }))
-      .filter((x) => x.missingCategory || x.badQty);
+      .filter((x) => x.missingCategory || x.badQty || x.missingSku);
 
     if (invalids.length > 0) {
       const lines = invalids.map((x) => {
         const r = [];
+        if (x.missingSku) r.push(t("ownerBatchDetail.validation.sku"));
         if (x.missingCategory) r.push(t("ownerBatchDetail.validation.category"));
         if (x.badQty) r.push(t("ownerBatchDetail.validation.quantity"));
         return `• ${x.sku} (${x.name}) → ${r.join(" & ")}`;
