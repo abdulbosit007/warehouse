@@ -62,6 +62,22 @@ const STATUS_CONFIG = {
   },
 };
 
+// Status a request should close with once none of its items is waiting or approved:
+// completed if anything was received, else rejected if anything was rejected, else
+// cancelled. null = still open (or the check failed — then leave it as it is).
+async function closedRequestStatus(requestId) {
+  const { data, error } = await supabase
+    .from("branch_request_items")
+    .select("status")
+    .eq("request_id", requestId);
+  if (error || !data) return null;
+  const statuses = data.map((i) => i.status);
+  if (statuses.some((s) => s === "requested" || s === "approved")) return null;
+  if (statuses.includes("completed")) return "completed";
+  if (statuses.includes("rejected")) return "rejected";
+  return "cancelled";
+}
+
 // True when someone else already moved this request item on (approved, cancelled, received, ...).
 async function itemStatusChanged(itemId, expectedStatus) {
   const { data } = await supabase
@@ -1035,14 +1051,9 @@ function OutgoingTab({ t, location, showToast }) {
         return;
       }
 
-      const { data: remaining } = await supabase
-        .from("branch_request_items")
-        .select("id, status")
-        .eq("request_id", request.id)
-        .not("status", "eq", "cancelled");
-
-      if (!remaining || remaining.length === 0) {
-        await supabase.from("branch_requests").update({ status: "cancelled" }).eq("id", request.id);
+      const finalStatus = await closedRequestStatus(request.id);
+      if (finalStatus) {
+        await supabase.from("branch_requests").update({ status: finalStatus }).eq("id", request.id);
       }
 
       showToast(t("warehouseRequests.toast.cancelled"), "info");
@@ -1065,11 +1076,13 @@ function OutgoingTab({ t, location, showToast }) {
       });
       if (recvErr) throw recvErr;
 
+      // Complete the request only when nothing is left to receive or still waiting
+      // for the source's decision; otherwise those items would be stranded.
       const { data: remaining } = await supabase
         .from("branch_request_items")
         .select("id, status")
         .eq("request_id", request.id)
-        .eq("status", "approved");
+        .in("status", ["requested", "approved"]);
 
       if (!remaining || remaining.length === 0) {
         await supabase.from("branch_requests").update({
@@ -1554,14 +1567,19 @@ function IncomingTab({ t, location, showToast }) {
           .eq("request_id", request.id)
           .eq("status", "approved");
 
-        const finalStatus = approvedItems && approvedItems.length > 0 ? "approved" : "rejected";
-        await supabase
-          .from("branch_requests")
-          .update({
-            status: finalStatus,
-            warehouse_decided_at: new Date().toISOString(),
-          })
-          .eq("id", request.id);
+        // all decided: still to receive -> approved; otherwise close it
+        const finalStatus = approvedItems && approvedItems.length > 0
+          ? "approved"
+          : await closedRequestStatus(request.id);
+        if (finalStatus) {
+          await supabase
+            .from("branch_requests")
+            .update({
+              status: finalStatus,
+              warehouse_decided_at: new Date().toISOString(),
+            })
+            .eq("id", request.id);
+        }
       }
 
       showToast(t("warehouseRequests.toast.rejected"), "info");
