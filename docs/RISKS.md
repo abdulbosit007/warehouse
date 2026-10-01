@@ -429,9 +429,10 @@ have their own "Qarzda" column) or units still in transit.
 - **Loan notes.** Editing a loan's note can break places that recognise loans by their note text
   ("Loan transfer accepted…", "Loan sale…").
 - **Correction rejection time** comes from the owner's browser clock. Approval uses database time.
-- **Missing or wrong message texts.** "Undo approval" uses translation keys that don't exist
-  (`warehouseRequests.toast.undoOk` / `undoFail`, `branchRequests.toast.undoOk`), so users see the raw key
-  name. If rejecting a request item fails, the message says "Failed to approve".
+- **Missing or wrong message texts — fixed 2026-10-01.**
+  - "Undo approval" now has real texts (`undoOk` / `undoFail`) in all 4 languages; before, users saw the raw key name.
+  - A failed reject says "Failed to reject" (`rejectFail`) instead of "Failed to approve".
+  - A failed undo on the branch page no longer says "Failed to cancel request".
 
 ### Stock Monitor (redesign in progress)
 
@@ -451,28 +452,15 @@ arrival of stock, replaced by each audit. Corrections are shown as normal histor
 
 ### Unused code and data
 
-- **Never imported:**
-  - components: `ops/HistorySection`, `ops/ReturnSection`, `HistoryByDate`, `HistoryBySku`,
-    `ReturnByDate`, `ReturnBySku`, `OwnerIncomingList`, `ProfileCard`, `SearchAndEditProduct`,
-    `WarehouseFixInbox`;
-  - `ProductsTable`, with the hooks `useProducts` and `useProductFilterMeta`;
-  - `requests/SimpleNewRequestButton`, with `SimpleNewRequestModal`, `SimpleRequestTable` and
-    `useDebouncedValue`;
-  - hooks: `useAuthAndMemberships`, `useBranchOperations`, `useBranchStockSearch`, `useRpc`,
-    `useSupabaseSession`;
-  - `dev/debugSupabase.js`, `lib/supabaseAdminClient.js`;
-  - pages: `owner/SalesAnalytics.jsx`, `owner/UserManagement.jsx`.
-- Some of that code uses tables that no longer exist: `transfer_requests`, `incoming_products`,
-  `incoming_product_fix`.
-- **Unreachable return screens.** The "Return by date / by SKU" code inside `pages/branch/History.jsx`
-  (`loadReturnByDate`, `submitReturn`, …) can no longer be reached: the Return tab was removed, and returns now
-  happen from Sale History and Active Loans. Part of the September return fix (`txBreakdown`) was applied to
-  this unreachable code. The fix that is live is `fn_branch_commit_return_multi`, used by
-  `processReturnWithDestinations`.
+- **Removed 2026-10-01 (about 6,000 lines):**
+  - 27 files that nothing imported, including `lib/supabaseAdminClient.js` (the admin-key risk) and
+    `DebugPanel`;
+  - the unreachable "Return by date / by SKU" and old History code inside `pages/branch/History.jsx`.
+
+  Returns happen from Sale History and Active Loans, through `fn_branch_commit_return_multi`.
 - `/warehouse/history` shows an empty page: `pages/warehouse/History.jsx` is an empty component.
-- **Admin key file.** `lib/supabaseAdminClient.js` reads a service-role (full admin) key from a `VITE_`
-  variable. It isn't imported, the variable isn't set, and the current build doesn't contain such a key. But
-  importing it would ship the admin key to every browser. It should be deleted.
+- **Admin key file — deleted 2026-10-01.** `lib/supabaseAdminClient.js` read a service-role (full admin) key
+  from a `VITE_` variable, which would have shipped the key to every browser if anything had imported it.
 - **Database functions not called by the app:** `fn_deduct_stock` (dangerous: it has no status filter, so it
   would subtract from every bucket), `fn_request_create` (2 versions), `fn_requests_history`,
   `fn_owner_accept_fix_and_resend`, `fn_accept_transfer`, `fn_reject_transfer`, `fn_cancel_transfer`.

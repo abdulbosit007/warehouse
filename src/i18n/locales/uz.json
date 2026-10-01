@@ -828,7 +828,10 @@
       "rejectInfo": "So‘rov rad etildi",
       "confirmReceiptSuccess": "Mahsulot qabul qilindi! Zaxira yangilandi.",
       "confirmReceiptFail": "Qabul qilishni tasdiqlab bo’lmadi",
-      "alreadyProcessed": "Bu mahsulot allaqachon ko‘rib chiqilgan. Ro‘yxat yangilandi."
+      "alreadyProcessed": "Bu mahsulot allaqachon ko‘rib chiqilgan. Ro‘yxat yangilandi.",
+      "undoOk": "Tasdiq bekor qilindi",
+      "undoFail": "Tasdiqni bekor qilib bo‘lmadi",
+      "rejectFail": "Rad etib bo‘lmadi"
     },
     "modeToggle": {
       "requests": "Filial so’rovlari",
@@ -1331,7 +1334,10 @@
       "receivedOk": "Mahsulotlar qabul qilindi! Ombor yangilandi.",
       "receivedFail": "Qabul qilish tasdiqlanmadi",
       "cancelFail": "So‘rovni bekor qilib bo‘lmadi",
-      "alreadyProcessed": "Bu mahsulot allaqachon ko‘rib chiqilgan. Ro‘yxat yangilandi."
+      "alreadyProcessed": "Bu mahsulot allaqachon ko‘rib chiqilgan. Ro‘yxat yangilandi.",
+      "undoOk": "Tasdiq bekor qilindi",
+      "undoFail": "Tasdiqni bekor qilib bo‘lmadi",
+      "rejectFail": "Rad etib bo‘lmadi"
     },
     "new": {
       "searchTitle": "Mahsulot qidirish",

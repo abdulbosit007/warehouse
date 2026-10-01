@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
-import DebugPanel from "../../components/DebugPanel";
 import ReturnDestModal from "../../components/ReturnDestModal";
 
 // tab sections
@@ -33,14 +32,9 @@ export default function BranchOperations() {
   const { t } = useTranslation();
 
   /* ----------------------------- DEBUG infra ----------------------------- */
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [logs, setLogs] = useState([]);
   const t0 = useRef({});
   const log = (step, data) => {
-    // eslint-disable-next-line no-console
     console.log(`[dbg] ${step}`, data);
-    // keep the last 200: live refreshes log on every reload
-    setLogs((prev) => [...prev.slice(-199), { t: new Date().toISOString(), step, data }]);
   };
   const tic = (k) => (t0.current[k] = performance.now());
   const toc = (k) =>
@@ -63,7 +57,6 @@ export default function BranchOperations() {
       if (error) log("auth.getSession error", error);
       log("auth.session", data?.session ? "OK" : "NULL");
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ------------------------------ LOCAL STATE ---------------------------- */
@@ -71,7 +64,6 @@ export default function BranchOperations() {
 
   // catalog
   const [catalog, setCatalog] = useState([]); // [{product_id,name,sku,category,display_price,sources,branchQty,overallQty}]
-  const [warehouseLocations, setWarehouseLocations] = useState([]); // [{id, location_name}]
   const [branchLocationId, setBranchLocationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [committing, setCommitting] = useState(false);
@@ -117,32 +109,6 @@ export default function BranchOperations() {
     borrower_store_no: "",
     due_date: todayPlus(3),
   });
-
-  // return state
-  const [returnMode, setReturnMode] = useState("date"); // "date" | "sku"
-  // By Date
-  const [retSelectedDay, setRetSelectedDay] = useState(new Date());
-  const [retByDateLoading, setRetByDateLoading] = useState(false);
-  const [retByDateRows, setRetByDateRows] = useState([]);
-  // map key `${parent_tx_id}:${product_id}` -> { parent_tx_id, return_kind, product_id, sku, name, max, qty }
-  const [retSelect, setRetSelect] = useState(new Map());
-  // By SKU
-  const [retSkuQuery, setRetSkuQuery] = useState("");
-  const [retSkuLoading, setRetSkuLoading] = useState(false);
-  const [retSkuSuggestions, setRetSkuSuggestions] = useState([]); // Product suggestions dropdown
-  const [retSkuOptions, setRetSkuOptions] = useState([]);
-  const [retSkuPicked, setRetSkuPicked] = useState(null);
-  const [retSkuQty, setRetSkuQty] = useState(0);
-
-  // history state
-  const [histMode, setHistMode] = useState("date"); // "date" | "sku"
-  const [selectedDay, setSelectedDay] = useState(new Date());
-  const [histLoading, setHistLoading] = useState(false);
-  const [historyDateRows, setHistoryDateRows] = useState([]);
-  const [skuQuery, setSkuQuery] = useState("");
-  const [histSkuLoading, setHistSkuLoading] = useState(false);
-  const [histSkuSuggestions, setHistSkuSuggestions] = useState([]);
-  const [historyBySku, setHistoryBySku] = useState([]);
 
   // active loans state
   const [activeLoans, setActiveLoans] = useState([]);
@@ -215,21 +181,6 @@ export default function BranchOperations() {
     );
   }, [cartValid, borrower]);
 
-  const returnValid = useMemo(() => {
-    if (returnMode === "date")
-      return (
-        retSelect.size > 0 &&
-        Array.from(retSelect.values()).every((v) => v.qty > 0)
-      );
-    if (returnMode === "sku")
-      return (
-        !!retSkuPicked &&
-        retSkuQty > 0 &&
-        retSkuQty <= (retSkuPicked?.remaining ?? 0)
-      );
-    return false;
-  }, [returnMode, retSelect, retSkuPicked, retSkuQty]);
-
   /* -------------------------------- HELPERS ------------------------------ */
   async function getBranchLocation() {
     tic("loc");
@@ -259,7 +210,6 @@ export default function BranchOperations() {
         .select("id, location_name, kind");
       if (locsErr) throw locsErr;
       const otherLocs = (allLocs || []).filter((l) => l.id !== branchLoc.id);
-      setWarehouseLocations(otherLocs.filter((l) => l.kind === "warehouse"));
       setAllLocations(allLocs || []);
 
       const allLocationIds = [branchLoc.id, ...otherLocs.map((l) => l.id)];
@@ -372,7 +322,6 @@ export default function BranchOperations() {
     setErr("");
     setOk("");
     refreshCatalog();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshCatalog]);
 
   // Load pending sale-transfer count on mount (drives the red badge on Sale tab)
@@ -465,225 +414,6 @@ export default function BranchOperations() {
     }
     return out;
   }
-
-  /* ---------------------------- HISTORY: BASE ----------------------------- */
-  const baseLoadHistoryByDate = async (day) => {
-    setHistLoading(true);
-    try {
-      setErr("");
-      const loc = await getBranchLocation();
-      const startISO = startOfDayUTC(day);
-      const endISO = nextDayUTC(day);
-
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(
-          `id, type, status, created_at, note, borrower_name, borrower_phone, borrower_store_no, due_date, parent_tx_id,
-           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
-        )
-        .eq("status", "committed")
-        .eq("location_id", loc.id)
-        .gte("created_at", startISO)
-        .lt("created_at", endISO)
-        .order("created_at", { ascending: false })
-        .limit(800);
-
-      if (error) throw error;
-
-      const parentIds = (data || [])
-        .filter((t) => t.type === "sale" || t.type === "loan")
-        .map((t) => t.id);
-      const returnedMap = await fetchReturnedSums(parentIds);
-
-      const prepared = (data || []).map((t) => {
-        const items = (t.transaction_items || []).map((ti) => ({
-          id: ti.id,
-          product_id: ti.product_id,
-          qty: ti.qty,
-          sku: ti.product?.sku || "",
-          name: ti.product?.name || "",
-          returned:
-            t.type === "sale" || t.type === "loan"
-              ? returnedMap.get(t.id)?.get(ti.product_id) || 0
-              : 0,
-        }));
-        return {
-          id: t.id,
-          type: t.type,
-          created_at: t.created_at,
-          note: t.note || "",
-          borrower_name: t.borrower_name || "",
-          due_date: t.due_date || null,
-          parent_tx_id: t.parent_tx_id || null,
-          items,
-        };
-      });
-
-      const orderRank = { sale: 0, loan: 1, sale_return: 2, loan_return: 3 };
-      prepared.sort((a, b) => {
-        const ra = orderRank[a.type] ?? 99;
-        const rb = orderRank[b.type] ?? 99;
-        if (ra !== rb) return ra - rb;
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-
-      setHistoryDateRows(prepared);
-    } catch (e) {
-      log("history by date error", e.message || String(e));
-      setErr(e.message || String(e));
-      setHistoryDateRows([]);
-    } finally {
-      setHistLoading(false);
-    }
-  };
-
-  /* -------------------------- HISTORY: BY SKU (1y) ------------------------ */
-  async function searchHistoryProductSuggestions() {
-    const term = skuQuery.trim();
-    if (term.length < 2) {
-      setHistSkuSuggestions([]);
-      return;
-    }
-    try {
-      const { data: prods, error } = await supabase
-        .from("products")
-        .select("id, name, sku")
-        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
-        .limit(10);
-      if (error) throw error;
-      setHistSkuSuggestions(prods || []);
-    } catch {
-      setHistSkuSuggestions([]);
-    }
-  }
-
-  async function loadHistoryForProduct(productId, sku) {
-    setHistSkuLoading(true);
-    setHistSkuSuggestions([]);
-    setSkuQuery(sku);
-    try {
-      setErr("");
-      const loc = await getBranchLocation();
-      const sinceISO = oneYearAgoISO();
-
-      const { data: rows, error: tErr } = await supabase
-        .from("transaction_items")
-        .select(
-          `id, product_id, qty,
-           tx:transactions ( id, type, status, created_at, note, borrower_name, due_date, location_id, parent_tx_id ),
-           product:products ( sku, name )`
-        )
-        .eq("product_id", productId)
-        .gte("tx.created_at", sinceISO)
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(500);
-      if (tErr) throw tErr;
-
-      const bySku = new Map();
-      for (const r of rows || []) {
-        const skuVal = r.product?.sku || "(no sku)";
-        const name = r.product?.name || "";
-        const day = ymd(r.tx?.created_at || new Date());
-        if (!bySku.has(skuVal)) bySku.set(skuVal, { sku: skuVal, name, items: [] });
-        bySku.get(skuVal).items.push({
-          id: r.id,
-          day,
-          type: r.tx?.type || "",
-          qty: r.qty,
-          note: r.tx?.note || "",
-          borrower_name: r.tx?.borrower_name || "",
-          due_date: r.tx?.due_date || null,
-        });
-      }
-
-      const result = Array.from(bySku.values()).map((blk) => ({
-        ...blk,
-        items: blk.items.sort((a, b) => (a.day < b.day ? 1 : -1)),
-      }));
-      result.sort((a, b) => a.sku.localeCompare(b.sku));
-      setHistoryBySku(result);
-    } catch (e) {
-      log("history for product error", e.message || String(e));
-      setErr(e.message || String(e));
-      setHistoryBySku([]);
-    } finally {
-      setHistSkuLoading(false);
-    }
-  }
-
-  const searchHistoryBySku = async () => {
-    const term = skuQuery.trim();
-    if (!term) {
-      setHistoryBySku([]);
-      return;
-    }
-    setHistSkuLoading(true);
-    try {
-      setErr("");
-      const loc = await getBranchLocation();
-
-      const { data: prods, error: pErr } = await supabase
-        .from("products")
-        .select("id, name, sku")
-        .ilike("sku", `${term}%`)
-        .limit(200);
-      if (pErr) throw pErr;
-
-      if (!prods || prods.length === 0) {
-        setHistoryBySku([]);
-        return;
-      }
-      const pidSet = prods.map((p) => p.id);
-      const sinceISO = oneYearAgoISO();
-
-      const { data: rows, error: tErr } = await supabase
-        .from("transaction_items")
-        .select(
-          `id, product_id, qty,
-           tx:transactions ( id, type, status, created_at, note, borrower_name, due_date, location_id, parent_tx_id ),
-           product:products ( sku, name )`
-        )
-        .in("product_id", pidSet)
-        .gte("tx.created_at", sinceISO)
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(4000);
-      if (tErr) throw tErr;
-
-      const bySku = new Map();
-      for (const r of rows || []) {
-        const sku = r.product?.sku || "(no sku)";
-        const name = r.product?.name || "";
-        const day = ymd(r.tx?.created_at || new Date());
-        if (!bySku.has(sku)) bySku.set(sku, { sku, name, items: [] });
-        bySku.get(sku).items.push({
-          id: r.id,
-          day,
-          type: r.tx?.type || "",
-          qty: r.qty,
-          note: r.tx?.note || "",
-          borrower_name: r.tx?.borrower_name || "",
-          due_date: r.tx?.due_date || null,
-        });
-      }
-
-      const result = Array.from(bySku.values()).map((blk) => ({
-        ...blk,
-        items: blk.items.sort((a, b) => (a.day < b.day ? 1 : -1)),
-      }));
-      result.sort((a, b) => a.sku.localeCompare(b.sku));
-      setHistoryBySku(result);
-    } catch (e) {
-      log("history by sku error", e.message || String(e));
-      setErr(e.message || String(e));
-      setHistoryBySku([]);
-    } finally {
-      setHistSkuLoading(false);
-    }
-  };
 
   /* ----------------------- SALE HISTORY: search helpers -------------------- */
   async function searchSaleProducts(term) {
@@ -1165,20 +895,6 @@ export default function BranchOperations() {
       setCommitting(false);
     }
   }
-
-  const resetForms = () => {
-    setCart([]);
-    setNote("");
-    setBorrower({
-      borrower_name: "",
-      borrower_phone: "",
-      borrower_store_no: "",
-      due_date: todayPlus(3),
-    });
-    setRetSelect(new Map());
-    setRetSkuPicked(null);
-    setRetSkuQty(0);
-  };
 
   /* ------------------------- ACTIVE LOANS ------------------------------ */
   async function loadActiveLoans({ silent = false } = {}) {
@@ -2069,371 +1785,6 @@ export default function BranchOperations() {
     } catch (e) {
       setErr(e.message || String(e));
       throw e;
-    }
-  }
-
-  /* ------------------------- RETURN: BY DATE ------------------------------ */
-  async function loadReturnByDate(day) {
-    setRetByDateLoading(true);
-    try {
-      setErr("");
-      const loc = await getBranchLocation();
-      const startISO = startOfDayUTC(day);
-      const endISO = nextDayUTC(day);
-
-      const { data: txs, error } = await supabase
-        .from("transactions")
-        .select(
-          `id, type, created_at, note,
-           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
-        )
-        .eq("status", "committed")
-        .eq("location_id", loc.id)
-        .in("type", ["sale", "loan"])
-        .gte("created_at", startISO)
-        .lt("created_at", endISO)
-        .order("created_at", { ascending: false })
-        .limit(800);
-      if (error) throw error;
-
-      const parentIds = (txs || []).map((t) => t.id);
-      const returnedMap = await fetchReturnedSums(parentIds);
-
-      // Group by product_id for sales to avoid duplicates
-      const grouped = new Map();
-      for (const t of txs || []) {
-        for (const it of t.transaction_items || []) {
-          const original = it.qty || 0;
-          const sums = returnedMap.get(t.id)?.get(it.product_id) || { total: 0, returned: 0, sold: 0 };
-          const retSum = sums.total;
-          const remaining = Math.max(0, original - retSum);
-          if (remaining <= 0) continue;
-          
-          // For sales, group by product_id
-          if (t.type === "sale") {
-            const gkey = `sale:${it.product_id}`;
-            if (grouped.has(gkey)) {
-              const existing = grouped.get(gkey);
-              existing.original += original;
-              existing.returned += retSum;
-              existing.remaining += remaining;
-              existing.parent_tx_ids.push(t.id);
-              existing.txBreakdown.push({ parent_tx_id: t.id, remaining });
-            } else {
-              grouped.set(gkey, {
-                key: gkey,
-                parent_tx_id: t.id,
-                parent_tx_ids: [t.id],
-                txBreakdown: [{ parent_tx_id: t.id, remaining }],
-                return_kind: "sale_return",
-                created_at: t.created_at,
-                type: t.type,
-                product_id: it.product_id,
-                sku: it.product?.sku || "",
-                name: it.product?.name || "",
-                original,
-                returned: retSum,
-                remaining,
-                note: t.note || "",
-              });
-            }
-          } else {
-            // For loans, keep individual rows (in case we need them later)
-            const key = `${t.id}:${it.product_id}`;
-            grouped.set(key, {
-              key,
-              parent_tx_id: t.id,
-              parent_tx_ids: [t.id],
-              return_kind: "loan_return",
-              created_at: t.created_at,
-              type: t.type,
-              product_id: it.product_id,
-              sku: it.product?.sku || "",
-              name: it.product?.name || "",
-              original,
-              returned: retSum,
-              remaining,
-              note: t.note || "",
-            });
-          }
-        }
-      }
-
-      const flat = Array.from(grouped.values());
-      flat.sort((a, b) => a.name.localeCompare(b.name));
-      setRetByDateRows(flat);
-    } catch (e) {
-      setErr(e.message || String(e));
-      setRetByDateRows([]);
-    } finally {
-      setRetByDateLoading(false);
-    }
-  }
-
-  function toggleRetSelect(row, checked) {
-    setRetSelect((prev) => {
-      const next = new Map(prev);
-      if (checked) {
-        next.set(row.key, {
-          parent_tx_id: row.parent_tx_id,
-          return_kind: row.return_kind,
-          product_id: row.product_id,
-          sku: row.sku,
-          name: row.name,
-          max: row.remaining,
-          qty: Math.min(1, row.remaining),
-        });
-      } else {
-        next.delete(row.key);
-      }
-      return next;
-    });
-  }
-
-  function setRetQty(key, qty) {
-    setRetSelect((prev) => {
-      const next = new Map(prev);
-      const v = next.get(key);
-      if (!v) return next;
-      const clamped = Math.max(0, Math.min(Number(qty || 0), v.max));
-      next.set(key, { ...v, qty: clamped });
-      return next;
-    });
-  }
-
-  /* --------------------------- RETURN: BY SKU ----------------------------- */
-  async function searchProductSuggestions() {
-    const term = retSkuQuery.trim();
-    if (term.length < 2) {
-      setRetSkuSuggestions([]);
-      return;
-    }
-    try {
-      const { data: prods, error } = await supabase
-        .from("products")
-        .select("id, name, sku")
-        .or(`sku.ilike.${term}%,name.ilike.%${term}%`)
-        .limit(10);
-      if (error) throw error;
-      setRetSkuSuggestions(prods || []);
-    } catch {
-      setRetSkuSuggestions([]);
-    }
-  }
-
-  async function loadReturnableItems(productId, sku) {
-    setRetSkuLoading(true);
-    setRetSkuSuggestions([]);
-    setRetSkuQuery(sku);
-    try {
-      setErr("");
-      const loc = await getBranchLocation();
-      const sinceISO = oneYearAgoISO();
-
-      const { data: rows, error } = await supabase
-        .from("transaction_items")
-        .select(
-          `id, product_id, qty,
-           tx:transactions ( id, type, status, created_at, note, location_id ) ,
-           product:products ( sku, name )`
-        )
-        .eq("product_id", productId)
-        .gte("tx.created_at", sinceISO)
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .in("tx.type", ["sale", "loan"])
-        .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(100);
-      if (error) throw error;
-
-      const parentIds = [...new Set((rows || []).map((r) => r.tx?.id).filter(Boolean))];
-      const returnedMap = await fetchReturnedSums(parentIds);
-
-      const opts = (rows || [])
-        .map((r) => {
-          const parentId = r.tx?.id;
-          const original = r.qty || 0;
-          const retSum = returnedMap.get(parentId)?.get(r.product_id) || 0;
-          const remaining = Math.max(0, original - retSum);
-          return {
-            key: `${parentId}:${r.product_id}`,
-            parent_tx_id: parentId,
-            return_kind: r.tx?.type === "sale" ? "sale_return" : "loan_return",
-            created_at: r.tx?.created_at,
-            type: r.tx?.type,
-            product_id: r.product_id,
-            sku: r.product?.sku || "",
-            name: r.product?.name || "",
-            original,
-            returned: retSum,
-            remaining,
-            note: r.tx?.note || "",
-          };
-        })
-        .filter((o) => o.remaining > 0);
-
-      setRetSkuOptions(opts);
-      setRetSkuPicked(null);
-      setRetSkuQty(0);
-    } catch (e) {
-      setErr(e.message || String(e));
-      setRetSkuOptions([]);
-    } finally {
-      setRetSkuLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (returnMode !== "sku") return;
-    const term = retSkuQuery.trim();
-    if (term.length < 2) {
-      setRetSkuSuggestions([]);
-      setRetSkuOptions([]);
-      return;
-    }
-    const timeout = setTimeout(() => {
-      searchProductSuggestions();
-    }, 200);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retSkuQuery, returnMode]);
-
-  useEffect(() => {
-    if (histMode !== "sku") return;
-    const term = skuQuery.trim();
-    if (term.length < 2) {
-      setHistSkuSuggestions([]);
-      setHistoryBySku([]);
-      return;
-    }
-    const timeout = setTimeout(() => {
-      searchHistoryProductSuggestions();
-    }, 200);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skuQuery, histMode]);
-
-  /* ----------------------------- SUBMIT RETURN --------------------------- */
-  function submitReturn() {
-    setErr("");
-    setOk("");
-    if (!returnValid) { setErr(t("branchOperations.errors.selectItemsAndQty")); return; }
-
-    const items = [];
-
-    if (returnMode === "date") {
-      for (const [, val] of retSelect.entries()) {
-        if (!val.qty || val.qty <= 0) continue;
-        if (val.txBreakdown && val.txBreakdown.length > 1) {
-          let toReturn = val.qty;
-          for (const tx of val.txBreakdown) {
-            if (toReturn <= 0) break;
-            const allocate = Math.min(toReturn, tx.remaining);
-            if (allocate <= 0) continue;
-            items.push({
-              product_id: val.product_id,
-              name: val.name,
-              sku: val.sku || "",
-              qty: allocate,
-              return_kind: val.return_kind,
-              parent_tx_id: tx.parent_tx_id,
-            });
-            toReturn -= allocate;
-          }
-        } else {
-          items.push({
-            product_id: val.product_id,
-            name: val.name,
-            sku: val.sku || "",
-            qty: val.qty,
-            return_kind: val.return_kind,
-            parent_tx_id: val.parent_tx_id,
-          });
-        }
-      }
-    } else if (returnMode === "sku" && retSkuPicked) {
-      items.push({
-        product_id: retSkuPicked.product_id,
-        name: retSkuPicked.name,
-        sku: retSkuPicked.sku || "",
-        qty: retSkuQty,
-        return_kind: retSkuPicked.return_kind,
-        parent_tx_id: retSkuPicked.parent_tx_id,
-      });
-    }
-
-    if (items.length === 0) return;
-
-    setRetDestModal({
-      items,
-      onConfirm: async (destinations, retNote) => {
-        try {
-          await processReturnWithDestinations(items, destinations, retNote || note);
-          setRetDestModal(null);
-          showOk(t("branchOperations.success.returnCommittedMany", { count: items.length }));
-          resetForms();
-          if (returnMode === "date") await loadReturnByDate(retSelectedDay);
-          else setRetSkuOptions([]);
-          await refreshCatalog({ silent: true });
-        } catch (e) {
-          setErr(e.message || String(e));
-        }
-      },
-    });
-  }
-
-  useEffect(() => {
-    if (tab === "return" && returnMode === "date" && retSelectedDay) {
-      loadReturnByDate(retSelectedDay);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, returnMode, retSelectedDay, locationName]);
-
-  /* ------------------------------ HISTORY meta --------------------------- */
-  async function fetchParentMeta(ids) {
-    if (!ids || ids.length === 0) return new Map();
-    const uniq = [...new Set(ids)];
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id, created_at")
-      .in("id", uniq)
-      .limit(uniq.length);
-    if (error) {
-      log("fetchParentMeta error", error);
-      return new Map();
-    }
-    const m = new Map();
-    for (const r of data || []) m.set(r.id, r.created_at);
-    return m;
-  }
-
-  const loadHistoryByDateWithParents = async (day) => {
-    await baseLoadHistoryByDate(day);
-    const returnParentIds = (historyDateRows || [])
-      .filter((t) => t.type === "sale_return" || t.type === "loan_return")
-      .map((t) => t.parent_tx_id)
-      .filter(Boolean);
-    const meta = await fetchParentMeta(returnParentIds);
-    setHistoryDateRows((rows) =>
-      rows.map((t) =>
-        t.type === "sale_return" || t.type === "loan_return"
-          ? {
-              ...t,
-              parent_day: meta.get(t.parent_tx_id) ? ymd(meta.get(t.parent_tx_id)) : null,
-            }
-          : t
-      )
-    );
-  };
-
-  function jumpToHistoryDay(dateStr) {
-    try {
-      const d = new Date(dateStr + "T12:00:00");
-      setHistMode("date");
-      setSelectedDay(d);
-      baseLoadHistoryByDate(d);
-    } catch {
-      /* no-op */
     }
   }
 

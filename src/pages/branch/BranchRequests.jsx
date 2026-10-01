@@ -1931,7 +1931,7 @@ function IncomingTab({ location, showToast }) {
       updateItemLocally(request.id, item.id, "rejected");
     } catch (err) {
       console.error(err);
-      showToast(t("branchRequests.toast.approveFail"), "error");
+      showToast(t("branchRequests.toast.rejectFail"), "error");
     } finally {
       setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }
@@ -1958,11 +1958,11 @@ function IncomingTab({ location, showToast }) {
         await supabase.from("branch_requests").update({ status: "sent", warehouse_decided_at: null }).eq("id", request.id);
       }
 
-      showToast(t("branchRequests.toast.undoOk") || "Approval cancelled", "info");
+      showToast(t("branchRequests.toast.undoOk"), "info");
       updateItemLocally(request.id, item.id, "requested", { approved_qty: null });
     } catch (err) {
       console.error(err);
-      showToast(t("branchRequests.toast.cancelFail"), "error");
+      showToast(t("branchRequests.toast.undoFail"), "error");
     } finally {
       setProcessingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     }

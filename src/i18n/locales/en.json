@@ -830,7 +830,10 @@
       "rejectInfo": "Request rejected",
       "confirmReceiptSuccess": "Items received! Inventory updated.",
       "confirmReceiptFail": "Failed to confirm receipt",
-      "alreadyProcessed": "This item was already processed. The list has been refreshed."
+      "alreadyProcessed": "This item was already processed. The list has been refreshed.",
+      "undoOk": "Approval cancelled",
+      "undoFail": "Failed to cancel the approval",
+      "rejectFail": "Failed to reject"
     },
     "modeToggle": {
       "requests": "Branch Requests",
@@ -1333,7 +1336,10 @@
       "receivedOk": "Items received! Inventory updated.",
       "receivedFail": "Failed to confirm receipt",
       "cancelFail": "Failed to cancel request",
-      "alreadyProcessed": "This item was already processed. The list has been refreshed."
+      "alreadyProcessed": "This item was already processed. The list has been refreshed.",
+      "undoOk": "Approval cancelled",
+      "undoFail": "Failed to cancel the approval",
+      "rejectFail": "Failed to reject"
     },
     "new": {
       "searchTitle": "Search Products",
