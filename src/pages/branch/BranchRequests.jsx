@@ -33,6 +33,9 @@ import {
 } from "lucide-react";
 import TransfersSection from "../../components/TransfersSection";
 import { Link } from "react-router-dom";
+import { DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/saleRequestItems";
+import RequestTypeBadge from "../../components/RequestTypeBadge";
+import { requestHeaderClass } from "../../lib/requestType";
 
 // "YYYY-MM-DD" of a timestamp in local time (the Sale page's day)
 const localDay = (ts) => {
@@ -86,23 +89,15 @@ const STATUS_CONFIG = {
     iconBg: "bg-emerald-100",
     labelKey: "branchRequests.status.closed",
   },
+  // sale / loan request item: accepted, the sale or loan was recorded
+  fulfilled: {
+    color:
+      "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200/80 shadow-emerald-100/50",
+    icon: PackageCheck,
+    iconBg: "bg-emerald-100",
+    labelKey: "branchRequests.outgoing.acceptedChip",
+  },
 };
-
-// Status a request should close with once none of its items is waiting or approved:
-// completed if anything was received, else rejected if anything was rejected, else
-// cancelled. null = still open (or the check failed — then leave it as it is).
-async function closedRequestStatus(requestId) {
-  const { data, error } = await supabase
-    .from("branch_request_items")
-    .select("status")
-    .eq("request_id", requestId);
-  if (error || !data) return null;
-  const statuses = data.map((i) => i.status);
-  if (statuses.some((s) => s === "requested" || s === "approved")) return null;
-  if (statuses.includes("completed")) return "completed";
-  if (statuses.includes("rejected")) return "rejected";
-  return "cancelled";
-}
 
 // True when someone else already moved this request item on (approved, cancelled, received, ...).
 async function itemStatusChanged(itemId, expectedStatus) {
@@ -1580,7 +1575,7 @@ function OutgoingTab({ location, showToast }) {
       // cancelled (a rejected item keeps it open: it can still be closed or resent).
       const { data: remaining } = await supabase
         .from("branch_request_items").select("id")
-        .eq("request_id", request.id).not("status", "in", "(fulfilled,cancelled)");
+        .eq("request_id", request.id).not("status", "in", DONE_ITEM_FILTER);
       if (!remaining || remaining.length === 0) {
         await supabase.from("branch_requests").update({ status: "closed" }).eq("id", request.id);
       }
@@ -1738,7 +1733,7 @@ function OutgoingTab({ location, showToast }) {
               {/* Header */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-2">
                   {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
@@ -1757,17 +1752,7 @@ function OutgoingTab({ location, showToast }) {
                           <Check className="w-3 h-3" /> {t("branchRequests.outgoing.approved")}
                         </span>
                       )}
-                      {req.purpose === "sale" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                          {t("branchRequests.outgoing.saleRequest")}
-                        </span>
-                      )}
-                      {req.purpose === "loan" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold">
-                          {t("branchRequests.outgoing.loanRequest")}
-                          {borrowerOf(req) && ` · ${borrowerOf(req)}`}
-                        </span>
-                      )}
+                      <RequestTypeBadge purpose={req.purpose} extra={req.purpose === "loan" ? borrowerOf(req) : null} />
                     </div>
                     <p className="text-xs text-neutral-500">
                       {req.items?.length || 0} {t("branchRequests.outgoing.columns.products").toLowerCase()}
@@ -1955,7 +1940,7 @@ function IncomingTab({ location, showToast }) {
     const { data, error } = await supabase
       .from("branch_requests")
       .select(`
-        id, status, created_at,
+        id, status, created_at, purpose,
         to_location:to_location_id (id, name, location_name),
         items:branch_request_items (
           id, requested_qty, approved_qty, status,
@@ -1968,8 +1953,13 @@ function IncomingTab({ location, showToast }) {
 
     if (error && silent) return; // keep what is on screen
 
+    // Only requests where this branch still has something to do or watch: one of its
+    // items is waiting for approval, or approved and not received yet. (A sale request
+    // kept open for the requester's close / resend decision isn't its business.)
     const filtered = (data || []).filter((req) =>
-      req.items?.some((item) => item.source_location?.id === location.id)
+      req.items?.some((item) =>
+        item.source_location?.id === location.id && (item.status === "requested" || item.status === "approved")
+      )
     );
     const seen = seenIdsRef.current;
     seenIdsRef.current = new Set(filtered.map((r) => r.id));
@@ -2185,11 +2175,14 @@ function IncomingTab({ location, showToast }) {
 
           return (
             <div key={req.id} className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
-              <button onClick={() => toggleExpand(req.id)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors">
+              <button onClick={() => toggleExpand(req.id)} className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}>
                 <div className="flex items-center gap-2">
                   {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                   <div className="text-left">
-                    <p className="font-semibold text-neutral-900">{requester}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-neutral-900">{requester}</p>
+                      <RequestTypeBadge purpose={req.purpose} />
+                    </div>
                     <p className="text-xs text-neutral-500">
                       {req.items?.length || 0} {t("branchRequests.incoming.columns.products").toLowerCase()}
                       {" · "}{t("branchRequests.incoming.columns.qty")}: {totalQty}
@@ -2258,6 +2251,7 @@ function IncomingTab({ location, showToast }) {
                             {isItemCompleted && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.status.received") || "Received"}</span>}
                             {isItemRejected && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.rejected")}</span>}
                             {isItemCancelled && <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full"><X className="w-3 h-3" />{t("branchRequests.status.cancelled")}</span>}
+                            {item.status === "fulfilled" && <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full"><PackageCheck className="w-3 h-3" />{t("branchRequests.outgoing.acceptedChip")}</span>}
                           </div>
                         </div>
                       );
@@ -2581,7 +2575,7 @@ function HistoryTab({ location }) {
                 {/* Card Header */}
                 <button
                   onClick={() => toggleExpand(req.id)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                  className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
@@ -2594,16 +2588,7 @@ function HistoryTab({ location }) {
                           <StatusIcon className="w-3 h-3" />
                           {label}
                         </span>
-                        {(req.purpose === "sale" || req.purpose === "loan") && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                            {t("warehouseRequests.purpose.ondemand")}
-                          </span>
-                        )}
-                        {!req.purpose && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
-                            {t("warehouseRequests.purpose.restock")}
-                          </span>
-                        )}
+                        <RequestTypeBadge purpose={req.purpose} />
                       </div>
                       <p className="text-xs text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{req.items?.length || 0} {t("branchRequests.history.columns.products").toLowerCase()}</span>

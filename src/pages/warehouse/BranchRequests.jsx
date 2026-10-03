@@ -30,6 +30,9 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import TransfersSection from "../../components/TransfersSection";
+import { closedRequestStatus } from "../../lib/saleRequestItems";
+import RequestTypeBadge from "../../components/RequestTypeBadge";
+import { requestHeaderClass } from "../../lib/requestType";
 
 /* -------------------------------------------------------------------------- */
 /*                              STATUS CONFIG                                  */
@@ -73,22 +76,6 @@ const STATUS_CONFIG = {
     icon: PackageCheck,
   },
 };
-
-// Status a request should close with once none of its items is waiting or approved:
-// completed if anything was received, else rejected if anything was rejected, else
-// cancelled. null = still open (or the check failed — then leave it as it is).
-async function closedRequestStatus(requestId) {
-  const { data, error } = await supabase
-    .from("branch_request_items")
-    .select("status")
-    .eq("request_id", requestId);
-  if (error || !data) return null;
-  const statuses = data.map((i) => i.status);
-  if (statuses.some((s) => s === "requested" || s === "approved")) return null;
-  if (statuses.includes("completed")) return "completed";
-  if (statuses.includes("rejected")) return "rejected";
-  return "cancelled";
-}
 
 // True when someone else already moved this request item on (approved, cancelled, received, ...).
 async function itemStatusChanged(itemId, expectedStatus) {
@@ -1213,7 +1200,7 @@ function OutgoingTab({ t, location, showToast }) {
               {/* Request Header — clickable to expand/collapse */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1239,16 +1226,7 @@ function OutgoingTab({ t, location, showToast }) {
                             {t("warehouseRequests.status.approved")}
                           </span>
                         )}
-                        {(req.purpose === "sale" || req.purpose === "loan") && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                            {t("warehouseRequests.purpose.ondemand")}
-                          </span>
-                        )}
-                        {!req.purpose && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
-                            {t("warehouseRequests.purpose.restock")}
-                          </span>
-                        )}
+                        <RequestTypeBadge purpose={req.purpose} />
                       </div>
                       <p className="text-xs text-neutral-500">
                         {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
@@ -1752,7 +1730,7 @@ function IncomingTab({ t, location, showToast }) {
               {/* Request Header — clickable to expand/collapse */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1764,16 +1742,7 @@ function IncomingTab({ t, location, showToast }) {
                     <div className="text-left">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-neutral-900">{requester}</p>
-                        {(req.purpose === "sale" || req.purpose === "loan") && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                            {t("warehouseRequests.purpose.ondemand")}
-                          </span>
-                        )}
-                        {!req.purpose && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
-                            {t("warehouseRequests.purpose.restock")}
-                          </span>
-                        )}
+                        <RequestTypeBadge purpose={req.purpose} />
                       </div>
                       <p className="text-xs text-neutral-500">
                         {req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}
@@ -2227,7 +2196,7 @@ function HistoryTab({ t, location }) {
                 {/* Card Header */}
                 <button
                   onClick={() => toggleExpand(req.id)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+                  className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
@@ -2240,16 +2209,7 @@ function HistoryTab({ t, location }) {
                           <StatusIcon className="w-3 h-3" />
                           {label}
                         </span>
-                        {(req.purpose === "sale" || req.purpose === "loan") && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                            {t("warehouseRequests.purpose.ondemand")}
-                          </span>
-                        )}
-                        {!req.purpose && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
-                            {t("warehouseRequests.purpose.restock")}
-                          </span>
-                        )}
+                        <RequestTypeBadge purpose={req.purpose} />
                       </div>
                       <p className="text-xs text-neutral-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{req.items?.length || 0} {t("warehouseRequests.table.products").toLowerCase()}</span>
