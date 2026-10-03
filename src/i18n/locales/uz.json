@@ -2005,7 +2005,9 @@
       "rejected": "Rad etilgan",
       "completed": "Tugallangan",
       "cancelled": "Bekor qilingan",
-      "requestedItem": "So'ralgan mahsulot"
+      "requestedItem": "So'ralgan mahsulot",
+      "accepted": "Qabul qilingan",
+      "closed": "Yopilgan"
     }
   },
   "stockTransfers": {
@@ -2089,5 +2091,10 @@
     "body": "Agar ular yetib kelgan bo‘lsa, avval qabul qiling ({{requests}}, {{transfers}}), keyin sanang. Aks holda ikki marta sanaladi.",
     "since": "{{date}} dan",
     "more": "yana {{count}} ta"
+  },
+  "requestType": {
+    "restock": "To'ldirish",
+    "sale": "Sotuv so‘rovi",
+    "loan": "Qarz so‘rovi"
   }
 }

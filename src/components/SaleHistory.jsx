@@ -4,6 +4,7 @@ import { DayPicker } from "react-day-picker";
 import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse, RefreshCw } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 import ReturnDestModal from "./ReturnDestModal";
+import { isItemDone } from "../lib/saleRequestItems";
 
 export default function SaleHistory({
   nf,
@@ -534,7 +535,7 @@ export default function SaleHistory({
                   const allEntries = [
                     ...saleHistory.map(tx => ({ type: "committed", data: tx, ts: new Date(tx.created_at).getTime() })),
                     ...salePendingRequests
-                      .filter(req => (req.items || []).some(it => it.status !== "fulfilled" && it.status !== "cancelled"))
+                      .filter(req => (req.items || []).some(it => !isItemDone(it)))
                       .map(req => ({ type: "pending", data: req, ts: new Date(req.created_at).getTime() })),
                   ].sort((a, b) => a.ts - b.ts); // oldest first, newest at bottom
 
@@ -662,7 +663,7 @@ export default function SaleHistory({
                                   // Pending request items
                                   const req = entry.data;
                                   return (req.items || [])
-                                    .filter(it => it.status !== "fulfilled" && it.status !== "cancelled")
+                                    .filter(it => !isItemDone(it))
                                     .map(it => {
                                       // Acceptable iff THIS item is approved — not the
                                       // whole request (a closed/completed request must not
@@ -835,7 +836,7 @@ export default function SaleHistory({
                       {/* Fulfilled items are merged into the sold table above — no row here */}
                       {salePendingRequests.flatMap((req) =>
                         (req.items || [])
-                          .filter((it) => it.status !== "fulfilled" && it.status !== "cancelled")
+                          .filter((it) => !isItemDone(it))
                           .map((it) => {
                             // Acceptable iff THIS item is approved (see note above).
                             const canAccept = onAcceptTransfer && it.status === "approved";

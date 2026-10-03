@@ -2007,7 +2007,9 @@
       "rejected": "Rejected",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "requestedItem": "Requested Item"
+      "requestedItem": "Requested Item",
+      "accepted": "Accepted",
+      "closed": "Closed"
     }
   },
   "stockTransfers": {
@@ -2091,5 +2093,10 @@
     "body": "If these have arrived, receive them first ({{requests}}, {{transfers}}), then count. Otherwise they will be counted twice.",
     "since": "since {{date}}",
     "more": "and {{count}} more"
+  },
+  "requestType": {
+    "restock": "Restocking",
+    "sale": "Sale request",
+    "loan": "Loan request"
   }
 }

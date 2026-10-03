@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
+import RequestTypeBadge from "../../components/RequestTypeBadge";
+import { requestHeaderClass } from "../../lib/requestType";
 import {
   GitBranch,
   RefreshCw,
@@ -52,7 +54,19 @@ const STATUS_CONFIG = {
       labelKey: "ownerBranchRequests.status.requestedItem",
       color: "bg-neutral-100 text-neutral-600 border-neutral-200",
       icon: Clock,
-  }
+  },
+  // sale / loan request item: accepted, the sale or loan was recorded
+  fulfilled: {
+    labelKey: "ownerBranchRequests.status.accepted",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    icon: PackageCheck,
+  },
+  // a finished sale / loan request
+  closed: {
+    labelKey: "ownerBranchRequests.status.closed",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    icon: PackageCheck,
+  },
 };
 
 function StatusBadge({ status }) {
@@ -115,7 +129,7 @@ export default function OwnerBranchRequests() {
       const { data, error: reqErr } = await supabase
         .from("branch_requests")
         .select(`
-          id, status, created_at, warehouse_decided_at,
+          id, status, created_at, warehouse_decided_at, purpose,
           to_location:to_location_id (id, name, location_name),
           items:branch_request_items (
             id, requested_qty, approved_qty, status,
@@ -326,7 +340,7 @@ export default function OwnerBranchRequests() {
                   <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
                     {/* Header Row */}
                     <div 
-                      className="flex items-center justify-between p-5 cursor-pointer hover:bg-neutral-50 transition-colors"
+                      className={`flex items-center justify-between p-5 cursor-pointer ${requestHeaderClass(req.purpose)} transition-colors`}
                       onClick={() => toggleExpand(req.id)}
                     >
                       <div className="flex items-center gap-4">
@@ -337,6 +351,7 @@ export default function OwnerBranchRequests() {
                              <div className="flex items-center gap-2">
                                 <p className="font-bold text-neutral-900 text-lg">{t("ownerBranchRequests.transferTo", { name: destinationName })}</p>
                                 <StatusBadge status={req.status} />
+                                <RequestTypeBadge purpose={req.purpose} />
                              </div>
                              <p className="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-2">
                                 <span>{t("ownerBranchRequests.requested")}: {new Date(req.created_at).toLocaleString()}</span>

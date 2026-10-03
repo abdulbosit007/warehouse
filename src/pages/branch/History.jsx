@@ -8,6 +8,7 @@ import useLiveRefresh from "../../hooks/useLiveRefresh";
 // lucide-react icons are used via child components (SaleSection, LoanSection, ReturnDestModal)
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import { isItemDone, DONE_ITEM_FILTER } from "../../lib/saleRequestItems";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
@@ -1128,7 +1129,7 @@ export default function BranchOperations() {
         .from("branch_request_items")
         .select("id")
         .eq("request_id", req.id)
-        .not("status", "in", '("fulfilled","rejected","cancelled")');
+        .not("status", "in", '("fulfilled","rejected","cancelled","completed")');
       if (!remaining || remaining.length === 0) {
         await supabase
           .from("branch_requests")
@@ -1301,7 +1302,7 @@ export default function BranchOperations() {
 
       for (const req of reqs || []) {
         const day = req.created_at.slice(0, 10);
-        const active = (req.items || []).filter(it => it.status !== "fulfilled" && it.status !== "cancelled");
+        const active = (req.items || []).filter(it => !isItemDone(it));
         if (!active.length) continue;
         const isReady = active.some(it => it.status === "approved" || it.status === "rejected");
         if (isReady) readySet.add(day);
@@ -1445,7 +1446,7 @@ export default function BranchOperations() {
         .from("branch_request_items")
         .select("id")
         .eq("request_id", req.id)
-        .not("status", "in", "(cancelled,fulfilled)");
+        .not("status", "in", DONE_ITEM_FILTER);
       if (!remaining || remaining.length === 0) {
         await supabase
           .from("branch_requests")
@@ -1460,9 +1461,7 @@ export default function BranchOperations() {
           const updated = r.items.map(i =>
             i.id === item.id ? { ...i, status: "cancelled" } : i
           );
-          const allDone = updated.every(i =>
-            ["cancelled", "fulfilled"].includes(i.status)
-          );
+          const allDone = updated.every(isItemDone);
           return allDone ? null : { ...r, items: updated };
         }).filter(Boolean)
       );
@@ -1501,8 +1500,8 @@ export default function BranchOperations() {
         .eq("request_id", req.id);
       const rows = allItems || [];
       // Rejected items are still actionable (close / resend) — keep the request
-      // visible until they're resolved. Only cancelled/fulfilled count as done.
-      const active = rows.filter((i) => !["cancelled", "fulfilled"].includes(i.status));
+      // visible until they're resolved. Only finished items (isItemDone) count as done.
+      const active = rows.filter((i) => !isItemDone(i));
       if (active.length === 0) {
         // 'closed' if a real sale was fulfilled in this request, else 'cancelled'.
         const hasFulfilled = rows.some((i) => i.status === "fulfilled");
@@ -1516,7 +1515,7 @@ export default function BranchOperations() {
         prev.map(r => {
           if (r.id !== req.id) return r;
           const updated = r.items.map(i => (i.id === item.id ? { ...i, status: "cancelled" } : i));
-          const allDone = updated.every(i => ["cancelled", "fulfilled"].includes(i.status));
+          const allDone = updated.every(isItemDone);
           return allDone ? null : { ...r, items: updated };
         }).filter(Boolean)
       );
@@ -1635,7 +1634,7 @@ export default function BranchOperations() {
         .from("branch_request_items")
         .select("id")
         .eq("request_id", req.id)
-        .not("status", "in", "(fulfilled,cancelled)");
+        .not("status", "in", DONE_ITEM_FILTER);
       if (!remaining || remaining.length === 0) {
         await supabase.from("branch_requests").update({ status: "closed" }).eq("id", req.id);
       }
@@ -1645,7 +1644,7 @@ export default function BranchOperations() {
         prev.map(r => {
           if (r.id !== req.id) return r;
           const updatedItems = r.items.map(i => i.id === item.id ? { ...i, status: "fulfilled" } : i);
-          const allDone = updatedItems.every(i => i.status === "fulfilled" || i.status === "cancelled");
+          const allDone = updatedItems.every(isItemDone);
           return allDone ? null : { ...r, items: updatedItems };
         }).filter(Boolean)
       );
