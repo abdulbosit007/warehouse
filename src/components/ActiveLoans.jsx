@@ -13,8 +13,14 @@ import {
   MessageSquare,
   X,
   Edit3,
-  Check
+  Check,
+  Truck,
+  Clock,
+  Info,
 } from "lucide-react";
+
+// Items still coming from other locations for this loan (loan requests)
+const isComing = (w) => w.status === "requested" || w.status === "approved";
 
 export default function ActiveLoans({
   loans = [],
@@ -26,6 +32,8 @@ export default function ActiveLoans({
   onUpdateNote,
   onUpdateDueDate,
   onSellAll,
+  onAcceptWaiting,
+  onCancelWaiting,
 }) {
   const { t } = useTranslation();
   const [expandedLoans, setExpandedLoans] = useState(new Set());
@@ -37,8 +45,9 @@ export default function ActiveLoans({
   const [dueDateModal, setDueDateModal] = useState(null);
   const [editDueDate, setEditDueDate] = useState("");
 
+  // A loan stays here while something is on loan OR still coming from another location
   const activeLoans = loans.filter(loan =>
-    (loan.items || []).some(item => (item.remaining || 0) > 0)
+    (loan.items || []).some(item => (item.remaining || 0) > 0) || (loan.waiting || []).some(isComing)
   ).sort((a, b) => {
     const aOverdue = a.due_date && new Date(a.due_date) < new Date();
     const bOverdue = b.due_date && new Date(b.due_date) < new Date();
@@ -148,10 +157,16 @@ export default function ActiveLoans({
         ) : (
           <div className="space-y-3">
             {activeLoans.map((loan) => {
-              const overdue = isOverdue(loan.due_date);
               const daysOver = getDaysOverdue(loan.due_date);
               const isExpanded = expandedLoans.has(loan.id);
               const activeItems = (loan.items || []).filter(i => (i.remaining || 0) > 0);
+              // late only while something is still out on loan
+              const overdue = isOverdue(loan.due_date) && activeItems.length > 0;
+              const coming = (loan.waiting || []).filter(isComing);
+              const comingCount = coming.length;
+              const readyCount = coming.filter(w => w.status === "approved").length;
+              // everything given is back or paid for, but more is still coming
+              const settled = (loan.items || []).length > 0 && activeItems.length === 0;
 
               return (
                 <div
@@ -198,11 +213,25 @@ export default function ActiveLoans({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="text-sm text-neutral-500">
-                        {activeItems.length === 1
-                          ? t("branchOperations.activeLoans.itemsOne", { count: activeItems.length })
-                          : t("branchOperations.activeLoans.itemsMany", { count: activeItems.length })}
-                      </div>
+                      {readyCount > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                          <Truck className="w-3 h-3" />
+                          {t("branchOperations.activeLoans.readyChip", { count: readyCount })}
+                        </span>
+                      )}
+                      {comingCount > readyCount && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                          <Clock className="w-3 h-3" />
+                          {t("branchOperations.activeLoans.comingChip", { count: comingCount - readyCount })}
+                        </span>
+                      )}
+                      {activeItems.length > 0 && (
+                        <div className="text-sm text-neutral-500">
+                          {activeItems.length === 1
+                            ? t("branchOperations.activeLoans.itemsOne", { count: activeItems.length })
+                            : t("branchOperations.activeLoans.itemsMany", { count: activeItems.length })}
+                        </div>
+                      )}
                       {isExpanded
                         ? <ChevronUp className="w-5 h-5 text-neutral-400" />
                         : <ChevronDown className="w-5 h-5 text-neutral-400" />}
@@ -276,6 +305,7 @@ export default function ActiveLoans({
                       </div>
 
                       {/* Products Table */}
+                      {(loan.items || []).length > 0 && (
                       <div className="rounded-xl overflow-hidden border border-neutral-200">
                         <table className="w-full text-sm">
                           <thead className="bg-neutral-100">
@@ -295,13 +325,20 @@ export default function ActiveLoans({
                             {(loan.items || []).map((item) => {
                               const isCompleted = (item.remaining || 0) <= 0;
                               return (
-                                <tr key={item.product_id} className={isCompleted ? "bg-emerald-50/50" : "hover:bg-neutral-50"}>
+                                <tr key={item.key || item.product_id} className={isCompleted ? "bg-emerald-50/50" : "hover:bg-neutral-50"}>
                                   <td className="px-3 py-3">
                                     <div className={`font-medium ${isCompleted ? 'text-emerald-600' : 'text-neutral-800'}`}>
                                       {item.name}
                                       {isCompleted && <span className="ml-2 text-xs">✓</span>}
                                     </div>
-                                    <div className="text-xs text-neutral-400">{item.sku || "—"}</div>
+                                    <div className="text-xs text-neutral-400">
+                                      {item.sku || "—"}
+                                      {item.source_name && (
+                                        <span className="ml-1.5 text-blue-600">
+                                          · {t("branchOperations.activeLoans.fromSource", { source: item.source_name })}
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="px-3 py-3">
                                     <div className="flex flex-col items-center gap-1">
@@ -360,6 +397,18 @@ export default function ActiveLoans({
                           </tbody>
                         </table>
                       </div>
+                      )}
+
+                      {/* Items still coming from other locations */}
+                      {(loan.waiting || []).length > 0 && (
+                        <WaitingParts
+                          loan={loan}
+                          settled={settled}
+                          onAccept={onAcceptWaiting}
+                          onCancel={onCancelWaiting}
+                          t={t}
+                        />
+                      )}
 
                       {/* Sell All Button */}
                       {onSellAll && activeItems.length > 0 && (
@@ -547,7 +596,7 @@ export default function ActiveLoans({
               </button>
               <button
                 onClick={() => {
-                  if (onUpdateNote) onUpdateNote(noteModal.loan.id, editNoteText);
+                  if (onUpdateNote) onUpdateNote(noteModal.loan, editNoteText);
                   setNoteModal(null);
                 }}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neutral-700 to-neutral-800 text-white font-semibold hover:from-neutral-800 hover:to-neutral-900 transition-colors shadow-lg"
@@ -635,7 +684,7 @@ export default function ActiveLoans({
               </button>
               <button
                 onClick={() => {
-                  if (onUpdateDueDate) onUpdateDueDate(dueDateModal.loan.id, editDueDate);
+                  if (onUpdateDueDate) onUpdateDueDate(dueDateModal.loan, editDueDate);
                   setDueDateModal(null);
                 }}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neutral-700 to-neutral-800 text-white font-semibold hover:from-neutral-800 hover:to-neutral-900 transition-colors shadow-lg"
@@ -647,5 +696,99 @@ export default function ActiveLoans({
         </div>
       )}
     </>
+  );
+}
+
+/* ── items of this loan still coming from other locations ───────────────────
+   One block per loan request (one source location): accept what has arrived,
+   cancel what the borrower no longer needs. Rejected items are shown for info. */
+function WaitingParts({ loan, settled, onAccept, onCancel, t }) {
+  const [busy, setBusy] = useState(null); // request or item id being processed
+
+  const byRequest = new Map();
+  for (const w of loan.waiting || []) {
+    if (!byRequest.has(w.request.id)) byRequest.set(w.request.id, { request: w.request, source: w.source_name, rows: [] });
+    byRequest.get(w.request.id).rows.push(w);
+  }
+
+  const run = async (key, fn) => {
+    setBusy(key);
+    try { await fn(); } finally { setBusy(null); }
+  };
+
+  const accept = (request) => {
+    // the loan was already settled: accepting lends these items to the borrower again
+    if (settled && !window.confirm(t("branchOperations.activeLoans.acceptSettledConfirm", { name: loan.borrower_name }))) return;
+    run(request.id, () => onAccept?.(request));
+  };
+
+  const STATUS = {
+    requested: { label: "waitingStatus.requested", style: "bg-amber-100 text-amber-700" },
+    approved: { label: "waitingStatus.approved", style: "bg-emerald-100 text-emerald-700" },
+    rejected: { label: "waitingStatus.rejected", style: "bg-red-100 text-red-700" },
+  };
+
+  return (
+    <div className="rounded-xl border border-amber-200 overflow-hidden">
+      <div className="px-3 py-2.5 bg-amber-50 text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+        <Truck className="w-3.5 h-3.5" />
+        {t("branchOperations.activeLoans.waitingTitle")}
+      </div>
+      {settled && (loan.waiting || []).some(isComing) && (
+        <div className="px-3 py-2 bg-amber-50/50 border-t border-amber-100 text-xs text-amber-800 flex items-start gap-1.5">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          {t("branchOperations.activeLoans.settledNotice", { name: loan.borrower_name })}
+        </div>
+      )}
+      {[...byRequest.values()].map(({ request, source, rows }) => {
+        const ready = rows.filter((w) => w.status === "approved").length;
+        return (
+          <div key={request.id} className="border-t border-amber-100">
+            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white">
+              <span className="text-xs font-medium text-neutral-600">
+                {t("branchOperations.activeLoans.fromSource", { source: source || "—" })}
+              </span>
+              {ready > 0 && onAccept && (
+                <button
+                  onClick={() => accept(request)}
+                  disabled={busy !== null}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {busy === request.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  {t("branchOperations.activeLoans.acceptArrived", { count: ready })}
+                </button>
+              )}
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {rows.map((w) => {
+                const st = STATUS[w.status];
+                return (
+                  <div key={w.id} className="flex items-center gap-3 px-3 py-2 bg-white">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-neutral-800 truncate">{w.name}</div>
+                      <div className="text-xs text-neutral-400">{w.sku || "—"}</div>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums text-neutral-600">× {w.qty}</span>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${st.style}`}>
+                      {t(`branchOperations.activeLoans.${st.label}`)}
+                    </span>
+                    {isComing(w) && onCancel && (
+                      <button
+                        onClick={() => run(w.id, () => onCancel(w.request, w.item))}
+                        disabled={busy !== null}
+                        title={t("branchOperations.activeLoans.cancelWaitingHint")}
+                        className="px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        {busy === w.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : t("branchOperations.activeLoans.cancelWaiting")}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

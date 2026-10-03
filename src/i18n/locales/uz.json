@@ -1139,7 +1139,22 @@
       "noteModalPlaceholder": "Qarz uchun izoh qo'shing...",
       "saveNote": "Izohni saqlash",
       "editDueDateTitle": "Muddatni tahrirlash",
-      "save": "Saqlash"
+      "save": "Saqlash",
+      "readyChip": "Yetib keldi: {{count}}",
+      "comingChip": "Yo‘lda: {{count}}",
+      "fromSource": "{{source}} dan",
+      "waitingTitle": "Boshqa joylardan hali kelmoqda",
+      "settledNotice": "{{name}} ga berilganlarning hammasi qaytarildi yoki to‘landi, lekin bu mahsulotlar hali kelmoqda. Agar {{name}} ga endi kerak bo‘lmasa, bekor qiling.",
+      "acceptSettledConfirm": "{{name}} ning qarzi allaqachon yopilgan. Qabul qilsangiz, bu mahsulotlar {{name}} ga yana qarzga beriladi. Davom etasizmi?",
+      "acceptArrived": "Kelganlarni qabul qilish: {{count}}",
+      "waitingStatus": {
+        "requested": "tasdiq kutilmoqda",
+        "approved": "keldi, qabul qiling",
+        "rejected": "rad etildi"
+      },
+      "cancelWaiting": "Bekor qilish",
+      "cancelWaitingHint": "Endi kerak emas. Agar yo‘lda bo‘lsa, jo‘natilgan joyiga qaytadi.",
+      "waitingCancelled": "Bekor qilindi"
     },
     "cartPanel": {
       "title": "Savat",

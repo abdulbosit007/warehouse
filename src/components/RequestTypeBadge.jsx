@@ -7,9 +7,9 @@ import { Package, ShoppingCart, Handshake } from "lucide-react";
 import { requestType } from "../lib/requestType";
 
 const TYPES = {
-  restock: { Icon: Package, style: "bg-slate-100 text-slate-700" },
-  sale: { Icon: ShoppingCart, style: "bg-orange-100 text-orange-700" },
-  loan: { Icon: Handshake, style: "bg-violet-100 text-violet-700" },
+  restock: { Icon: Package, style: "bg-slate-200 text-slate-800" },
+  sale: { Icon: ShoppingCart, style: "bg-orange-200 text-orange-800" },
+  loan: { Icon: Handshake, style: "bg-violet-200 text-violet-800" },
 };
 
 // extra: shown after the label, e.g. the borrower of a loan request

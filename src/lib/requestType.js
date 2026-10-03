@@ -6,9 +6,9 @@ export const requestType = (purpose) => (purpose === "sale" || purpose === "loan
 
 // Tint of a request card's header (the part shown when folded); the items inside stay white.
 const HEADER = {
-  restock: "bg-slate-50 hover:bg-slate-100",
-  sale: "bg-orange-50 hover:bg-orange-100/70",
-  loan: "bg-violet-50 hover:bg-violet-100/70",
+  restock: "bg-slate-100 hover:bg-slate-200/70",
+  sale: "bg-orange-100/80 hover:bg-orange-100",
+  loan: "bg-violet-100/80 hover:bg-violet-100",
 };
 
 export const requestHeaderClass = (purpose) => HEADER[requestType(purpose)];

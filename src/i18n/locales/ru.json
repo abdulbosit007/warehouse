@@ -1140,7 +1140,22 @@
       "noteModalPlaceholder": "Добавить заметку к займу...",
       "saveNote": "Сохранить заметку",
       "editDueDateTitle": "Изменить срок",
-      "save": "Сохранить"
+      "save": "Сохранить",
+      "readyChip": "Прибыло: {{count}}",
+      "comingChip": "В пути: {{count}}",
+      "fromSource": "из {{source}}",
+      "waitingTitle": "Ещё идёт из других локаций",
+      "settledNotice": "Всё, что выдано {{name}}, возвращено или оплачено, но эти товары ещё идут. Отмените их, если {{name}} они больше не нужны.",
+      "acceptSettledConfirm": "Долг {{name}} уже закрыт. Если принять, эти товары снова будут выданы {{name}} в долг. Продолжить?",
+      "acceptArrived": "Принять прибывшие: {{count}}",
+      "waitingStatus": {
+        "requested": "ждёт одобрения",
+        "approved": "прибыло, примите",
+        "rejected": "отклонено"
+      },
+      "cancelWaiting": "Отменить",
+      "cancelWaitingHint": "Больше не нужно. Если уже в пути, вернётся туда, откуда отправлено.",
+      "waitingCancelled": "Отменено"
     },
     "cartPanel": {
       "title": "Корзина",
