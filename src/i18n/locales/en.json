@@ -1141,7 +1141,22 @@
       "noteModalPlaceholder": "Add a note for this loan...",
       "saveNote": "Save Note",
       "editDueDateTitle": "Edit Due Date",
-      "save": "Save"
+      "save": "Save",
+      "readyChip": "{{count}} arrived",
+      "comingChip": "{{count}} coming",
+      "fromSource": "from {{source}}",
+      "waitingTitle": "Still coming from other locations",
+      "settledNotice": "Everything given to {{name}} is back or paid for, but these items are still coming. Cancel them if {{name}} doesn't need them any more.",
+      "acceptSettledConfirm": "{{name}}'s loan was already settled. Accepting lends these items to {{name}} again. Continue?",
+      "acceptArrived": "Accept {{count}} arrived",
+      "waitingStatus": {
+        "requested": "waiting for approval",
+        "approved": "arrived, accept it",
+        "rejected": "rejected"
+      },
+      "cancelWaiting": "Cancel",
+      "cancelWaitingHint": "Not needed any more. If it's already on its way, it goes back to where it came from.",
+      "waitingCancelled": "Cancelled"
     },
     "cartPanel": {
       "title": "Cart",

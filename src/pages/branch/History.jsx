@@ -8,7 +8,7 @@ import useLiveRefresh from "../../hooks/useLiveRefresh";
 // lucide-react icons are used via child components (SaleSection, LoanSection, ReturnDestModal)
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { isItemDone, DONE_ITEM_FILTER } from "../../lib/saleRequestItems";
+import { isItemDone, DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/saleRequestItems";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
@@ -144,7 +144,6 @@ export default function BranchOperations() {
   const loanHistoryReq = useRef(0);
 
   // loan pending requests (approved by warehouse, waiting for branch to create loan)
-  const [loanPendingRequests, setLoanPendingRequests] = useState([]);
   const [pendingLoanTransfers, setPendingLoanTransfers] = useState(0);
 
   // Return destination modal state
@@ -801,6 +800,9 @@ export default function BranchOperations() {
 
       const ownItems      = cart.filter((l) => !l.needs_approval);
       const approvalItems = cart.filter((l) => l.needs_approval);
+      // One loan for this borrower, however many locations it comes from: the part
+      // from our shelf and every loan request share this id (one card in Active loans).
+      const loanGroupId = crypto.randomUUID();
 
       // ── Commit own branch loan items immediately ──
       if (ownItems.length > 0) {
@@ -824,6 +826,7 @@ export default function BranchOperations() {
 
         const payload = {
           note,
+          loan_group_id: loanGroupId,
           borrower_name: borrower.borrower_name,
           borrower_phone: borrower.borrower_phone || null,
           borrower_store_no: borrower.borrower_store_no || null,
@@ -856,6 +859,7 @@ export default function BranchOperations() {
               status: "sent",
               purpose: "loan",
               created_by: user?.id,
+              loan_group_id: loanGroupId,
               // Store borrower info so it can be used when the branch accepts
               note: JSON.stringify({
                 borrower_name:     borrower.borrower_name,
@@ -912,6 +916,10 @@ export default function BranchOperations() {
   }
 
   /* ------------------------- ACTIVE LOANS ------------------------------ */
+  // One card per loan: all its parts (from our shelf, and every accepted loan
+  // request) share loan_group_id. Loans made before groups existed, and loan
+  // requests without a group, are their own card. Items still waiting at other
+  // locations are shown in the same card.
   async function loadActiveLoans({ silent = false } = {}) {
     if (!silent) setActiveLoansLoading(true);
     try {
@@ -919,58 +927,110 @@ export default function BranchOperations() {
       const loc = await getBranchLocation();
       const sinceISO = oneYearAgoISO();
 
-      // Fetch all loan transactions with items
-      const { data: txs, error } = await supabase
-        .from("transactions")
-        .select(
-          `id, type, status, created_at, note, borrower_name, borrower_phone, borrower_store_no, due_date,
-           transaction_items ( id, product_id, qty, product:products ( name, sku ) )`
-        )
-        .eq("type", "loan")
-        .eq("status", "committed")
-        .eq("location_id", loc.id)
-        .gte("created_at", sinceISO)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const [txRes, reqRes] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select(
+            `id, type, status, created_at, note, borrower_name, borrower_phone, borrower_store_no, due_date, loan_group_id,
+             transaction_items ( id, product_id, qty, source_location_id, product:products ( name, sku ),
+                                 source_location:source_location_id ( location_name ) )`
+          )
+          .eq("type", "loan")
+          .eq("status", "committed")
+          .eq("location_id", loc.id)
+          .gte("created_at", sinceISO)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("branch_requests")
+          .select(`
+            id, status, created_at, note, loan_group_id,
+            items:branch_request_items (
+              id, requested_qty, approved_qty, status,
+              product:product_id ( id, name, sku ),
+              source_location:source_location_id ( id, location_name )
+            )
+          `)
+          .eq("to_location_id", loc.id)
+          .eq("purpose", "loan")
+          .in("status", ["sent", "approved"])
+          .order("created_at", { ascending: true }),
+      ]);
+      if (txRes.error) throw txRes.error;
+      if (reqRes.error) throw reqRes.error;
+      const txs = txRes.data || [];
+      const reqs = reqRes.data || [];
 
-      // Fetch returned sums for these loans
-      const parentIds = (txs || []).map((t) => t.id);
-      const returnedMap = await fetchReturnedSums(parentIds);
+      const returnedMap = await fetchReturnedSums(txs.map((t) => t.id));
 
-      // Build active loans with remaining quantities
-      const loans = (txs || [])
-        .map((tx) => {
-          const items = (tx.transaction_items || []).map((item) => {
+      const groups = new Map();
+      const groupOf = (key) => {
+        if (!groups.has(key)) groups.set(key, { key, parts: [], requests: [] });
+        return groups.get(key);
+      };
+      for (const tx of txs) groupOf(tx.loan_group_id || tx.id).parts.push(tx);
+      for (const r of reqs) groupOf(r.loan_group_id || `req:${r.id}`).requests.push(r);
+
+      const metaOf = (r) => {
+        try { return JSON.parse(r.note || "{}") || {}; } catch { return {}; }
+      };
+
+      const loans = [...groups.values()].map(({ key, parts, requests }) => {
+        const first = parts[0] || null;
+        const meta = requests[0] ? metaOf(requests[0]) : {};
+        const items = parts.flatMap((tx) =>
+          (tx.transaction_items || []).map((item) => {
             const sums = returnedMap.get(tx.id)?.get(item.product_id) || { total: 0, returned: 0, sold: 0 };
             return {
               id: item.id,
+              key: `${tx.id}:${item.id}`,
+              tx_id: tx.id, // returns and sales are recorded against this part
               product_id: item.product_id,
               name: item.product?.name || "",
               sku: item.product?.sku || "",
+              source_name: item.source_location_id && item.source_location_id !== loc.id
+                ? item.source_location?.location_name || ""
+                : "",
               qty: item.qty,
               sold: sums.sold || 0,
               returned: sums.returned || 0,
               remaining: Math.max(0, item.qty - sums.total),
             };
-          });
-          // Check if any items have remaining qty
-          const hasRemaining = items.some((i) => i.remaining > 0);
-          return {
-            id: tx.id,
-            created_at: tx.created_at,
-            borrower_name: tx.borrower_name || "",
-            borrower_phone: tx.borrower_phone || "",
-            borrower_store_no: tx.borrower_store_no || "",
-            due_date: tx.due_date,
-            note: tx.note,
-            items: items, // Keep ALL items, including completed ones
-            is_completed: !hasRemaining,
-          };
-        })
-        .filter((loan) => loan.items.length > 0); // Only active loans
+          })
+        );
+        const waiting = requests.flatMap((r) =>
+          (r.items || [])
+            .filter((i) => ["requested", "approved", "rejected"].includes(i.status))
+            .map((i) => ({
+              id: i.id,
+              request: r,
+              item: i,
+              name: i.product?.name || "",
+              sku: i.product?.sku || "",
+              qty: i.approved_qty ?? i.requested_qty,
+              status: i.status,
+              source_name: i.source_location?.location_name || "",
+            }))
+        );
+        const hasRemaining = items.some((i) => i.remaining > 0);
+        const hasWaiting = waiting.some((w) => w.status === "requested" || w.status === "approved");
+        return {
+          id: key,
+          part_ids: parts.map((tx) => tx.id),
+          note_tx_id: first?.id || null, // the loan's note lives on its first part
+          requests,
+          created_at: first?.created_at || requests[0]?.created_at,
+          borrower_name: first?.borrower_name || meta.borrower_name || "",
+          borrower_phone: first?.borrower_phone || meta.borrower_phone || "",
+          borrower_store_no: first?.borrower_store_no || meta.borrower_store_no || "",
+          due_date: first ? first.due_date : meta.due_date || null,
+          note: first ? first.note : meta.tx_note || "",
+          items,
+          waiting,
+          is_completed: !hasRemaining && !hasWaiting,
+        };
+      });
 
-      console.log("Active loans with notes:", loans.map(l => ({ id: l.id, borrower: l.borrower_name, note: l.note }))); // DEBUG
-      setActiveLoans(loans);
+      setActiveLoans(loans.filter((loan) => loan.items.length > 0 || loan.waiting.length > 0));
     } catch (e) {
       if (silent) return; // keep what is on screen
       setErr(e.message || String(e));
@@ -980,14 +1040,32 @@ export default function BranchOperations() {
     }
   }
 
-  async function updateLoanNote(loanId, newNote) {
+  // Waiting loan requests keep the borrower details in their note (JSON): keep
+  // them in step with the loan, for parts accepted before any part exists.
+  async function updateWaitingRequestsMeta(loan, changes) {
+    for (const r of loan.requests || []) {
+      let meta = {};
+      try { meta = JSON.parse(r.note || "{}") || {}; } catch { meta = {}; }
+      const { error } = await supabase
+        .from("branch_requests")
+        .update({ note: JSON.stringify({ ...meta, ...changes }) })
+        .eq("id", r.id);
+      if (error) throw error;
+    }
+  }
+
+  async function updateLoanNote(loan, newNote) {
     try {
       setErr("");
-      const { error } = await supabase.rpc("fn_update_loan_note", {
-        p_loan_id: loanId,
-        p_note: newNote,
-      });
-      if (error) throw error;
+      if (loan.note_tx_id) {
+        const { error } = await supabase.rpc("fn_update_loan_note", {
+          p_loan_id: loan.note_tx_id,
+          p_note: newNote,
+        });
+        if (error) throw error;
+      } else {
+        await updateWaitingRequestsMeta(loan, { tx_note: newNote || null });
+      }
       showOk(t("branchOperations.success.noteUpdated"));
       loadActiveLoans(); // Refresh
     } catch (e) {
@@ -995,14 +1073,17 @@ export default function BranchOperations() {
     }
   }
 
-  async function updateLoanDueDate(loanId, newDueDate) {
+  async function updateLoanDueDate(loan, newDueDate) {
     try {
       setErr("");
-      const { error } = await supabase.rpc("fn_update_loan_due_date", {
-        p_loan_id: loanId,
-        p_due_date: newDueDate,
-      });
-      if (error) throw error;
+      for (const id of loan.part_ids || []) {
+        const { error } = await supabase.rpc("fn_update_loan_due_date", {
+          p_loan_id: id,
+          p_due_date: newDueDate,
+        });
+        if (error) throw error;
+      }
+      await updateWaitingRequestsMeta(loan, { due_date: newDueDate || null });
       showOk(t("branchOperations.success.dueDateUpdated"));
       loadActiveLoans(); // Refresh
     } catch (e) {
@@ -1091,12 +1172,9 @@ export default function BranchOperations() {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      const list = reqs || [];
-      setLoanPendingRequests(list);
-
-      // Badge: approved items (need acceptance) + rejected items (need awareness)
-      const count = list.reduce(
-        (sum, r) => sum + (r.items || []).filter((i) => i.status === "approved" || i.status === "rejected").length,
+      // Badge: items approved and on their way, waiting for us to accept
+      const count = (reqs || []).reduce(
+        (sum, r) => sum + (r.items || []).filter((i) => i.status === "approved").length,
         0
       );
       setPendingLoanTransfers(count);
@@ -1124,18 +1202,9 @@ export default function BranchOperations() {
       });
       if (loanErr) throw loanErr;
 
-      // Close the request when all items are done (fulfilled OR rejected/cancelled)
-      const { data: remaining } = await supabase
-        .from("branch_request_items")
-        .select("id")
-        .eq("request_id", req.id)
-        .not("status", "in", '("fulfilled","rejected","cancelled","completed")');
-      if (!remaining || remaining.length === 0) {
-        await supabase
-          .from("branch_requests")
-          .update({ status: "closed" })
-          .eq("id", req.id);
-      }
+      // Close the request once nothing in it is waiting or on its way
+      const finalStatus = await closedRequestStatus(req.id);
+      if (finalStatus) await supabase.from("branch_requests").update({ status: finalStatus }).eq("id", req.id);
 
       const totalQty = approvedItems.reduce((s, i) => s + (i.approved_qty ?? i.requested_qty ?? 0), 0);
       showOk(t("branchOperations.success.loanTransferAccepted", {
@@ -1152,6 +1221,39 @@ export default function BranchOperations() {
       // It may have been accepted or reverted elsewhere: show the real state.
       loadLoanPendingRequests();
       loadActiveLoans();
+    }
+  }
+
+  // The borrower doesn't need an item still coming from another location:
+  // waiting → just cancelled; on its way → cancelled and its stock goes back to the source.
+  async function cancelLoanWaitingItem(req, item) {
+    try {
+      setErr("");
+      if (item.status === "approved") {
+        const { error } = await supabase.rpc("fn_branch_request_revert_item", {
+          p_item_id: item.id,
+          p_cancel: true,
+        });
+        if (error) throw error;
+      } else {
+        const { data: cancelled, error } = await supabase
+          .from("branch_request_items")
+          .update({ status: "cancelled" })
+          .eq("id", item.id)
+          .eq("status", "requested")
+          .select("id");
+        if (error) throw error;
+        if (!cancelled || cancelled.length === 0) throw new Error(t("branchRequests.toast.alreadyProcessed"));
+      }
+      const finalStatus = await closedRequestStatus(req.id);
+      if (finalStatus) await supabase.from("branch_requests").update({ status: finalStatus }).eq("id", req.id);
+      showOk(t("branchOperations.activeLoans.waitingCancelled"));
+    } catch (e) {
+      setErr(e.message || String(e));
+    } finally {
+      loadLoanPendingRequests();
+      loadActiveLoans({ silent: true });
+      refreshCatalog({ silent: true });
     }
   }
 
@@ -1330,7 +1432,7 @@ export default function BranchOperations() {
       const payload = {
         note: "Sold (money received)",
         return_kind: "loan_return",
-        parent_tx_id: loan.id,
+        parent_tx_id: item.tx_id || loan.id,
         no_stock_return: true, // Tell backend NOT to return stock + create sale record
         items: [
           {
@@ -1367,7 +1469,7 @@ export default function BranchOperations() {
         const payload = {
           note: "Sold (all items)",
           return_kind: "loan_return",
-          parent_tx_id: loan.id,
+          parent_tx_id: item.tx_id || loan.id,
           no_stock_return: true, // Backend also creates sale record
           items: [
             {
@@ -1398,7 +1500,7 @@ export default function BranchOperations() {
       sku: item.product?.sku || item.sku || "",
       qty,
       return_kind: "loan_return",
-      parent_tx_id: loan.id,
+      parent_tx_id: item.tx_id || loan.id,
     };
     setRetDestModal({
       items: [returnItem],
@@ -1996,9 +2098,9 @@ return (
             searchProductHistory={searchLoanProductHistory}
             getFirstLoanYear={getFirstLoanYear}
             // Pending loan transfer props
-            loanPendingRequests={loanPendingRequests}
             pendingLoanTransferCount={pendingLoanTransfers}
             onAcceptLoanTransfer={acceptLoanTransferRequest}
+            onCancelLoanWaiting={cancelLoanWaitingItem}
           />
         </div>
       )}
