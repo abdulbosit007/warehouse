@@ -457,7 +457,8 @@
     "tabs": {
       "categories": "Categories",
       "users": "Users",
-      "locations": "Locations"
+      "locations": "Locations",
+      "reports": "Reports"
     },
     "categories": {
       "title": "Category Management",
@@ -544,6 +545,27 @@
     },
     "confirm": {
       "deleteCategory": "Are you sure you want to delete \"{{name}}\"?"
+    },
+    "reports": {
+      "title": "Reports",
+      "subtitle": "Download monthly reports",
+      "monthlyReport": "Monthly report",
+      "monthlyReportDesc": "Stock and movements of every warehouse and branch for one month, as an Excel file.",
+      "includesLabel": "The report includes:",
+      "includesItem1": "Totals for the whole company",
+      "includesItem2": "Every location, row by row",
+      "includesItem3": "A separate sheet for each branch and warehouse",
+      "includesItem4": "Incoming, received, sold, given to other locations, loans, corrections and a check column",
+      "selectMonth": "Select a month",
+      "generating": "Creating…",
+      "download": "Download report",
+      "success": "Report downloaded: {{fileName}}",
+      "error": "Couldn't create the report. Try again.",
+      "accuracy": {
+        "full": "Exact: start, end and every movement of this month come from the stock log.",
+        "exact": "Start and end of month are exact (stock log). The columns in between are worked out from documents and log times; anything that doesn't add up shows in the \"Tekshiruv\" (check) column.",
+        "approx": "Approximate: the stock log only started on 4 July 2026, so this month is worked out backwards from documents. The file name ends with \"_taxminiy\"."
+      }
     }
   },
   "branch1": {
@@ -1558,7 +1580,6 @@
       "subtitle": "Report and track discrepancies between physical and system inventory"
     },
     "loading": "Loading...",
-    "warehouseFallback": "Warehouse",
     "actions": {
       "refresh": "Refresh",
       "sending": "Sending...",

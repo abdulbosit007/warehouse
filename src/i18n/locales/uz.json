@@ -457,7 +457,8 @@
     "tabs": {
       "categories": "Kategoriyalar",
       "users": "Foydalanuvchilar",
-      "locations": "Manzillar"
+      "locations": "Manzillar",
+      "reports": "Hisobotlar"
     },
     "categories": {
       "title": "Kategoriyalarni boshqarish",
@@ -544,6 +545,27 @@
     },
     "confirm": {
       "deleteCategory": "\"{{name}}\" ni o'chirishni xohlaysizmi?"
+    },
+    "reports": {
+      "title": "Hisobotlar",
+      "subtitle": "Oylik hisobotlarni yuklab olish",
+      "monthlyReport": "Oylik hisobot",
+      "monthlyReportDesc": "Barcha ombor va filiallarning bir oylik qoldig'i va harakatlari, Excel faylida.",
+      "includesLabel": "Hisobotda:",
+      "includesItem1": "Butun kompaniya bo'yicha jami",
+      "includesItem2": "Har bir joy, qatorma-qator",
+      "includesItem3": "Har bir filial va ombor uchun alohida varaq",
+      "includesItem4": "Kirim, olindi, sotilgan, boshqa joylarga berilgan, qarz, tuzatishlar va tekshiruv ustuni",
+      "selectMonth": "Oyni tanlang",
+      "generating": "Yaratilmoqda…",
+      "download": "Hisobotni yuklab olish",
+      "success": "Hisobot yuklab olindi: {{fileName}}",
+      "error": "Hisobotni yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "accuracy": {
+        "full": "Aniq: bu oyning boshi, oxiri va barcha harakatlari ombor jurnalidan olingan.",
+        "exact": "Oy boshi va oxiri aniq (ombor jurnali). Oradagi ustunlar hujjatlar va jurnal vaqtlari bo'yicha aniqlangan; mos kelmagan qism \"Tekshiruv\" ustunida ko'rinadi.",
+        "approx": "Taxminiy: ombor jurnali faqat 2026-yil 4-iyuldan boshlangan, shuning uchun bu oy hujjatlar bo'yicha orqaga hisoblangan. Fayl nomi \"_taxminiy\" bilan tugaydi."
+      }
     }
   },
   "branch1": {
@@ -1558,7 +1580,6 @@
       "subtitle": "Fizik va tizimdagi qoldiq farqlarini yuboring va kuzating"
     },
     "loading": "Yuklanmoqda...",
-    "warehouseFallback": "Ombor",
     "actions": {
       "refresh": "Yangilash",
       "sending": "Yuborilmoqda...",

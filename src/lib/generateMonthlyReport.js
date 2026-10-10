@@ -1,648 +1,283 @@
 // src/lib/generateMonthlyReport.js
-// Monthly Excel Report Generator for Warehouse Management System
+// Monthly Excel report: loads the data, lets monthlyReportData.js work out the numbers,
+// and writes the workbook (Uzbek headings).
 
 import * as XLSX from "xlsx";
 import { supabase, fetchAll } from "./supabaseClient";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, addMonths, subMonths } from "date-fns";
+import { buildMonthlyRows, isEmptyRow, LOG_START } from "./monthlyReportData";
 
-/**
- * Fetch all locations (branches and warehouses)
- */
-async function fetchLocations() {
-  const { data, error } = await supabase
-    .from("locations")
-    .select("id, location_name, name, kind")
-    .order("kind", { ascending: true })
-    .order("location_name", { ascending: true });
+// from this day every stock-log line says what happened (labels)
+const LABELS_START = "2026-10-01T00:00:00+05:00";
+const DAY = 24 * 60 * 60 * 1000;
+const BACKDATED_MARGIN = 45 * DAY; // a sale can be dated to an earlier day than its stock change
 
+const must = ({ data, error }) => {
   if (error) throw error;
   return data || [];
+};
+
+/** How exact a month's report is: "full" | "exact" | "approx". */
+export function monthAccuracy(year, month) {
+  const start = startOfMonth(new Date(year, month - 1, 1)).getTime();
+  if (start >= new Date(LABELS_START).getTime()) return "full";      // everything from the log
+  if (start >= new Date(LOG_START).getTime()) return "exact";        // start / end exact, middle best effort
+  return "approx";                                                   // before the log: documents only
 }
 
-/**
- * Fetch all products with category info
- */
-async function fetchProducts() {
-  const { data, error } = await fetchAll(() =>
-    supabase
-      .from("products")
-      .select(`
-      id,
-      name,
-      sku,
-      category_id,
-      categories ( name )
-    `)
-      .order("name", { ascending: true })
-  );
+/* ─────────────────────────────── loading ──────────────────────────────── */
 
-  if (error) throw error;
-  return data || [];
+async function loadRaw(start, end) {
+  const S = start.getTime();
+  const E = end.getTime();
+  const L = new Date(LOG_START).getTime();
+  const logFrom = new Date(Math.min(S, L)).toISOString();
+  const docFrom = new Date(Math.min(S, L) - BACKDATED_MARGIN).toISOString();
+  const docTo = new Date(Math.max(E, L) + DAY).toISOString();
+
+  const [locations, products, stock, lines, txs, incomingRows, corrections, audits] = await Promise.all([
+    supabase.from("locations").select("id, location_name, name, kind")
+      .order("kind", { ascending: true }).order("location_name", { ascending: true }).then(must),
+    fetchAll(() => supabase.from("products").select("id, name, sku, categories ( name )")).then(must),
+    fetchAll(() => supabase.from("product_list").select("location_id, product_id, status, quantity")).then(must),
+    fetchAll(() =>
+      supabase.from("stock_movements")
+        .select("id, ts, location_id, product_id, status, delta, balance_after, reason, ref_id")
+        .gte("ts", logFrom)
+        .neq("reason", "opening")
+    ).then(must),
+    fetchAll(() =>
+      supabase.from("transactions")
+        .select("id, type, location_id, created_at, note, parent_tx_id, items:transaction_items ( product_id, qty )")
+        .eq("status", "committed")
+        .in("type", ["sale", "sale_return", "loan", "loan_return"])
+        // loans up to the month's end are needed for "on loan" in old months
+        .gte("created_at", S < L ? "2000-01-01" : docFrom)
+        .lt("created_at", docTo)
+    ).then(must),
+    fetchAll(() =>
+      supabase.from("incoming_batch_items")
+        .select("id, sku, quantity, reviewed_at, approved_location_id")
+        .eq("status", "approved")
+        .not("approved_location_id", "is", null)
+        .gte("reviewed_at", docFrom).lt("reviewed_at", docTo)
+    ).then(must),
+    fetchAll(() =>
+      supabase.from("inventory_corrections")
+        .select("id, location_id, product_id, current_quantity, reported_quantity, owner_decided_at")
+        .eq("status", "approved")
+        .gte("owner_decided_at", docFrom).lt("owner_decided_at", docTo)
+    ).then(must),
+    fetchAll(() =>
+      supabase.from("inventory_audit_responses")
+        .select("id, location_id, product_id, reported_qty, system_qty_at_submit, submitted_at")
+        .eq("status", "rejected") // the count differed from the system: stock was set to it
+        .gte("submitted_at", docFrom).lt("submitted_at", docTo)
+    ).then(must),
+  ]);
+
+  // incoming items name a SKU; products match it without regard to case
+  const bySku = new Map(products.filter((p) => p.sku).map((p) => [p.sku.trim().toLowerCase(), p.id]));
+
+  const docs = {
+    sales: txs.filter((t) => t.type === "sale"),
+    saleReturns: txs.filter((t) => t.type === "sale_return"),
+    loans: txs.filter((t) => t.type === "loan"),
+    loanReturns: txs.filter((t) => t.type === "loan_return"),
+    incoming: incomingRows
+      .map((i) => ({ location_id: i.approved_location_id, product_id: bySku.get((i.sku || "").trim().toLowerCase()), qty: i.quantity, at: i.reviewed_at }))
+      .filter((i) => i.product_id),
+    corrections: corrections.map((c) => ({
+      location_id: c.location_id, product_id: c.product_id, at: c.owner_decided_at,
+      delta: (c.reported_quantity || 0) - (c.current_quantity || 0),
+    })),
+    audits: audits
+      .filter((a) => a.reported_qty != null && a.system_qty_at_submit != null)
+      .map((a) => ({ location_id: a.location_id, product_id: a.product_id, at: a.submitted_at, delta: a.reported_qty - a.system_qty_at_submit })),
+    moves: S < L ? await loadMoves(docFrom, docTo) : [],
+  };
+
+  return { locations, products, raw: { startISO: start.toISOString(), endISO: end.toISOString(), stock, lines, docs } };
 }
 
-/**
- * Fetch on-hand (available) stock per product and location.
- * Loaned units have their own "Qarzda" column; in-transit units aren't at the location yet.
- */
-async function fetchProductList() {
-  const { data, error } = await fetchAll(() =>
-    supabase
-      .from("product_list")
-      .select("product_id, location_id, quantity")
-      .eq("status", "available")
-  );
-
-  if (error) throw error;
-  return data || [];
-}
-
-/**
- * Fetch transactions with items for a given date range
- * Transactions use transaction_items for product details
- */
-async function fetchTransactionsWithItems(startDate, endDate) {
-  const { data, error } = await fetchAll(() =>
-    supabase
-      .from("transactions")
-      .select(`
-      id,
-      type,
-      status,
-      location_id,
-      created_at,
-      items:transaction_items ( product_id, qty )
-    `)
-      .eq("status", "committed")
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString())
-  );
-
-  if (error) {
-    console.warn("Could not fetch transactions:", error.message);
-    return [];
-  }
-  return data || [];
-}
-
-/**
- * Fetch approved incoming batch items for a given date range.
- * These represent incoming stock to warehouse locations.
- */
-async function fetchIncomingBatchItems(startDate, endDate) {
-  const { data, error } = await fetchAll(() =>
-    supabase
-      .from("incoming_batch_items")
-      .select(`
-      id,
-      product_name,
-      sku,
-      quantity,
-      status,
-      reviewed_at,
-      approved_location_id
-    `)
-      .eq("status", "approved")
-      .not("approved_location_id", "is", null)
-      .gte("reviewed_at", startDate.toISOString())
-      .lte("reviewed_at", endDate.toISOString())
-  );
-
-  if (error) {
-    console.warn("Could not fetch incoming_batch_items:", error.message);
-    return [];
-  }
-  return data || [];
-}
-
-/**
- * Fetch all loan and loan_return transactions up to a given end date.
- * Used to calculate outstanding loans at the end of a month.
- */
-async function fetchAllLoanTransactionsUpTo(endDate) {
-  const { data, error } = await fetchAll(() =>
-    supabase
-      .from("transactions")
-      .select(`
-      id,
-      type,
-      status,
-      location_id,
-      created_at,
-      items:transaction_items ( product_id, qty )
-    `)
-      .eq("status", "committed")
-      .in("type", ["loan", "loan_return"])
-      .lte("created_at", endDate.toISOString())
-  );
-
-  if (error) {
-    console.warn("Could not fetch loan transactions:", error.message);
-    return [];
-  }
-  return data || [];
-}
-
-/**
- * Calculate active loan quantities from flat transactions
- * Loans are type='loan', returns are type='loan_return'
- * Active loan = loan qty - loan_return qty for same product/location
- */
-function calculateActiveLoansByLocation(flatTransactions) {
-  // Group by location -> product -> { loaned, returned }
-  const loanMap = new Map(); // Map<location_id, Map<product_id, { loaned, returned }>>
-
-  for (const tx of flatTransactions) {
-    if (tx.type === "loan") {
-      if (!loanMap.has(tx.location_id)) loanMap.set(tx.location_id, new Map());
-      const productMap = loanMap.get(tx.location_id);
-      if (!productMap.has(tx.product_id)) {
-        productMap.set(tx.product_id, { loaned: 0, returned: 0 });
-      }
-      productMap.get(tx.product_id).loaned += tx.quantity || 0;
-    } else if (tx.type === "loan_return") {
-      if (!loanMap.has(tx.location_id)) loanMap.set(tx.location_id, new Map());
-      const productMap = loanMap.get(tx.location_id);
-      if (!productMap.has(tx.product_id)) {
-        productMap.set(tx.product_id, { loaned: 0, returned: 0 });
-      }
-      productMap.get(tx.product_id).returned += tx.quantity || 0;
-    }
-  }
-
-  // Convert to flat array with remaining quantities
-  const result = [];
-  for (const [locationId, productMap] of loanMap) {
-    for (const [productId, sums] of productMap) {
-      const remaining = Math.max(0, sums.loaned - sums.returned);
-      if (remaining > 0) {
-        result.push({
-          product_id: productId,
-          location_id: locationId,
-          remaining_quantity: remaining,
-        });
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Map SKU to product_id from products array
- */
-function buildSkuToProductMap(products) {
-  const map = new Map();
-  for (const p of products) {
-    if (p.sku) {
-      map.set(p.sku, p.id);
-    }
-  }
-  return map;
-}
-
-/**
- * Flatten transactions with items into per-product records
- */
-function flattenTransactions(transactions) {
-  const result = [];
-  for (const tx of transactions) {
-    const locationId = tx.location_id;
-    const type = tx.type;
-    for (const item of tx.items || []) {
-      result.push({
-        product_id: item.product_id,
-        location_id: locationId,
-        type: type,
-        quantity: item.qty || 0,
+// Requests and transfers between locations, for months before the stock log.
+// Dates are approximate (request items have no time of their own).
+async function loadMoves(from, to) {
+  const [reqs, trs] = await Promise.all([
+    fetchAll(() =>
+      supabase.from("branch_requests")
+        .select("id, to_location_id, created_at, warehouse_decided_at, items:branch_request_items ( product_id, source_location_id, requested_qty, approved_qty, status )")
+        .gte("created_at", from).lt("created_at", to)
+    ).then(must),
+    fetchAll(() =>
+      supabase.from("stock_transfers")
+        .select("id, from_location_id, to_location_id, created_at, items:stock_transfer_items ( product_id, qty, status )")
+        .gte("created_at", from).lt("created_at", to)
+    ).then(must),
+  ]);
+  const moves = [];
+  for (const r of reqs) {
+    for (const i of r.items || []) {
+      if (!["approved", "completed", "fulfilled"].includes(i.status) || !i.source_location_id) continue;
+      moves.push({
+        product_id: i.product_id, from: i.source_location_id,
+        to: i.status === "completed" ? r.to_location_id : null, // fulfilled: went to the customer
+        qty: i.approved_qty ?? i.requested_qty, at: r.warehouse_decided_at || r.created_at,
       });
     }
   }
-  return result;
-}
-
-/**
- * Aggregate data for a specific location
- */
-function aggregateLocationData(
-  locationId,
-  products,
-  productList,
-  flatTransactions,
-  incomingItems,
-  loanItems,
-  skuToProductMap
-) {
-  const result = [];
-
-  for (const product of products) {
-    // Current stock at this location
-    const stockRecord = productList.find(
-      (pl) => pl.product_id === product.id && pl.location_id === locationId
-    );
-    const endOfMonthStock = stockRecord?.quantity || 0;
-
-    // Filter transactions for this product and location
-    const productTransactions = flatTransactions.filter(
-      (t) => t.product_id === product.id && t.location_id === locationId
-    );
-
-    // Sales: type = 'sale'
-    const sales = productTransactions
-      .filter((t) => t.type === "sale")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    // Sale returns: type = 'sale_return'
-    const saleReturns = productTransactions
-      .filter((t) => t.type === "sale_return")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    // Loan returns: type = 'loan_return'
-    const loanReturns = productTransactions
-      .filter((t) => t.type === "loan_return")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    // Incoming stock (from incoming_batch_items approved to this location)
-    const incomingStock = incomingItems
-      .filter((item) => {
-        const productId = skuToProductMap.get(item.sku);
-        return productId === product.id && item.approved_location_id === locationId;
-      })
-      .reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-    // For now, we don't have a separate "outgoing to branches" tracking
-    const outgoingTransfers = 0;
-
-    // Active loans for this product at this location
-    const activeLoanQty = loanItems
-      .filter(
-        (li) =>
-          li.product_id === product.id &&
-          li.location_id === locationId
-      )
-      .reduce((sum, li) => sum + (li.remaining_quantity || 0), 0);
-
-    // Calculate beginning of month stock (back-calculation)
-    // Beginning = End - Incoming + Sales - SaleReturns + OutgoingTransfers - LoanReturns
-    const beginningOfMonthStock =
-      endOfMonthStock -
-      incomingStock +
-      sales -
-      saleReturns +
-      outgoingTransfers -
-      loanReturns;
-
-    result.push({
-      categoryName: product.categories?.name || "-",
-      productName: product.name,
-      modelNo: product.sku || "-",
-      beginningStock: Math.max(0, beginningOfMonthStock),
-      incoming: incomingStock,
-      sold: sales,
-      customerReturns: saleReturns,
-      loanReturns: loanReturns,
-      outgoing: outgoingTransfers,
-      onLoan: activeLoanQty,
-      endStock: endOfMonthStock,
-    });
-  }
-
-  // Filter out products with no activity and zero stock
-  return result.filter(
-    (row) =>
-      row.beginningStock > 0 ||
-      row.incoming > 0 ||
-      row.sold > 0 ||
-      row.customerReturns > 0 ||
-      row.loanReturns > 0 ||
-      row.outgoing > 0 ||
-      row.onLoan > 0 ||
-      row.endStock > 0
-  );
-}
-
-/**
- * Aggregate overall data (sum across all locations)
- */
-function aggregateOverallData(
-  products,
-  productList,
-  flatTransactions,
-  incomingItems,
-  loanItems,
-  locations,
-  skuToProductMap
-) {
-  const result = [];
-
-  for (const product of products) {
-    // Sum stock across all locations
-    const totalEndStock = productList
-      .filter((pl) => pl.product_id === product.id)
-      .reduce((sum, pl) => sum + (pl.quantity || 0), 0);
-
-    // Sum transactions across all locations
-    const productTransactions = flatTransactions.filter((t) => t.product_id === product.id);
-
-    const totalSales = productTransactions
-      .filter((t) => t.type === "sale")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    const totalSaleReturns = productTransactions
-      .filter((t) => t.type === "sale_return")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    const totalLoanReturns = productTransactions
-      .filter((t) => t.type === "loan_return")
-      .reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-    // Total incoming from incoming_batch_items
-    const totalIncoming = incomingItems
-      .filter((item) => skuToProductMap.get(item.sku) === product.id)
-      .reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-    // Outgoing to branches (placeholder - no data yet)
-    const totalOutgoing = 0;
-
-    // Total active loans
-    const totalOnLoan = loanItems
-      .filter((li) => li.product_id === product.id)
-      .reduce((sum, li) => sum + (li.remaining_quantity || 0), 0);
-
-    // Back-calculate beginning stock
-    const totalBeginningStock =
-      totalEndStock - totalIncoming + totalSales - totalSaleReturns - totalLoanReturns;
-
-    result.push({
-      categoryName: product.categories?.name || "-",
-      productName: product.name,
-      modelNo: product.sku || "-",
-      beginningStock: Math.max(0, totalBeginningStock),
-      incoming: totalIncoming,
-      sold: totalSales,
-      customerReturns: totalSaleReturns,
-      loanReturns: totalLoanReturns,
-      outgoing: totalOutgoing,
-      onLoan: totalOnLoan,
-      endStock: totalEndStock,
-    });
-  }
-
-  // Filter out products with no activity
-  return result.filter(
-    (row) =>
-      row.beginningStock > 0 ||
-      row.incoming > 0 ||
-      row.sold > 0 ||
-      row.customerReturns > 0 ||
-      row.loanReturns > 0 ||
-      row.outgoing > 0 ||
-      row.onLoan > 0 ||
-      row.endStock > 0
-  );
-}
-
-/**
- * Aggregate per-location rows for Overall sheet
- */
-function aggregatePerLocationData(
-  products,
-  productList,
-  flatTransactions,
-  incomingItems,
-  loanItems,
-  locations,
-  skuToProductMap
-) {
-  const result = [];
-
-  for (const location of locations) {
-    const locationData = aggregateLocationData(
-      location.id,
-      products,
-      productList,
-      flatTransactions,
-      incomingItems,
-      loanItems,
-      skuToProductMap
-    );
-
-    // Add location name to each row
-    for (const row of locationData) {
-      result.push({
-        locationName: location.location_name || location.name || location.id,
-        locationType: location.kind === "warehouse" ? "Ombor" : "Filial",
-        ...row,
-      });
+  for (const t of trs) {
+    for (const i of t.items || []) {
+      if (!["pending", "accepted"].includes(i.status)) continue;
+      moves.push({ product_id: i.product_id, from: t.from_location_id, to: i.status === "accepted" ? t.to_location_id : null, qty: i.qty, at: t.created_at });
     }
   }
-
-  return result;
+  return moves;
 }
 
-/**
- * Build Excel workbook with multiple sheets
- */
-function buildWorkbook(overallData, perLocationData, locationDataMap, year, month) {
-  const workbook = XLSX.utils.book_new();
+/* ─────────────────────────────── workbook ─────────────────────────────── */
 
-  // Column headers (Uzbek)
-  const headers = [
-    "№",
-    "Tovar turi",
-    "Tovar nomi",
-    "Model №",
-    "Oy boshidagi qoldiq",
-    "Kirim",
-    "Sotilgan",
-    "Mijozdan qaytgan",
-    "Qarzdan qaytgan",
-    "Filiallarga berilgan",
-    "Qarzda",
-    "Oy oxiridagi qoldiq",
-  ];
+const HEADERS = [
+  "Oy boshidagi qoldiq",
+  "Kirim",
+  "Boshqa joylardan olindi",
+  "Mijozdan qaytgan",
+  "Qarzdan qaytgan",
+  "Sotilgan",
+  "Boshqa joylarga berilgan",
+  "Qarzga berildi",
+  "Tuzatish / inventarizatsiya",
+  "Oy oxiridagi qoldiq",
+  "Tekshiruv",
+  "Qarzda (oy oxiri)",
+  "Boshqa joydan sotilgan",
+  "Qarzdan sotilgan",
+];
+const FIELDS = [
+  "start", "incoming", "received", "customerReturns", "loanReturns", "sold", "given", "loanedOut",
+  "adjust", "end", "check", "onLoan", "soldFromOther", "soldFromLoan",
+];
 
-  const headersWithLocation = [
-    "№",
-    "Joylashuv",
-    "Turi",
-    "Tovar turi",
-    "Tovar nomi",
-    "Model №",
-    "Oy boshidagi qoldiq",
-    "Kirim",
-    "Sotilgan",
-    "Mijozdan qaytgan",
-    "Qarzdan qaytgan",
-    "Filiallarga berilgan",
-    "Qarzda",
-    "Oy oxiridagi qoldiq",
-  ];
+const ACCURACY_TEXT = {
+  full: "Aniq: oy boshi, oy oxiri va barcha harakatlar ombor jurnalidan olingan.",
+  exact: "Oy boshi va oy oxiri aniq (ombor jurnali). Oradagi ustunlar hujjatlar va jurnal vaqtlari bo'yicha aniqlangan; mos kelmagan qism \"Tekshiruv\" ustunida ko'rsatiladi.",
+  approx: "TAXMINIY: bu oyda ombor jurnali to'liq emas (jurnal 2026-yil 4-iyuldan boshlangan). Raqamlar hujjatlar bo'yicha orqaga hisoblangan.",
+};
 
-  // Helper to convert data to rows
-  const toRows = (data) =>
-    data.map((row, idx) => [
-      idx + 1,
-      row.categoryName,
-      row.productName,
-      row.modelNo,
-      row.beginningStock,
-      row.incoming,
-      row.sold,
-      row.customerReturns,
-      row.loanReturns,
-      row.outgoing,
-      row.onLoan,
-      row.endStock,
-    ]);
+const NOTES = [
+  ["Ustun", "Ma'nosi"],
+  ["Oy boshidagi qoldiq", "Oyning 1-kuni 00:00 holatidagi javondagi (sotishga tayyor) qoldiq"],
+  ["Kirim", "Yetkazib beruvchidan kelgan yangi tovar (ombor qabul qilgan)"],
+  ["Boshqa joylardan olindi", "Boshqa filial yoki ombordan qabul qilingan (so'rov yoki ko'chirish)"],
+  ["Mijozdan qaytgan", "Mijoz qaytargan va javonga qo'yilgan"],
+  ["Qarzdan qaytgan", "Qarzga berilgan va javonga qaytgan"],
+  ["Sotilgan", "Shu joyning javonidan sotilgan"],
+  ["Boshqa joylarga berilgan", "Boshqa filial yoki omborga jo'natilgan (qaytib kelganlari ayirilgan)"],
+  ["Qarzga berildi", "Shu joyning javonidan qarzga berilgan"],
+  ["Tuzatish / inventarizatsiya", "Tasdiqlangan tuzatishlar va inventarizatsiya o'zgarishlari (+/−)"],
+  ["Oy oxiridagi qoldiq", "Oyning oxirgi kuni 24:00 holatidagi javondagi qoldiq"],
+  ["Tekshiruv", "Oy oxiri − (oy boshi + kirimlar − chiqimlar ± tuzatish). Odatda 0; 0 bo'lmasa — sababi aniqlanmagan o'zgarish (Ombor monitorida ko'ring)"],
+  ["Qarzda (oy oxiri)", "Oy oxirida qarzda turgan tovar"],
+  ["Boshqa joydan sotilgan", "Shu filial sotgan, lekin tovar boshqa joyning javonidan olingan (javonga ta'sir qilmaydi)"],
+  ["Qarzdan sotilgan", "Qarzga berilgan tovar keyin sotilgan (javonga ta'sir qilmaydi)"],
+  [],
+  ["Hisob", "Oy boshi + Kirim + Olindi + Mijozdan qaytgan + Qarzdan qaytgan − Sotilgan − Berilgan − Qarzga berildi ± Tuzatish = Oy oxiri"],
+];
 
-  const toRowsWithLocation = (data) =>
-    data.map((row, idx) => [
-      idx + 1,
-      row.locationName,
-      row.locationType,
-      row.categoryName,
-      row.productName,
-      row.modelNo,
-      row.beginningStock,
-      row.incoming,
-      row.sold,
-      row.customerReturns,
-      row.loanReturns,
-      row.outgoing,
-      row.onLoan,
-      row.endStock,
-    ]);
+function sheetFrom(head, rows, widths) {
+  const sheet = XLSX.utils.aoa_to_sheet([head, ...rows]);
+  sheet["!cols"] = head.map((_, i) => ({ wch: widths(i) }));
+  return sheet;
+}
 
-  // 1. Overall sheet with totals
-  const overallSheet = XLSX.utils.aoa_to_sheet([headers, ...toRows(overallData)]);
-  overallSheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 5 : i <= 3 ? 20 : 12 }));
-  XLSX.utils.book_append_sheet(workbook, overallSheet, "Umumiy (Jami)");
+function buildWorkbook({ locations, products, rows, year, month, accuracy }) {
+  const wb = XLSX.utils.book_new();
+  const productOf = new Map(products.map((p) => [p.id, p]));
+  const info = (pid) => {
+    const p = productOf.get(pid);
+    return [p?.categories?.name || "-", p?.name || "—", p?.sku || "-"];
+  };
+  const byName = (a, b) => (productOf.get(a.pid)?.name || "").localeCompare(productOf.get(b.pid)?.name || "");
+  const values = (r) => FIELDS.map((f) => r[f]);
 
-  // 2. Per-location rows sheet
-  if (perLocationData.length > 0) {
-    const perLocationSheet = XLSX.utils.aoa_to_sheet([
-      headersWithLocation,
-      ...toRowsWithLocation(perLocationData),
-    ]);
-    perLocationSheet["!cols"] = headersWithLocation.map((_, i) =>
-      ({ wch: i === 0 ? 5 : i <= 5 ? 20 : 12 })
-    );
-    XLSX.utils.book_append_sheet(workbook, perLocationSheet, "Umumiy (Har bir joy)");
+  // per location
+  const perLoc = new Map(locations.map((l) => [l.id, []]));
+  for (const [k, r] of rows) {
+    if (isEmptyRow(r)) continue;
+    const [loc, pid] = k.split("|");
+    if (!perLoc.has(loc)) perLoc.set(loc, []);
+    perLoc.get(loc).push({ pid, r });
   }
+  for (const list of perLoc.values()) list.sort(byName);
 
-  // 3. Individual location sheets
-  for (const [locationName, data] of Object.entries(locationDataMap)) {
-    if (data.length > 0) {
-      const sheet = XLSX.utils.aoa_to_sheet([headers, ...toRows(data)]);
-      sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 5 : i <= 3 ? 20 : 12 }));
-      // Sanitize sheet name (max 31 chars, no special chars)
-      const sheetName = locationName.slice(0, 31).replace(/[*?:/\\[\]]/g, "-");
-      XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+  // overall: sum per product
+  const total = new Map();
+  for (const list of perLoc.values()) {
+    for (const { pid, r } of list) {
+      if (!total.has(pid)) total.set(pid, Object.fromEntries(FIELDS.map((f) => [f, 0])));
+      const t = total.get(pid);
+      for (const f of FIELDS) t[f] += r[f];
     }
   }
+  const head = ["№", "Tovar turi", "Tovar nomi", "Model №", ...HEADERS];
+  const width = (i) => (i === 0 ? 5 : i <= 3 ? 22 : 13);
 
-  return workbook;
+  const overall = [...total.entries()].map(([pid, r]) => ({ pid, r })).sort(byName);
+  XLSX.utils.book_append_sheet(wb, sheetFrom(head, overall.map(({ pid, r }, i) => [i + 1, ...info(pid), ...values(r)]), width), "Umumiy (Jami)");
+
+  const locName = (l) => l.location_name || l.name || l.id;
+  const locType = (l) => (l.kind === "warehouse" ? "Ombor" : "Filial");
+  const headLoc = ["№", "Joylashuv", "Turi", "Tovar turi", "Tovar nomi", "Model №", ...HEADERS];
+  const allRows = [];
+  for (const l of locations) for (const { pid, r } of perLoc.get(l.id) || []) allRows.push([locName(l), locType(l), ...info(pid), ...values(r)]);
+  if (allRows.length) {
+    XLSX.utils.book_append_sheet(wb, sheetFrom(headLoc, allRows.map((row, i) => [i + 1, ...row]), (i) => (i === 0 ? 5 : i <= 5 ? 20 : 13)), "Umumiy (Har bir joy)");
+  }
+
+  for (const l of locations) {
+    const list = perLoc.get(l.id) || [];
+    if (!list.length) continue;
+    const name = `${locType(l)} - ${locName(l)}`.slice(0, 31).replace(/[*?:/\\[\]]/g, "-");
+    XLSX.utils.book_append_sheet(wb, sheetFrom(head, list.map(({ pid, r }, i) => [i + 1, ...info(pid), ...values(r)]), width), name);
+  }
+
+  const notes = [
+    ["Oy", `${year}-${String(month).padStart(2, "0")}`],
+    ["Aniqlik", ACCURACY_TEXT[accuracy]],
+    [],
+    ...NOTES,
+  ];
+  const notesSheet = XLSX.utils.aoa_to_sheet(notes);
+  notesSheet["!cols"] = [{ wch: 28 }, { wch: 110 }];
+  XLSX.utils.book_append_sheet(wb, notesSheet, "Izoh");
+
+  return wb;
 }
 
-/**
- * Main function to generate and download the monthly report
- */
+/* ─────────────────────────────── main ─────────────────────────────────── */
+
+/** Builds and downloads the report for one month (month: 1–12). */
 export async function generateMonthlyReport(year, month) {
-  try {
-    // Calculate date range
-    const monthDate = new Date(year, month - 1, 1);
-    const startDate = startOfMonth(monthDate);
-    const endDate = endOfMonth(monthDate);
+  const start = startOfMonth(new Date(year, month - 1, 1));
+  const end = addMonths(start, 1); // [start, end): the month in local (Tashkent) time
+  const { locations, products, raw } = await loadRaw(start, end);
+  const { rows } = buildMonthlyRows(raw);
+  const accuracy = monthAccuracy(year, month);
 
-    // Fetch all required data
-    const [locations, products, productList, transactions, incomingItems, allLoanTransactions] =
-      await Promise.all([
-        fetchLocations(),
-        fetchProducts(),
-        fetchProductList(),
-        fetchTransactionsWithItems(startDate, endDate),
-        fetchIncomingBatchItems(startDate, endDate),
-        fetchAllLoanTransactionsUpTo(endDate), // All loans up to end date for active loan calculation
-      ]);
-
-    // Flatten transactions into per-product records
-    const flatTransactions = flattenTransactions(transactions);
-
-    // Flatten loan transactions and calculate active loans
-    const flatLoanTransactions = flattenTransactions(allLoanTransactions);
-    const loanItems = calculateActiveLoansByLocation(flatLoanTransactions);
-
-    // Build SKU to product ID map
-    const skuToProductMap = buildSkuToProductMap(products);
-
-    // Aggregate overall data (totals)
-    const overallData = aggregateOverallData(
-      products,
-      productList,
-      flatTransactions,
-      incomingItems,
-      loanItems,
-      locations,
-      skuToProductMap
-    );
-
-    // Aggregate per-location data for overall sheet
-    const perLocationData = aggregatePerLocationData(
-      products,
-      productList,
-      flatTransactions,
-      incomingItems,
-      loanItems,
-      locations,
-      skuToProductMap
-    );
-
-    // Aggregate data per location
-    const locationDataMap = {};
-    for (const location of locations) {
-      const displayName = location.location_name || location.name || location.id;
-      const prefix = location.kind === "warehouse" ? "Ombor" : "Filial";
-      const sheetName = `${prefix} - ${displayName}`;
-
-      locationDataMap[sheetName] = aggregateLocationData(
-        location.id,
-        products,
-        productList,
-        flatTransactions,
-        incomingItems,
-        loanItems,
-        skuToProductMap
-      );
-    }
-
-    // Build and download workbook
-    const workbook = buildWorkbook(overallData, perLocationData, locationDataMap, year, month);
-
-    const fileName = `Oylik_Hisobot_${year}_${String(month).padStart(2, "0")}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-
-    return { success: true, fileName };
-  } catch (error) {
-    console.error("Error generating monthly report:", error);
-    throw error;
-  }
+  const workbook = buildWorkbook({ locations, products, rows, year, month, accuracy });
+  const suffix = accuracy === "approx" ? "_taxminiy" : "";
+  const fileName = `Oylik_Hisobot_${year}_${String(month).padStart(2, "0")}${suffix}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+  return { success: true, fileName, accuracy };
 }
 
-/**
- * Get list of available months (last 12 months)
- */
+/** The last 12 months, newest first. */
 export function getAvailableMonths() {
   const months = [];
   const now = new Date();
-
   for (let i = 0; i < 12; i++) {
     const date = subMonths(now, i);
-    months.push({
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-      label: format(date, "MMMM yyyy"),
-    });
+    months.push({ year: date.getFullYear(), month: date.getMonth() + 1, label: format(date, "MMMM yyyy") });
   }
-
   return months;
 }

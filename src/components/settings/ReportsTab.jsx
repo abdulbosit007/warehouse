@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { generateMonthlyReport, getAvailableMonths } from "../../lib/generateMonthlyReport";
+import { generateMonthlyReport, getAvailableMonths, monthAccuracy } from "../../lib/generateMonthlyReport";
 
 export default function ReportsTab() {
   const { t } = useTranslation();
@@ -27,6 +27,12 @@ export default function ReportsTab() {
   const [success, setSuccess] = useState("");
 
   const availableMonths = getAvailableMonths();
+  const accuracy = monthAccuracy(selectedMonth.year, selectedMonth.month);
+  const ACCURACY_STYLE = {
+    full: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    exact: "border-sky-200 bg-sky-50 text-sky-800",
+    approx: "border-amber-200 bg-amber-50 text-amber-800",
+  };
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -157,6 +163,12 @@ export default function ReportsTab() {
             </div>
           </div>
 
+          {/* How exact this month's numbers are */}
+          <div className={`rounded-xl border px-4 py-3 text-sm flex items-start gap-2 ${ACCURACY_STYLE[accuracy]}`}>
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p>{t(`ownerSettings.reports.accuracy.${accuracy}`)}</p>
+          </div>
+
           {/* Download Button */}
           <button
             onClick={handleGenerate}
@@ -178,16 +190,6 @@ export default function ReportsTab() {
         </div>
       </div>
 
-      {/* Info Note */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
-        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <p>
-          {t(
-            "ownerSettings.reports.note",
-            "Eslatma: Hisobot joriy ma'lumotlar asosida yaratiladi. Oy boshi qoldiqlari joriy stokdan hisoblangan taxminiy qiymatdir."
-          )}
-        </p>
-      </div>
     </div>
   );
 }
