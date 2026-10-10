@@ -305,7 +305,7 @@ export default function OwnerHistory() {
   const [locations, setLocations]               = useState([]);
   const [inventoryByLocation, setInventoryByLocation] = useState([]);
 
-  const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedLocation] = useState("");
   const [preset, setPreset]                     = useState(30);
   const [showInventory, setShowInventory]       = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);

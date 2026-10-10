@@ -7,7 +7,6 @@ import SaleHistory from "../SaleHistory";
 import CustomSelect from "../CustomSelect";
 
 export default function SaleSection({
-  locationName,
   q,
   setQ,
   loading,

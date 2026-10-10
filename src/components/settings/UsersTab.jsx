@@ -199,7 +199,6 @@ export default function UsersTab() {
   const selectedRole = roleById.get(newUser.roleId);
   const isBranchRole = (selectedRole?.name || "").toLowerCase().startsWith("branch");
 
-  const ownerOptions = useMemo(() => roles.filter((r) => r.name.toLowerCase() === "owner"), [roles]);
   // Include both super warehouse role ("warehouse") and location-specific roles ("warehouse-1", "warehouse-2", etc.)
   const warehouseOptions = useMemo(() => roles.filter((r) => {
     const name = r.name.toLowerCase();

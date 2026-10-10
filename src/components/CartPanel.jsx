@@ -5,8 +5,6 @@ import { ShoppingCart, Trash2, Package, RefreshCw } from "lucide-react";
 export default function CartPanel({
   tab, // "sale" | "loan"
   cart,
-  note,
-  onNoteChange,
   setCartQty,
   removeFromCart,
   borrower,

@@ -168,7 +168,7 @@ export default function LocationsTab() {
   };
 
   async function handleSubmit() {
-    const { name, location_name, kind, code, role_id } = formData;
+    const { location_name, kind } = formData;
 
     if (!location_name.trim()) {
       setError(t("ownerSettings.locations.errors.nameRequired"));

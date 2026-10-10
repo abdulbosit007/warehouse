@@ -307,7 +307,6 @@ export default function WarehouseHome() {
       setCategories(categoriesRes.data || []);
       setError(null);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("Error loading data:", err);
       // a failed quiet refresh keeps the table on screen
       if (!silent) setError(err.message || t("warehouseHome.errors.failedToLoad"));

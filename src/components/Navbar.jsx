@@ -89,7 +89,9 @@ export default function Navbar({
     i18n.changeLanguage(lng);
     try {
       localStorage.setItem("lang", lng);
-    } catch {}
+    } catch {
+      // storage blocked (e.g. private window): the language just isn't remembered
+    }
   };
 
   // --- prevent background scroll when mobile menu open ---

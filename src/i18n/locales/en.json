@@ -3,18 +3,11 @@
     "home": "Home",
     "branchRequests": "Transfers",
     "incomingBatches": "Incoming Batches",
-    "stockCorrections": "Stock Corrections",
-    "auditReview": "Audit Review",
-    "history": "History",
     "operations": "Operations",
     "profile": "Profile",
     "inventoryBatches": "Inventory Batches",
-    "userManagement": "User Management",
     "settings": "Settings",
     "inventoryManagement": "Inventory"
-  },
-  "app": {
-    "title": "Warehouse"
   },
   "common": {
     "loading": "Loading...",
@@ -200,9 +193,6 @@
       "diff": "Diff",
       "status": "Status",
       "actions": "Actions",
-      "systemQty": "System Qty",
-      "actualQty": "Actual Qty",
-      "difference": "Difference",
       "locationComment": "Location comment"
     },
     "modals": {
@@ -443,7 +433,6 @@
       "rolePlaceholder": "Select a role",
       "locationAuto": "Location is assigned automatically from the selected branch role.",
       "groups": {
-        "owner": "Owner",
         "warehouse": "Warehouse",
         "branches": "Branches"
       }
@@ -520,12 +509,7 @@
       "form": {
         "nameLabel": "Location Name",
         "namePlaceholder": "Enter location name...",
-        "codeLabel": "Location Code",
-        "codePlaceholder": "e.g. WH-01, BR-MAIN",
-        "kindLabel": "Location Type",
-        "roleLabel": "Assign to Role",
-        "rolePlaceholder": "Select a role...",
-        "roleHint": "Links this location to a branch role for user assignment"
+        "kindLabel": "Location Type"
       },
       "errors": {
         "nameRequired": "Location name is required",
@@ -566,7 +550,6 @@
     "home": {
       "title": "Branch Inventory",
       "yourBranch": "Your branch",
-      "productsCount": "{{count}} products",
       "errors": {
         "noLocation": "No branch location assigned",
         "loadFailed": "Failed to load data",
@@ -576,8 +559,7 @@
         "products": "Products",
         "totalItems": "Total Items",
         "lowStock": "Low Stock",
-        "outOfStock": "Out of Stock",
-        "stockValue": "Stock Value"
+        "outOfStock": "Out of Stock"
       },
       "search": {
         "placeholder": "Search by name or SKU..."
@@ -622,8 +604,7 @@
         "sku": "SKU",
         "category": "Category",
         "price": "Price",
-        "quantity": "Quantity",
-        "value": "Value"
+        "quantity": "Quantity"
       },
       "pagination": {
         "showing": "Showing {{from}}–{{to}} of {{total}}",
@@ -729,23 +710,14 @@
       "next": "Next",
       "previous": "Previous",
       "undo": "Undo",
-      "edit": "Edit",
       "save": "Save",
-      "cancel": "Cancel",
       "close": "Close"
     },
     "product": {
       "systemQty": "System Qty",
-      "verifiedCorrect": "Verified Correct",
-      "discrepancyFound": "Discrepancy Found",
-      "actual": "Actual",
-      "enterActualQty": "Enter Actual Quantity",
-      "correct": "Correct",
-      "wrong": "Wrong",
       "invalidQty": "Please enter a valid quantity",
       "branchQty": "Branch Qty",
-      "smallWarehouseQty": "Small Warehouse Qty",
-      "total": "Total"
+      "smallWarehouseQty": "Small Warehouse Qty"
     },
     "progress": {
       "title": "Review Progress",
@@ -900,16 +872,12 @@
         "products": "Products",
         "source": "Source",
         "qty": "Qty",
-        "status": "Status",
-        "date": "Date",
         "actions": "Actions"
       },
       "pending": "Pending",
       "approved": "Approved",
       "cancelBtn": "Cancel",
       "receivedBtn": "Received",
-      "saleRequest": "Sale request",
-      "loanRequest": "Loan request",
       "loanAcceptHint": "Loan for {{name}}: accept all approved items as one loan",
       "acceptLoanBtn": "Accept loan · {{count}}",
       "acceptSaleBtn": "Accept sale",
@@ -924,7 +892,6 @@
         "products": "Products",
         "requester": "Requester",
         "qty": "Qty",
-        "date": "Date",
         "actions": "Actions"
       },
       "rejectBtn": "Reject",
@@ -949,11 +916,8 @@
       "noResultsText": "No requests match your filters",
       "columns": {
         "products": "Products",
-        "from": "From",
-        "to": "To",
         "qty": "Qty",
-        "status": "Status",
-        "date": "Date"
+        "status": "Status"
       },
       "sortOpened": "Opened date",
       "sortClosed": "Closed date",
@@ -968,12 +932,7 @@
     },
     "tabs": {
       "sale": "Sale",
-      "loan": "Loan",
-      "return": "Return",
-      "history": "History"
-    },
-    "common": {
-      "loading": "Loading..."
+      "loan": "Loan"
     },
     "guard": {
       "errorTitle": "Error",
@@ -984,23 +943,15 @@
       "locationNotFound": "Location not found: {{locationName}}",
       "checkQuantities": "Please check quantities.",
       "borrowerAndQtyRequired": "Borrower and quantities are required.",
-      "selectItemsAndQty": "Please select items and quantities.",
-      "pickSkuRow": "Pick a SKU row first.",
-      "invalidQuantity": "Invalid quantity",
-      "noItemsToSell": "No items to sell",
       "stockChanged": "Stock changed",
       "stockItemIssue": "{{name}}: only {{available}} available, requested {{qty}}"
     },
     "success": {
-      "saleCommitted": "Sale committed. TX: {{tx}}",
       "saleCommittedSimple": "Sale committed.",
       "salePlusBranchRequest": "{{sold}} item(s) sold from branch. Approval request sent for {{requested}} item(s).",
       "approvalRequestSent": "Approval request sent for {{count}} item(s). Waiting for confirmation.",
-      "loanCommitted": "Loan committed. TX: {{tx}}",
       "loanCommittedSimple": "Loan committed.",
       "loanPlusBranchRequest": "{{loaned}} item(s) loaned from branch. Approval request sent for {{requested}} item(s).",
-      "returnCommittedOne": "Return committed. TX: {{tx}}",
-      "returnCommittedMany": "Committed {{count}} return transactions.",
       "noteUpdated": "Note updated",
       "dueDateUpdated": "Due date updated",
       "markedSold": "Marked {{qty}} as sold",
@@ -1034,20 +985,11 @@
       "title": "Loan Management",
       "subtitle": "Create loans, track active loans, view history",
       "newLoan": "New Loan",
-      "pending": "Pending",
       "activeLoans": "Active Loans",
       "history": "History",
       "productsTitle": "Products in {{locationName}}",
       "productsCount": "{{count}} products available",
-      "searchPlaceholder": "Search by name or SKU",
-      "noPending": "No pending loan transfers",
-      "unknownBorrower": "Unknown borrower",
-      "dueDate": "Due",
-      "acceptLoan": "Accept",
-      "approved": "Approved",
-      "waitingApproval": "Waiting...",
-      "rejected": "Rejected",
-      "cancelled": "Cancelled"
+      "searchPlaceholder": "Search by name or SKU"
     },
     "filterModal": {
       "title": "Filters",
@@ -1163,7 +1105,6 @@
       "itemsCount": "{{count}} items",
       "empty": "No items yet.",
       "max": "max",
-      "sourceBranch": "Branch",
       "viaRequest": "Via request",
       "borrowerTitle": "Borrower Details",
       "borrowerName": "Name",
@@ -1388,30 +1329,23 @@
     "incoming": {
       "emptyTitle": "No Incoming Requests",
       "emptyHint": "Requests from other locations will appear here",
-      "summary": "pending requests need your attention",
-      "requester": "Requester"
+      "summary": "pending requests need your attention"
     },
     "table": {
       "products": "Products",
       "source": "Source",
       "qty": "Qty",
       "status": "Status",
-      "date": "Date",
       "actions": "Actions"
     },
     "filter": {
       "placeholder": "Search..."
-    },
-    "purpose": {
-      "ondemand": "On-Demand",
-      "restock": "Restocking"
     },
     "history": {
       "outgoing": "Outgoing",
       "incoming": "Incoming",
       "outgoingLower": "outgoing",
       "incomingLower": "incoming",
-      "from": "From",
       "to": "To",
       "statusAll": "All",
       "searchPlaceholder": "Search product or SKU...",
@@ -1433,7 +1367,6 @@
     "labels": {
       "systemQty": "System Qty",
       "actual": "Actual",
-      "enterActualQty": "Enter Actual Quantity",
       "unknownProduct": "Unknown Product",
       "completed": "Completed",
       "inProgress": "In Progress",
@@ -1446,8 +1379,7 @@
       "selectWarehouse": "Select warehouse"
     },
     "status": {
-      "verifiedCorrect": "Verified Correct",
-      "discrepancyFound": "Discrepancy Found"
+      "verifiedCorrect": "Verified Correct"
     },
     "actions": {
       "undo": "Undo",
@@ -1737,7 +1669,6 @@
   "ownerAnalytics": {
     "title": "Analytics & Activity",
     "subtitle": "Holistic view of business performance across all locations",
-    "allLocations": "All Locations",
     "presets": {
       "today": "Today",
       "7days": "7 days",

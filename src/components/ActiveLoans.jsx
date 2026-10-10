@@ -90,15 +90,6 @@ export default function ActiveLoans({
     return Math.max(0, diff);
   };
 
-  const getLoanProgress = (loan) => {
-    const items = loan.items || [];
-    const totalQty = items.reduce((sum, i) => sum + (i.qty || 0), 0);
-    const remainingQty = items.reduce((sum, i) => sum + (i.remaining || 0), 0);
-    const completedQty = totalQty - remainingQty;
-    const percentage = totalQty > 0 ? Math.round((completedQty / totalQty) * 100) : 0;
-    return { totalQty, remainingQty, completedQty, percentage };
-  };
-
   const getTotalItems = () => activeLoans.reduce((sum, loan) =>
     sum + (loan.items || []).filter(i => (i.remaining || 0) > 0).length, 0
   );

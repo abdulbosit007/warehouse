@@ -317,7 +317,6 @@ export default function SaleHistory({
     );
   };
 
-  const totalSold = groupedItems.reduce((s, i) => s + i.qty, 0);
   const totalUnits = groupedItems.reduce((s, i) => s + i.qty, 0);
 
   return (
