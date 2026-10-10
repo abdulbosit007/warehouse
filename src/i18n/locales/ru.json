@@ -3,18 +3,11 @@
     "home": "Главная",
     "branchRequests": "Перемещения",
     "incomingBatches": "Входящие партии",
-    "stockCorrections": "Корректировка склада",
-    "auditReview": "Проверка аудита",
-    "history": "История",
     "operations": "Операции",
     "profile": "Профиль",
     "inventoryBatches": "Партии склада",
-    "userManagement": "Управление пользователями",
     "settings": "Настройки",
     "inventoryManagement": "Инвентарь"
-  },
-  "app": {
-    "title": "Склад"
   },
   "common": {
     "loading": "Загрузка...",
@@ -200,9 +193,7 @@
       "diff": "Разн.",
       "status": "Статус",
       "actions": "Действия",
-      "systemQty": "Кол-во (сист.)",
-      "actualQty": "Кол-во (факт.)",
-      "difference": "Разница"
+      "locationComment": "Комментарий локации"
     },
     "modals": {
       "sessionDetails": {
@@ -442,7 +433,6 @@
       "rolePlaceholder": "Выберите роль...",
       "locationAuto": "Локация назначается автоматически по выбранной роли филиала.",
       "groups": {
-        "owner": "Владелец",
         "warehouse": "Склад",
         "branches": "Филиалы"
       }
@@ -467,7 +457,8 @@
     "tabs": {
       "categories": "Категории",
       "users": "Пользователи",
-      "locations": "Локации"
+      "locations": "Локации",
+      "reports": "Отчёты"
     },
     "categories": {
       "title": "Управление категориями",
@@ -519,12 +510,7 @@
       "form": {
         "nameLabel": "Название локации",
         "namePlaceholder": "Введите название локации...",
-        "codeLabel": "Код локации",
-        "codePlaceholder": "например, СК-01, ФИЛ-ГЛ",
-        "kindLabel": "Тип локации",
-        "roleLabel": "Назначить роль",
-        "rolePlaceholder": "Выберите роль...",
-        "roleHint": "Связывает локацию с ролью филиала для назначения пользователей"
+        "kindLabel": "Тип локации"
       },
       "errors": {
         "nameRequired": "Название локации обязательно",
@@ -559,13 +545,33 @@
     },
     "confirm": {
       "deleteCategory": "Вы уверены, что хотите удалить \"{{name}}\"?"
+    },
+    "reports": {
+      "title": "Отчёты",
+      "subtitle": "Скачать месячные отчёты",
+      "monthlyReport": "Месячный отчёт",
+      "monthlyReportDesc": "Остатки и движения всех складов и филиалов за месяц, в виде файла Excel.",
+      "includesLabel": "В отчёте:",
+      "includesItem1": "Итоги по всей компании",
+      "includesItem2": "Каждая локация построчно",
+      "includesItem3": "Отдельный лист для каждого филиала и склада",
+      "includesItem4": "Приход, получено, продано, передано в другие локации, долги, исправления и столбец проверки",
+      "selectMonth": "Выберите месяц",
+      "generating": "Создаётся…",
+      "download": "Скачать отчёт",
+      "success": "Отчёт скачан: {{fileName}}",
+      "error": "Не удалось создать отчёт. Попробуйте ещё раз.",
+      "accuracy": {
+        "full": "Точно: начало, конец и все движения этого месяца взяты из журнала склада.",
+        "exact": "Начало и конец месяца точные (журнал склада). Столбцы между ними определены по документам и времени в журнале; всё, что не сходится, видно в столбце «Tekshiruv» (проверка).",
+        "approx": "Приблизительно: журнал склада начат только 4 июля 2026, поэтому месяц посчитан назад по документам. Имя файла заканчивается на «_taxminiy»."
+      }
     }
   },
   "branch1": {
     "home": {
       "title": "Склад филиала",
       "yourBranch": "Ваш филиал",
-      "productsCount": "{{count}} товаров",
       "errors": {
         "noLocation": "Филиал не назначен",
         "loadFailed": "Не удалось загрузить данные",
@@ -575,8 +581,7 @@
         "products": "Товары",
         "totalItems": "Всего единиц",
         "lowStock": "Мало остатка",
-        "outOfStock": "Нет в наличии",
-        "stockValue": "Стоимость склада"
+        "outOfStock": "Нет в наличии"
       },
       "search": {
         "placeholder": "Поиск по названию или SKU..."
@@ -621,8 +626,7 @@
         "sku": "SKU",
         "category": "Категория",
         "price": "Цена",
-        "quantity": "Кол-во",
-        "value": "Сумма"
+        "quantity": "Кол-во"
       },
       "pagination": {
         "showing": "Показано {{from}}–{{to}} из {{total}}",
@@ -728,23 +732,14 @@
       "next": "Далее",
       "previous": "Назад",
       "undo": "Отменить",
-      "edit": "Редактировать",
       "save": "Сохранить",
-      "cancel": "Отмена",
       "close": "Закрыть"
     },
     "product": {
       "systemQty": "Кол-во в системе",
-      "verifiedCorrect": "Проверено: верно",
-      "discrepancyFound": "Найдено расхождение",
-      "actual": "Факт",
-      "enterActualQty": "Введите фактическое количество",
-      "correct": "Верно",
-      "wrong": "Неверно",
       "invalidQty": "Введите корректное количество",
       "branchQty": "Кол-во в филиале",
-      "smallWarehouseQty": "Кол-во на складе",
-      "total": "Итого"
+      "smallWarehouseQty": "Кол-во на складе"
     },
     "progress": {
       "title": "Прогресс проверки",
@@ -899,16 +894,12 @@
         "products": "Товары",
         "source": "Источник",
         "qty": "Кол-во",
-        "status": "Статус",
-        "date": "Дата",
         "actions": "Действия"
       },
       "pending": "Ожидает",
       "approved": "Одобрено",
       "cancelBtn": "Отменить",
       "receivedBtn": "Получено",
-      "saleRequest": "Заявка на продажу",
-      "loanRequest": "Заявка на долг",
       "loanAcceptHint": "Долг для {{name}}: принять все одобренные товары одним долгом",
       "acceptLoanBtn": "Принять долг · {{count}}",
       "acceptSaleBtn": "Принять продажу",
@@ -923,7 +914,6 @@
         "products": "Товары",
         "requester": "Запросивший",
         "qty": "Кол-во",
-        "date": "Дата",
         "actions": "Действия"
       },
       "rejectBtn": "Отклонить",
@@ -948,11 +938,8 @@
       "noResultsText": "Нет запросов, подходящих под фильтры",
       "columns": {
         "products": "Товары",
-        "from": "Откуда",
-        "to": "Куда",
         "qty": "Кол-во",
-        "status": "Статус",
-        "date": "Дата"
+        "status": "Статус"
       },
       "sortOpened": "Дата открытия",
       "sortClosed": "Дата закрытия",
@@ -967,12 +954,7 @@
     },
     "tabs": {
       "sale": "Продажа",
-      "loan": "Займ",
-      "return": "Возврат",
-      "history": "История"
-    },
-    "common": {
-      "loading": "Загрузка..."
+      "loan": "Займ"
     },
     "guard": {
       "errorTitle": "Ошибка",
@@ -983,23 +965,15 @@
       "locationNotFound": "Локация не найдена: {{locationName}}",
       "checkQuantities": "Пожалуйста, проверьте количества.",
       "borrowerAndQtyRequired": "Заемщик и количества обязательны.",
-      "selectItemsAndQty": "Пожалуйста, выберите товары и количество.",
-      "pickSkuRow": "Сначала выберите строку SKU.",
-      "invalidQuantity": "Некорректное количество",
-      "noItemsToSell": "Нет товаров для продажи",
       "stockChanged": "Запасы изменились",
       "stockItemIssue": "{{name}}: доступно только {{available}}, запрошено {{qty}}"
     },
     "success": {
-      "saleCommitted": "Продажа подтверждена. TX: {{tx}}",
       "saleCommittedSimple": "Продажа подтверждена.",
       "salePlusBranchRequest": "{{sold}} ед. продано из филиала. Запрос на одобрение отправлен для {{requested}} ед.",
       "approvalRequestSent": "Запрос на одобрение отправлен для {{count}} ед. Ожидание подтверждения.",
-      "loanCommitted": "Займ подтверждён. TX: {{tx}}",
       "loanCommittedSimple": "Займ подтверждён.",
       "loanPlusBranchRequest": "{{loaned}} ед. выдано в займ из филиала. Запрос на одобрение отправлен для {{requested}} ед.",
-      "returnCommittedOne": "Возврат подтверждён. TX: {{tx}}",
-      "returnCommittedMany": "Подтверждено транзакций возврата: {{count}}.",
       "noteUpdated": "Комментарий обновлён",
       "dueDateUpdated": "Срок обновлён",
       "markedSold": "Отмечено как продано: {{qty}} шт.",
@@ -1033,15 +1007,6 @@
       "title": "Управление займами",
       "subtitle": "Создавайте займы, отслеживайте активные займы, просматривайте историю",
       "newLoan": "Новый займ",
-      "pending": "Ожидающие",
-      "noPending": "Нет ожидающих займовых переводов",
-      "unknownBorrower": "Неизвестный заёмщик",
-      "dueDate": "Срок",
-      "acceptLoan": "Принять",
-      "approved": "Одобрено",
-      "waitingApproval": "Ожидание...",
-      "rejected": "Отклонено",
-      "cancelled": "Отменено",
       "activeLoans": "Активные займы",
       "history": "История",
       "productsTitle": "Товары в {{locationName}}",
@@ -1162,7 +1127,6 @@
       "itemsCount": "{{count}} поз.",
       "empty": "Корзина пуста.",
       "max": "макс.",
-      "sourceBranch": "Филиал",
       "viaRequest": "По запросу",
       "borrowerTitle": "Данные заёмщика",
       "borrowerName": "Имя",
@@ -1387,30 +1351,23 @@
     "incoming": {
       "emptyTitle": "Нет входящих заявок",
       "emptyHint": "Заявки от других точек появятся здесь",
-      "summary": "ожидающих заявок требуют внимания",
-      "requester": "Заявитель"
+      "summary": "ожидающих заявок требуют внимания"
     },
     "table": {
       "products": "Товары",
       "source": "Источник",
       "qty": "Кол-во",
       "status": "Статус",
-      "date": "Дата",
       "actions": "Действия"
     },
     "filter": {
       "placeholder": "Поиск..."
-    },
-    "purpose": {
-      "ondemand": "По запросу",
-      "restock": "Пополнение"
     },
     "history": {
       "outgoing": "Исходящие",
       "incoming": "Входящие",
       "outgoingLower": "исходящих",
       "incomingLower": "входящих",
-      "from": "Откуда",
       "to": "Куда",
       "statusAll": "Все",
       "searchPlaceholder": "Поиск товара или SKU...",
@@ -1432,7 +1389,6 @@
     "labels": {
       "systemQty": "Кол-во в системе",
       "actual": "Фактическое",
-      "enterActualQty": "Введите фактическое количество",
       "unknownProduct": "Неизвестный товар",
       "completed": "Завершено",
       "inProgress": "В процессе",
@@ -1445,8 +1401,7 @@
       "selectWarehouse": "Выберите склад"
     },
     "status": {
-      "verifiedCorrect": "Подтверждено верно",
-      "discrepancyFound": "Найдено расхождение"
+      "verifiedCorrect": "Подтверждено верно"
     },
     "actions": {
       "undo": "Отменить",
@@ -1625,7 +1580,6 @@
       "subtitle": "Сообщайте и отслеживайте расхождения между фактом и системой"
     },
     "loading": "Загрузка...",
-    "warehouseFallback": "Склад",
     "actions": {
       "refresh": "Обновить",
       "sending": "Отправка...",
@@ -1736,7 +1690,6 @@
   "ownerAnalytics": {
     "title": "Аналитика и Активность",
     "subtitle": "Общий обзор эффективности бизнеса по всем локациям",
-    "allLocations": "Все локации",
     "presets": {
       "today": "Сегодня",
       "7days": "7 дней",

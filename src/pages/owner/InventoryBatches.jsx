@@ -112,8 +112,6 @@ export default function InventoryBatches() {
   const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
 
   const [locations, setLocations] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [sessionItems, setSessionItems] = useState([]);
   const [corrections, setCorrections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -146,10 +144,8 @@ export default function InventoryBatches() {
     }
 
     try {
-      const [locRes, sessRes, sessItemsRes, corrRes, auditRes, auditRespRes] = await Promise.all([
+      const [locRes, corrRes, auditRes, auditRespRes] = await Promise.all([
         supabase.from("locations").select("id, name, location_name, kind, code"),
-        supabase.from("inventory_sessions").select("id, name, created_at, status, notes"),
-        supabase.from("inventory_session_items").select("id, session_id, location_id"),
         // paged: one audit alone can be over the 1,000-row limit per request
         fetchAll(() => supabase.from("inventory_corrections").select("id, location_id, status")),
         supabase.from("inventory_audit_sessions").select("*").order("created_at", { ascending: false }),
@@ -157,13 +153,9 @@ export default function InventoryBatches() {
       ]);
 
       if (locRes.error) throw locRes.error;
-      if (sessRes.error) throw sessRes.error;
-      if (sessItemsRes.error) throw sessItemsRes.error;
       if (corrRes.error) throw corrRes.error;
 
       setLocations(locRes.data || []);
-      setSessions(sessRes.data || []);
-      setSessionItems(sessItemsRes.data || []);
       setCorrections(corrRes.data || []);
       setAuditSessions(auditRes.data || []);
       setAuditResponses(auditRespRes.data || []);

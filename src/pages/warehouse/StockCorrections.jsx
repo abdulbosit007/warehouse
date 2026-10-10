@@ -504,7 +504,6 @@ export default function WarehouseStockCorrections({ asTab = false }) {
     );
   }
 
-  const locationLabel = warehouseLocation?.location_name || warehouseLocation?.name || t("warehouseStockCorrections.warehouseFallback");
 
   /* ─────────────────────────────────────────────────────────────────────────
      RENDER

@@ -3,18 +3,11 @@
     "home": "Bosh sahifa",
     "branchRequests": "O’tkazmalar",
     "incomingBatches": "Kiruvchi partiyalar",
-    "stockCorrections": "Ombor tuzatishlari",
-    "auditReview": "Audit tekshiruvi",
-    "history": "Tarix",
     "operations": "Operatsiyalar",
     "profile": "Profil",
     "inventoryBatches": "Inventar partiyalari",
-    "userManagement": "Foydalanuvchilar boshqaruvi",
     "settings": "Sozlamalar",
     "inventoryManagement": "Inventar"
-  },
-  "app": {
-    "title": "Ombor"
   },
   "common": {
     "loading": "Yuklanmoqda...",
@@ -200,9 +193,7 @@
       "diff": "Farq",
       "status": "Holat",
       "actions": "Amallar",
-      "systemQty": "Sistema miqdori",
-      "actualQty": "Haqiqiy miqdor",
-      "difference": "Farq"
+      "locationComment": "Joy izohi"
     },
     "modals": {
       "sessionDetails": {
@@ -442,7 +433,6 @@
       "rolePlaceholder": "Rol tanlang...",
       "locationAuto": "Lokatsiya tanlangan filial roli bo‘yicha avtomatik biriktiriladi.",
       "groups": {
-        "owner": "Ega",
         "warehouse": "Ombor",
         "branches": "Filiallar"
       }
@@ -450,13 +440,15 @@
     "errors": {
       "requiredFields": "Email, ism va rol majburiy.",
       "invalidEmail": "To‘g‘ri email kiriting.",
-      "noLocationForBranch": "Ushbu filial roli uchun lokatsiya bog‘lanmagan."
+      "noLocationForBranch": "Ushbu filial roli uchun lokatsiya bog‘lanmagan.",
+      "updateFailed": "Rolni yangilab bo‘lmadi."
     },
     "success": {
       "added": "Foydalanuvchi qo‘shildi.",
       "addedLinked": "Foydalanuvchi qo‘shildi va bog‘landi!",
       "autoAssigned": "Lokatsiya avtomatik biriktirildi: \"{{label}}\".",
-      "autoAssignedFirst": "Lokatsiya avtomatik biriktirildi: \"{{label}}\" (birinchisi)."
+      "autoAssignedFirst": "Lokatsiya avtomatik biriktirildi: \"{{label}}\" (birinchisi).",
+      "roleUpdated": "Rol yangilandi."
     }
   },
   "ownerSettings": {
@@ -465,14 +457,14 @@
     "tabs": {
       "categories": "Kategoriyalar",
       "users": "Foydalanuvchilar",
-      "locations": "Manzillar"
+      "locations": "Manzillar",
+      "reports": "Hisobotlar"
     },
     "categories": {
       "title": "Kategoriyalarni boshqarish",
       "subtitle": "Jami {{count}} ta kategoriya",
       "addCategory": "Kategoriya qo'shish",
       "adding": "Qo'shilmoqda...",
-      "editCategory": "Kategoriyani o'zgartirish",
       "empty": "Kategoriya topilmadi",
       "name": "Kategoriya",
       "products": "Mahsulotlar",
@@ -518,12 +510,7 @@
       "form": {
         "nameLabel": "Manzil nomi",
         "namePlaceholder": "Manzil nomini kiriting...",
-        "codeLabel": "Manzil kodi",
-        "codePlaceholder": "masalan, OM-01, FIL-ASOSIY",
-        "kindLabel": "Manzil turi",
-        "roleLabel": "Rolga biriktirish",
-        "rolePlaceholder": "Rolni tanlang...",
-        "roleHint": "Bu manzilni foydalanuvchi tayinlash uchun filial roliga bog'laydi"
+        "kindLabel": "Manzil turi"
       },
       "errors": {
         "nameRequired": "Manzil nomi talab qilinadi",
@@ -558,13 +545,33 @@
     },
     "confirm": {
       "deleteCategory": "\"{{name}}\" ni o'chirishni xohlaysizmi?"
+    },
+    "reports": {
+      "title": "Hisobotlar",
+      "subtitle": "Oylik hisobotlarni yuklab olish",
+      "monthlyReport": "Oylik hisobot",
+      "monthlyReportDesc": "Barcha ombor va filiallarning bir oylik qoldig'i va harakatlari, Excel faylida.",
+      "includesLabel": "Hisobotda:",
+      "includesItem1": "Butun kompaniya bo'yicha jami",
+      "includesItem2": "Har bir joy, qatorma-qator",
+      "includesItem3": "Har bir filial va ombor uchun alohida varaq",
+      "includesItem4": "Kirim, olindi, sotilgan, boshqa joylarga berilgan, qarz, tuzatishlar va tekshiruv ustuni",
+      "selectMonth": "Oyni tanlang",
+      "generating": "Yaratilmoqda…",
+      "download": "Hisobotni yuklab olish",
+      "success": "Hisobot yuklab olindi: {{fileName}}",
+      "error": "Hisobotni yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "accuracy": {
+        "full": "Aniq: bu oyning boshi, oxiri va barcha harakatlari ombor jurnalidan olingan.",
+        "exact": "Oy boshi va oxiri aniq (ombor jurnali). Oradagi ustunlar hujjatlar va jurnal vaqtlari bo'yicha aniqlangan; mos kelmagan qism \"Tekshiruv\" ustunida ko'rinadi.",
+        "approx": "Taxminiy: ombor jurnali faqat 2026-yil 4-iyuldan boshlangan, shuning uchun bu oy hujjatlar bo'yicha orqaga hisoblangan. Fayl nomi \"_taxminiy\" bilan tugaydi."
+      }
     }
   },
   "branch1": {
     "home": {
       "title": "Filial ombori",
       "yourBranch": "Sizning filial",
-      "productsCount": "{{count}} ta mahsulot",
       "errors": {
         "noLocation": "Filial lokatsiyasi biriktirilmagan",
         "loadFailed": "Ma’lumotlarni yuklashda xatolik",
@@ -574,8 +581,7 @@
         "products": "Mahsulotlar",
         "totalItems": "Jami birlik",
         "lowStock": "Kam qoldiq",
-        "outOfStock": "Tugagan",
-        "stockValue": "Ombor qiymati"
+        "outOfStock": "Tugagan"
       },
       "search": {
         "placeholder": "Nom yoki SKU bo‘yicha qidiring..."
@@ -620,8 +626,7 @@
         "sku": "SKU",
         "category": "Kategoriya",
         "price": "Narx",
-        "quantity": "Soni",
-        "value": "Qiymat"
+        "quantity": "Soni"
       },
       "pagination": {
         "showing": "{{from}}–{{to}} / {{total}} ko‘rsatilmoqda",
@@ -727,23 +732,14 @@
       "next": "Keyingi",
       "previous": "Oldingi",
       "undo": "Bekor qilish",
-      "edit": "Tahrirlash",
       "save": "Saqlash",
-      "cancel": "Bekor qilish",
       "close": "Yopish"
     },
     "product": {
       "systemQty": "Sistemadagi son",
-      "verifiedCorrect": "Tekshirildi: to'g'ri",
-      "discrepancyFound": "Farq aniqlandi",
-      "actual": "Haqiqiy",
-      "enterActualQty": "Haqiqiy miqdorni kiriting",
-      "correct": "To'g'ri",
-      "wrong": "Noto'g'ri",
       "invalidQty": "Iltimos, to'g'ri miqdor kiriting",
       "branchQty": "Filialdagi soni",
-      "smallWarehouseQty": "Kichik ombordagi soni",
-      "total": "Jami"
+      "smallWarehouseQty": "Kichik ombordagi soni"
     },
     "progress": {
       "title": "Tekshiruv jarayoni",
@@ -898,16 +894,12 @@
         "products": "Mahsulotlar",
         "source": "Manba",
         "qty": "Son",
-        "status": "Holat",
-        "date": "Sana",
         "actions": "Amallar"
       },
       "pending": "Kutilmoqda",
       "approved": "Tasdiqlangan",
       "cancelBtn": "Bekor qilish",
       "receivedBtn": "Qabul qilindi",
-      "saleRequest": "Sotuv so‘rovi",
-      "loanRequest": "Qarz so‘rovi",
       "loanAcceptHint": "{{name}} uchun qarz: barcha tasdiqlangan mahsulotlarni bitta qarz sifatida qabul qilish",
       "acceptLoanBtn": "Qarzni qabul qilish · {{count}}",
       "acceptSaleBtn": "Sotuvni qabul qilish",
@@ -922,7 +914,6 @@
         "products": "Mahsulotlar",
         "requester": "So‘rovchi",
         "qty": "Son",
-        "date": "Sana",
         "actions": "Amallar"
       },
       "rejectBtn": "Rad etish",
@@ -947,11 +938,8 @@
       "noResultsText": "Filtrlarga mos so’rovlar yo’q",
       "columns": {
         "products": "Mahsulotlar",
-        "from": "Qayerdan",
-        "to": "Qayerga",
         "qty": "Son",
-        "status": "Holat",
-        "date": "Sana"
+        "status": "Holat"
       },
       "sortOpened": "Ochilgan sana",
       "sortClosed": "Yopilgan sana",
@@ -966,12 +954,7 @@
     },
     "tabs": {
       "sale": "Sotuv",
-      "loan": "Qarz",
-      "return": "Qaytarish",
-      "history": "Tarix"
-    },
-    "common": {
-      "loading": "Yuklanmoqda..."
+      "loan": "Qarz"
     },
     "guard": {
       "errorTitle": "Xatolik",
@@ -982,23 +965,15 @@
       "locationNotFound": "Manzil topilmadi: {{locationName}}",
       "checkQuantities": "Iltimos, sonlarni tekshiring.",
       "borrowerAndQtyRequired": "Qarz oluvchi va sonlar majburiy.",
-      "selectItemsAndQty": "Iltimos, mahsulot va sonini tanlang.",
-      "pickSkuRow": "Avval SKU qatorini tanlang.",
-      "invalidQuantity": "Noto’g’ri son",
-      "noItemsToSell": "Sotish uchun mahsulot yo’q",
       "stockChanged": "Zaxira o’zgardi",
       "stockItemIssue": "{{name}}: faqat {{available}} mavjud, {{qty}} so’ralgan"
     },
     "success": {
-      "saleCommitted": "Sotuv tasdiqlandi. TX: {{tx}}",
       "saleCommittedSimple": "Sotuv tasdiqlandi.",
       "salePlusBranchRequest": "Filialdan {{sold}} dona sotildi. {{requested}} dona uchun tasdiq so’rovi yuborildi.",
       "approvalRequestSent": "{{count}} dona uchun tasdiq so’rovi yuborildi. Tasdiqlash kutilmoqda.",
-      "loanCommitted": "Qarz tasdiqlandi. TX: {{tx}}",
       "loanCommittedSimple": "Qarz tasdiqlandi.",
       "loanPlusBranchRequest": "Filialdan {{loaned}} dona qarzga berildi. {{requested}} dona uchun tasdiq so’rovi yuborildi.",
-      "returnCommittedOne": "Qaytarish tasdiqlandi. TX: {{tx}}",
-      "returnCommittedMany": "{{count}} ta qaytarish tranzaksiyasi tasdiqlandi.",
       "noteUpdated": "Izoh yangilandi",
       "dueDateUpdated": "Muddat yangilandi",
       "markedSold": "{{qty}} dona sotildi deb belgilandi",
@@ -1032,15 +1007,6 @@
       "title": "Qarz boshqaruvi",
       "subtitle": "Qarz yarating, faol qarzlarni kuzating, tarixni ko’ring",
       "newLoan": "Yangi qarz",
-      "pending": "Kutilmoqda",
-      "noPending": "Kutilayotgan qarz o'tkazmalari yo'q",
-      "unknownBorrower": "Noma'lum qarz oluvchi",
-      "dueDate": "Muddat",
-      "acceptLoan": "Qabul qilish",
-      "approved": "Tasdiqlandi",
-      "waitingApproval": "Kutilmoqda...",
-      "rejected": "Rad etildi",
-      "cancelled": "Bekor qilindi",
       "activeLoans": "Faol qarzlar",
       "history": "Tarix",
       "productsTitle": "{{locationName}} mahsulotlari",
@@ -1161,7 +1127,6 @@
       "itemsCount": "{{count}} ta",
       "empty": "Savat bo’sh.",
       "max": "maks.",
-      "sourceBranch": "Filial",
       "viaRequest": "So’rov orqali",
       "borrowerTitle": "Qarz oluvchi ma’lumotlari",
       "borrowerName": "Ism",
@@ -1386,30 +1351,23 @@
     "incoming": {
       "emptyTitle": "Kiruvchi so‘rovlar yo‘q",
       "emptyHint": "Boshqa manzillardan so‘rovlar shu yerda ko‘rinadi",
-      "summary": "ta kutilayotgan so‘rov e’tiboringizni talab qiladi",
-      "requester": "So‘rovchi"
+      "summary": "ta kutilayotgan so‘rov e’tiboringizni talab qiladi"
     },
     "table": {
       "products": "Mahsulotlar",
       "source": "Manba",
       "qty": "Soni",
       "status": "Holat",
-      "date": "Sana",
       "actions": "Amallar"
     },
     "filter": {
       "placeholder": "Qidiruv..."
-    },
-    "purpose": {
-      "ondemand": "Buyurtma bo'yicha",
-      "restock": "To'ldirish"
     },
     "history": {
       "outgoing": "Chiquvchi",
       "incoming": "Kiruvchi",
       "outgoingLower": "chiquvchi",
       "incomingLower": "kiruvchi",
-      "from": "Qayerdan",
       "to": "Qayerga",
       "statusAll": "Barchasi",
       "searchPlaceholder": "Mahsulot yoki SKU bo‘yicha qidirish...",
@@ -1431,7 +1389,6 @@
     "labels": {
       "systemQty": "Tizim miqdori",
       "actual": "Haqiqiy",
-      "enterActualQty": "Haqiqiy miqdorni kiriting",
       "unknownProduct": "Noma'lum mahsulot",
       "completed": "Yakunlangan",
       "inProgress": "Jarayonda",
@@ -1444,8 +1401,7 @@
       "selectWarehouse": "Omborni tanlang"
     },
     "status": {
-      "verifiedCorrect": "To‘g‘ri tasdiqlandi",
-      "discrepancyFound": "Farq aniqlandi"
+      "verifiedCorrect": "To‘g‘ri tasdiqlandi"
     },
     "actions": {
       "undo": "Bekor qilish",
@@ -1624,7 +1580,6 @@
       "subtitle": "Fizik va tizimdagi qoldiq farqlarini yuboring va kuzating"
     },
     "loading": "Yuklanmoqda...",
-    "warehouseFallback": "Ombor",
     "actions": {
       "refresh": "Yangilash",
       "sending": "Yuborilmoqda...",
@@ -1735,7 +1690,6 @@
   "ownerAnalytics": {
     "title": "Tahlil va Faoliyat",
     "subtitle": "Barcha joylardagi biznes samaradorligining umumiy ko'rinishi",
-    "allLocations": "Barcha joylar",
     "presets": {
       "today": "Bugun",
       "7days": "7 kun",

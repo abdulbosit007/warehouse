@@ -106,7 +106,6 @@ export default function OwnerBranchRequests() {
     if (authLoading || authError || roleBase !== "owner") return;
     loadRequests();
     loadLocations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, authError, roleBase]);
 
   async function loadLocations() {

@@ -3,18 +3,11 @@
     "home": "Бош саҳифа",
     "branchRequests": "Ўтказмалар",
     "incomingBatches": "Кирувчи партиялар",
-    "stockCorrections": "Омбор тузатишлари",
-    "auditReview": "Аудит текшируви",
-    "history": "Тарих",
     "operations": "Операциялар",
     "profile": "Профил",
     "inventoryBatches": "Инвентар партиялари",
-    "userManagement": "Фойдаланувчилар бошқаруви",
     "settings": "Созламалар",
     "inventoryManagement": "Инвентар"
-  },
-  "app": {
-    "title": "Омбор"
   },
   "common": {
     "loading": "Юкланмоқда...",
@@ -200,9 +193,7 @@
       "diff": "Фарқ",
       "status": "Ҳолат",
       "actions": "Амаллар",
-      "systemQty": "Система миқдори",
-      "actualQty": "Ҳақиқий миқдор",
-      "difference": "Фарқ"
+      "locationComment": "Жой изоҳи"
     },
     "modals": {
       "sessionDetails": {
@@ -442,7 +433,6 @@
       "rolePlaceholder": "Рол танланг...",
       "locationAuto": "Локация танланган филиал роли бўйича автоматик бириктирилади.",
       "groups": {
-        "owner": "Эга",
         "warehouse": "Омбор",
         "branches": "Филиаллар"
       }
@@ -450,13 +440,15 @@
     "errors": {
       "requiredFields": "Email, исм ва рол мажбурий.",
       "invalidEmail": "Тўғри email киритинг.",
-      "noLocationForBranch": "Ушбу филиал роли учун локация боғланмаган."
+      "noLocationForBranch": "Ушбу филиал роли учун локация боғланмаган.",
+      "updateFailed": "Ролни янгилаб бўлмади."
     },
     "success": {
       "added": "Фойдаланувчи қўшилди.",
       "addedLinked": "Фойдаланувчи қўшилди ва боғланди!",
       "autoAssigned": "Локация автоматик бириктирилди: \"{{label}}\".",
-      "autoAssignedFirst": "Локация автоматик бириктирилди: \"{{label}}\" (биринчиси)."
+      "autoAssignedFirst": "Локация автоматик бириктирилди: \"{{label}}\" (биринчиси).",
+      "roleUpdated": "Рол янгиланди."
     }
   },
   "ownerSettings": {
@@ -465,7 +457,8 @@
     "tabs": {
       "categories": "Категориялар",
       "users": "Фойдаланувчилар",
-      "locations": "Манзиллар"
+      "locations": "Манзиллар",
+      "reports": "Ҳисоботлар"
     },
     "categories": {
       "title": "Категорияларни бошқариш",
@@ -517,12 +510,7 @@
       "form": {
         "nameLabel": "Манзил номи",
         "namePlaceholder": "Манзил номини киритинг...",
-        "codeLabel": "Манзил коди",
-        "codePlaceholder": "масалан, ОМ-01, ФИЛ-АСОСИЙ",
-        "kindLabel": "Манзил тури",
-        "roleLabel": "Ролга бириктириш",
-        "rolePlaceholder": "Ролни танланг...",
-        "roleHint": "Бу манзилни фойдаланувчи тайинлаш учун филиал ролига боғлайди"
+        "kindLabel": "Манзил тури"
       },
       "errors": {
         "nameRequired": "Манзил номи талаб қилинади",
@@ -557,13 +545,33 @@
     },
     "confirm": {
       "deleteCategory": "\"{{name}}\" ни ўчиришни хоҳлайсизми?"
+    },
+    "reports": {
+      "title": "Ҳисоботлар",
+      "subtitle": "Ойлик ҳисоботларни юклаб олиш",
+      "monthlyReport": "Ойлик ҳисобот",
+      "monthlyReportDesc": "Барча омбор ва филиалларнинг бир ойлик қолдиғи ва ҳаракатлари, Excel файлида.",
+      "includesLabel": "Ҳисоботда:",
+      "includesItem1": "Бутун компания бўйича жами",
+      "includesItem2": "Ҳар бир жой, қаторма-қатор",
+      "includesItem3": "Ҳар бир филиал ва омбор учун алоҳида варақ",
+      "includesItem4": "Кирим, олинди, сотилган, бошқа жойларга берилган, қарз, тузатишлар ва текширув устуни",
+      "selectMonth": "Ойни танланг",
+      "generating": "Яратилмоқда…",
+      "download": "Ҳисоботни юклаб олиш",
+      "success": "Ҳисобот юклаб олинди: {{fileName}}",
+      "error": "Ҳисоботни яратиб бўлмади. Қайта уриниб кўринг.",
+      "accuracy": {
+        "full": "Аниқ: бу ойнинг боши, охири ва барча ҳаракатлари омбор журналидан олинган.",
+        "exact": "Ой боши ва охири аниқ (омбор журнали). Орадаги устунлар ҳужжатлар ва журнал вақтлари бўйича аниқланган; мос келмаган қисм \"Tekshiruv\" устунида кўринади.",
+        "approx": "Тахминий: омбор журнали фақат 2026 йил 4 июлдан бошланган, шунинг учун бу ой ҳужжатлар бўйича орқага ҳисобланган. Файл номи \"_taxminiy\" билан тугайди."
+      }
     }
   },
   "branch1": {
     "home": {
       "title": "Филиал омбори",
       "yourBranch": "Сизнинг филиал",
-      "productsCount": "{{count}} та маҳсулот",
       "errors": {
         "noLocation": "Филиал локацияси бириктирилмаган",
         "loadFailed": "Маълумотларни юклашда хатолик",
@@ -573,8 +581,7 @@
         "products": "Маҳсулотлар",
         "totalItems": "Жами бирлик",
         "lowStock": "Кам қолдиқ",
-        "outOfStock": "Тугаган",
-        "stockValue": "Омбор қиймати"
+        "outOfStock": "Тугаган"
       },
       "search": {
         "placeholder": "Ном ёки SKU бўйича қидиринг..."
@@ -619,8 +626,7 @@
         "sku": "SKU",
         "category": "Категория",
         "price": "Нарх",
-        "quantity": "Сони",
-        "value": "Қиймат"
+        "quantity": "Сони"
       },
       "pagination": {
         "showing": "{{from}}–{{to}} / {{total}} кўрсатилмоқда",
@@ -726,23 +732,14 @@
       "next": "Кейинги",
       "previous": "Олдинги",
       "undo": "Бекор қилиш",
-      "edit": "Таҳрирлаш",
       "save": "Сақлаш",
-      "cancel": "Бекор қилиш",
       "close": "Ёпиш"
     },
     "product": {
       "systemQty": "Системадаги сон",
-      "verifiedCorrect": "Текширилди: тўғри",
-      "discrepancyFound": "Фарқ аниқланди",
-      "actual": "Ҳақиқий",
-      "enterActualQty": "Ҳақиқий миқдорни киритинг",
-      "correct": "Тўғри",
-      "wrong": "Нотўғри",
       "invalidQty": "Илтимос, тўғри миқдор киритинг",
       "branchQty": "Филиалдаги сони",
-      "smallWarehouseQty": "Кичик омбордаги сони",
-      "total": "Жами"
+      "smallWarehouseQty": "Кичик омбордаги сони"
     },
     "progress": {
       "title": "Текширув жараёни",
@@ -897,16 +894,12 @@
         "products": "Маҳсулотлар",
         "source": "Манба",
         "qty": "Сон",
-        "status": "Ҳолат",
-        "date": "Сана",
         "actions": "Амаллар"
       },
       "pending": "Кутилмоқда",
       "approved": "Тасдиқланган",
       "cancelBtn": "Бекор қилиш",
       "receivedBtn": "Қабул қилинди",
-      "saleRequest": "Сотув сўрови",
-      "loanRequest": "Қарз сўрови",
       "loanAcceptHint": "{{name}} учун қарз: барча тасдиқланган маҳсулотларни битта қарз сифатида қабул қилиш",
       "acceptLoanBtn": "Қарзни қабул қилиш · {{count}}",
       "acceptSaleBtn": "Сотувни қабул қилиш",
@@ -921,7 +914,6 @@
         "products": "Маҳсулотлар",
         "requester": "Сўровчи",
         "qty": "Сон",
-        "date": "Сана",
         "actions": "Амаллар"
       },
       "rejectBtn": "Рад этиш",
@@ -946,11 +938,8 @@
       "noResultsText": "Фильтрларга мос сўровлар йўқ",
       "columns": {
         "products": "Маҳсулотлар",
-        "from": "Қайердан",
-        "to": "Қаерга",
         "qty": "Сон",
-        "status": "Ҳолат",
-        "date": "Сана"
+        "status": "Ҳолат"
       },
       "sortOpened": "Очилган сана",
       "sortClosed": "Ёпилган сана",
@@ -965,12 +954,7 @@
     },
     "tabs": {
       "sale": "Сотув",
-      "loan": "Қарз",
-      "return": "Қайтариш",
-      "history": "Тарих"
-    },
-    "common": {
-      "loading": "Юкланмоқда..."
+      "loan": "Қарз"
     },
     "guard": {
       "errorTitle": "Хатолик",
@@ -981,23 +965,15 @@
       "locationNotFound": "Манзил топилмади: {{locationName}}",
       "checkQuantities": "Илтимос, сонларни текширинг.",
       "borrowerAndQtyRequired": "Қарз олувчи ва сонлар мажбурий.",
-      "selectItemsAndQty": "Илтимос, маҳсулот ва сонини танланг.",
-      "pickSkuRow": "Аввал SKU қаторини танланг.",
-      "invalidQuantity": "Нотўғри сон",
-      "noItemsToSell": "Сотиш учун маҳсулот йўқ",
       "stockChanged": "Захира ўзгарди",
       "stockItemIssue": "{{name}}: фақат {{available}} мавжуд, {{qty}} сўралган"
     },
     "success": {
-      "saleCommitted": "Сотув тасдиқланди. TX: {{tx}}",
       "saleCommittedSimple": "Сотув тасдиқланди.",
       "salePlusBranchRequest": "Филиалдан {{sold}} дона сотилди. {{requested}} дона учун тасдиқ сўрови юборилди.",
       "approvalRequestSent": "{{count}} дона учун тасдиқ сўрови юборилди. Тасдиқлаш кутилмоқда.",
-      "loanCommitted": "Қарз тасдиқланди. TX: {{tx}}",
       "loanCommittedSimple": "Қарз тасдиқланди.",
       "loanPlusBranchRequest": "Филиалдан {{loaned}} дона қарзга берилди. {{requested}} дона учун тасдиқ сўрови юборилди.",
-      "returnCommittedOne": "Қайтариш тасдиқланди. TX: {{tx}}",
-      "returnCommittedMany": "{{count}} та қайтариш транзакцияси тасдиқланди.",
       "noteUpdated": "Изоҳ янгиланди",
       "dueDateUpdated": "Муддат янгиланди",
       "markedSold": "{{qty}} дона сотилди деб белгиланди",
@@ -1031,15 +1007,6 @@
       "title": "Қарз бошқаруви",
       "subtitle": "Қарз яратинг, фаол қарзларни кузатинг, тарихни кўринг",
       "newLoan": "Янги қарз",
-      "pending": "Кутилмоқда",
-      "noPending": "Кутилаётган қарз ўтказмалари йўқ",
-      "unknownBorrower": "Номаълум қарз олувчи",
-      "dueDate": "Муддат",
-      "acceptLoan": "Қабул қилиш",
-      "approved": "Тасдиқланди",
-      "waitingApproval": "Кутилмоқда...",
-      "rejected": "Рад этилди",
-      "cancelled": "Бекор қилинди",
       "activeLoans": "Фаол қарзлар",
       "history": "Тарих",
       "productsTitle": "{{locationName}} маҳсулотлари",
@@ -1160,7 +1127,6 @@
       "itemsCount": "{{count}} та",
       "empty": "Сават бўш.",
       "max": "макс.",
-      "sourceBranch": "Филиал",
       "viaRequest": "Сўров орқали",
       "borrowerTitle": "Қарз олувчи маълумотлари",
       "borrowerName": "Исм",
@@ -1385,30 +1351,23 @@
     "incoming": {
       "emptyTitle": "Кирувчи сўровлар йўқ",
       "emptyHint": "Бошқа манзиллардан сўровлар шу ерда кўринади",
-      "summary": "та кутилayotgan сўров эътиборингизни талаб қилади",
-      "requester": "Сўровчи"
+      "summary": "та кутилayotgan сўров эътиборингизни талаб қилади"
     },
     "table": {
       "products": "Маҳсулотлар",
       "source": "Манба",
       "qty": "Сони",
       "status": "Ҳолат",
-      "date": "Сана",
       "actions": "Амаллар"
     },
     "filter": {
       "placeholder": "Қидирув..."
-    },
-    "purpose": {
-      "ondemand": "Буюртма бўйича",
-      "restock": "Тўлдириш"
     },
     "history": {
       "outgoing": "Чиқувчи",
       "incoming": "Кирувчи",
       "outgoingLower": "чиқувчи",
       "incomingLower": "кирувчи",
-      "from": "Қаердан",
       "to": "Қаерга",
       "statusAll": "Барчаси",
       "searchPlaceholder": "Маҳсулот ёки SKU бўйича қидириш...",
@@ -1430,7 +1389,6 @@
     "labels": {
       "systemQty": "Тизим миқдори",
       "actual": "Ҳақиқий",
-      "enterActualQty": "Ҳақиқий миқдорни киритинг",
       "unknownProduct": "Номаълум маҳсулот",
       "completed": "Якунланган",
       "inProgress": "Жараёнда",
@@ -1443,8 +1401,7 @@
       "selectWarehouse": "Омборни танланг"
     },
     "status": {
-      "verifiedCorrect": "Тўғри тасдиқланди",
-      "discrepancyFound": "Фарқ аниқланди"
+      "verifiedCorrect": "Тўғри тасдиқланди"
     },
     "actions": {
       "undo": "Бекор қилиш",
@@ -1623,7 +1580,6 @@
       "subtitle": "Физик ва тизимдаги қолдиқ фарқларини юборинг ва кузатинг"
     },
     "loading": "Юкланмоқда...",
-    "warehouseFallback": "Омбор",
     "actions": {
       "refresh": "Янгилаш",
       "sending": "Юборилмоқда...",
@@ -1734,7 +1690,6 @@
   "ownerAnalytics": {
     "title": "Таҳлил ва Фаолият",
     "subtitle": "Барча жойлардаги бизнес самарадорлигининг умумий кўриниши",
-    "allLocations": "Барча жойлар",
     "presets": {
       "today": "Бугун",
       "7days": "7 кун",

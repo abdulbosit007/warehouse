@@ -1,5 +1,5 @@
 // src/pages/warehouse/OwnerRequests.jsx - Warehouse Incoming Batches List
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getBatchesSummaryWithOrigin } from "../../lib/incoming";

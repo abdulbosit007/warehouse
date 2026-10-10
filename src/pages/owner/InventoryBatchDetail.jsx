@@ -722,8 +722,6 @@ export default function InventoryBatchDetail() {
   const { loading: authLoading, error: authError, roleBase } = useCurrentUser();
 
   const [location, setLocation] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [sessionItems, setSessionItems] = useState([]);
   const [corrections, setCorrections] = useState([]);
   const [auditHistory, setAuditHistory] = useState([]);
   const [products, setProducts] = useState([]);
@@ -771,33 +769,6 @@ export default function InventoryBatchDetail() {
       if (locError) throw locError;
       setLocation(locData);
 
-      // Load session items for this location
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("inventory_session_items")
-        .select(`
-          id, session_id, location_id, product_id,
-          system_quantity, counted_quantity, difference, status,
-          product:product_id (id, name, sku)
-        `)
-        .eq("location_id", locationId);
-
-      if (itemsError) throw itemsError;
-      setSessionItems(itemsData || []);
-
-      // Load sessions
-      const sessionIds = [...new Set((itemsData || []).map((i) => i.session_id))];
-      if (sessionIds.length > 0) {
-        const { data: sessData, error: sessError } = await supabase
-          .from("inventory_sessions")
-          .select("id, name, created_at, status, notes")
-          .in("id", sessionIds)
-          .order("created_at", { ascending: false });
-
-        if (sessError) throw sessError;
-        setSessions(sessData || []);
-      } else {
-        setSessions([]);
-      }
 
       // Load corrections
       const { data: corrData, error: corrError } = await supabase
@@ -866,12 +837,6 @@ export default function InventoryBatchDetail() {
   /* ─────────────────────────────────────────────────────────────────────────
      COMPUTED DATA
   ───────────────────────────────────────────────────────────────────────── */
-  const sessionsWithItems = useMemo(() => {
-    return sessions.map((s) => ({
-      ...s,
-      items: sessionItems.filter((i) => i.session_id === s.id),
-    }));
-  }, [sessions, sessionItems]);
 
   const correctionsByMonth = useMemo(() => {
     const grouped = {};
