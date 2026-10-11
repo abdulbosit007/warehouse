@@ -20,7 +20,11 @@ import {
   Warehouse,
   Store,
   Pencil,
+  Send,
 } from "lucide-react";
+
+// Bot username (without @) for the hint under the phone field; optional
+const TELEGRAM_BOT = (import.meta.env.VITE_TELEGRAM_BOT || "").replace(/^@/, "");
 
 /* ─────────────────────────────────────────────────────────────────────────────
    STAT CARD COMPONENT
@@ -83,6 +87,28 @@ function RoleBadge({ role }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    STATUS BADGE COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
+// Telegram messages: connected / phone set, waiting for the user to press Start / none
+function TelegramBadge({ info }) {
+  const { t } = useTranslation();
+  if (info?.connected) {
+    return (
+      <span title={`+${info.phone}`} className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-1 text-xs font-semibold text-sky-700">
+        <Send className="w-3 h-3" />
+        {t("userManagement.telegram.connected")}
+      </span>
+    );
+  }
+  if (info?.phone) {
+    return (
+      <span title={`+${info.phone}`} className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700">
+        <Clock className="w-3 h-3" />
+        {t("userManagement.telegram.waiting")}
+      </span>
+    );
+  }
+  return <span className="text-sm text-neutral-400">{t("common.dash")}</span>;
+}
+
 function StatusBadge({ approved }) {
   const { t } = useTranslation();
 
@@ -122,9 +148,15 @@ export default function UsersTab() {
     name: "",
     roleId: "",
     is_approved: true,
+    phone: "",
   });
 
   const [filter, setFilter] = useState("all");
+
+  // Telegram: user_id → { phone, connected }; tgReady = false until TELEGRAM.sql is installed
+  const [telegram, setTelegram] = useState(new Map());
+  const [tgReady, setTgReady] = useState(false);
+  const [editPhone, setEditPhone] = useState("");
 
   // Edit role state
   const [editingUser, setEditingUser] = useState(null);
@@ -166,12 +198,30 @@ export default function UsersTab() {
     );
   }, []);
 
+  const fetchTelegram = useCallback(async () => {
+    const { data, error } = await supabase.rpc("fn_telegram_status");
+    if (error) {
+      setTgReady(false); // not installed yet: the Telegram parts stay hidden
+      return;
+    }
+    setTgReady(true);
+    setTelegram(new Map((data || []).map((r) => [r.user_id, { phone: r.phone, connected: r.connected }])));
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
-    await Promise.all([fetchRoles(), fetchUsers()]);
+    await Promise.all([fetchRoles(), fetchUsers(), fetchTelegram()]);
     setLoading(false);
-  }, [fetchRoles, fetchUsers]);
+  }, [fetchRoles, fetchUsers, fetchTelegram]);
+
+  // Save a user's Telegram phone (empty = remove). Returns an error message or null.
+  async function saveTelegramPhone(userId, phone) {
+    const { error } = await supabase.rpc("fn_telegram_set_phone", { p_user_id: userId, p_phone: phone || "" });
+    if (error) return error.message;
+    await fetchTelegram();
+    return null;
+  }
 
   useEffect(() => {
     loadData();
@@ -210,7 +260,7 @@ export default function UsersTab() {
      HANDLERS
   ───────────────────────────────────────────────────────────────────────── */
   const resetForm = () => {
-    setNewUser({ email: "", name: "", roleId: "", is_approved: true });
+    setNewUser({ email: "", name: "", roleId: "", is_approved: true, phone: "" });
     setError("");
     setSuccess("");
   };
@@ -293,7 +343,18 @@ export default function UsersTab() {
             : ` ${t("userManagement.success.autoAssigned", { label: pickedLabel })}`
           : "";
 
-      setSuccess((foundAuthId ? t("userManagement.success.addedLinked") : t("userManagement.success.added")) + extra);
+      // Telegram phone: only once the person has an account (signed in at least once)
+      let tgNote = "";
+      if (tgReady && newUser.phone.trim()) {
+        if (foundAuthId) {
+          const tgErr = await saveTelegramPhone(foundAuthId, newUser.phone);
+          if (tgErr) tgNote = ` ${t("userManagement.telegram.saveFailed", { message: tgErr })}`;
+        } else {
+          tgNote = ` ${t("userManagement.telegram.needsAccount")}`;
+        }
+      }
+
+      setSuccess((foundAuthId ? t("userManagement.success.addedLinked") : t("userManagement.success.added")) + extra + tgNote);
       setShowForm(false);
       resetForm();
       await fetchUsers();
@@ -321,6 +382,7 @@ export default function UsersTab() {
     setEditingUser(user);
     setEditRoleId(user.role_id || "");
     setEditName(user.name || "");
+    setEditPhone(telegram.get(user.user_id)?.phone ? `+${telegram.get(user.user_id).phone}` : "");
   }
 
   // Update user's role, name, and location_id
@@ -361,6 +423,13 @@ export default function UsersTab() {
         .eq("user_id", editingUser.user_id);
 
       if (updateErr) throw updateErr;
+
+      // Telegram phone changed (empty = remove)
+      const oldPhone = telegram.get(editingUser.user_id)?.phone || "";
+      if (tgReady && editingUser.user_id && editPhone.replace(/\D/g, "") !== oldPhone) {
+        const tgErr = await saveTelegramPhone(editingUser.user_id, editPhone);
+        if (tgErr) throw new Error(t("userManagement.telegram.saveFailed", { message: tgErr }));
+      }
 
       setSuccess(t("userManagement.success.roleUpdated"));
       setTimeout(() => setSuccess(""), 3000);
@@ -475,6 +544,7 @@ export default function UsersTab() {
                   <th className="px-4 py-3 text-left">{t("userManagement.table.role")}</th>
                   <th className="px-4 py-3 text-left">{t("userManagement.table.location")}</th>
                   <th className="px-4 py-3 text-left">{t("userManagement.table.status")}</th>
+                  {tgReady && <th className="px-4 py-3 text-left">{t("userManagement.telegram.column")}</th>}
                   <th className="px-4 py-3 text-right">{t("userManagement.table.actions")}</th>
                 </tr>
               </thead>
@@ -499,6 +569,11 @@ export default function UsersTab() {
                     <td className="px-4 py-3">
                       <StatusBadge approved={u.is_approved} />
                     </td>
+                    {tgReady && (
+                      <td className="px-4 py-3">
+                        <TelegramBadge info={telegram.get(u.user_id)} />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         {/* Edit Role Button - hide for Owner role */}
@@ -648,6 +723,28 @@ export default function UsersTab() {
 
                 <p className="mt-1.5 text-xs text-neutral-500">{t("userManagement.form.locationAuto")}</p>
               </div>
+
+              {/* Telegram phone */}
+              {tgReady && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                    {t("userManagement.telegram.phoneLabel")}
+                  </label>
+                  <div className="relative">
+                    <Send className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                    <input
+                      type="tel"
+                      value={newUser.phone}
+                      onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                      placeholder={t("userManagement.telegram.phonePlaceholder")}
+                      className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-neutral-500">
+                    {TELEGRAM_BOT ? t("userManagement.telegram.hint", { bot: `@${TELEGRAM_BOT}` }) : t("userManagement.telegram.hintNoBot")}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -774,6 +871,29 @@ export default function UsersTab() {
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
                 </div>
               </div>
+
+              {/* Telegram phone */}
+              {tgReady && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                    {t("userManagement.telegram.phoneLabel")}
+                  </label>
+                  <div className="relative">
+                    <Send className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                    <input
+                      type="tel"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder={t("userManagement.telegram.phonePlaceholder")}
+                      disabled={!editingUser.user_id}
+                      className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-neutral-500">
+                    {editingUser.user_id ? TELEGRAM_BOT ? t("userManagement.telegram.hint", { bot: `@${TELEGRAM_BOT}` }) : t("userManagement.telegram.hintNoBot") : t("userManagement.telegram.needsAccount")}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
