@@ -449,6 +449,17 @@
       "autoAssigned": "Location auto-assigned to \"{{label}}\".",
       "autoAssignedFirst": "Location auto-assigned to \"{{label}}\" (first of multiple).",
       "roleUpdated": "Role updated successfully."
+    },
+    "telegram": {
+      "column": "Telegram",
+      "connected": "Connected",
+      "waiting": "Waiting for Start",
+      "phoneLabel": "Telegram phone (optional)",
+      "phonePlaceholder": "+998 90 123 45 67",
+      "hint": "Messages about new requests and transfers. The employee opens {{bot}} in Telegram, presses Start and shares their number once.",
+      "hintNoBot": "Messages about new requests and transfers. The employee opens the company bot in Telegram, presses Start and shares their number once.",
+      "needsAccount": "The Telegram phone can be added once this user has signed in to the app.",
+      "saveFailed": "Telegram phone not saved: {{message}}"
     }
   },
   "ownerSettings": {

@@ -449,6 +449,17 @@
       "autoAssigned": "Локация автоматик бириктирилди: \"{{label}}\".",
       "autoAssignedFirst": "Локация автоматик бириктирилди: \"{{label}}\" (биринчиси).",
       "roleUpdated": "Рол янгиланди."
+    },
+    "telegram": {
+      "column": "Telegram",
+      "connected": "Уланган",
+      "waiting": "Start кутилмоқда",
+      "phoneLabel": "Telegram телефони (ихтиёрий)",
+      "phonePlaceholder": "+998 90 123 45 67",
+      "hint": "Янги сўровлар ва ўтказмалар ҳақида хабарлар. Ходим Telegramда {{bot}} ни очади, Start босади ва бир марта рақамини юборади.",
+      "hintNoBot": "Янги сўровлар ва ўтказмалар ҳақида хабарлар. Ходим Telegramда компания ботини очади, Start босади ва бир марта рақамини юборади.",
+      "needsAccount": "Telegram телефонини фойдаланувчи иловага киргандан кейин қўшиш мумкин.",
+      "saveFailed": "Telegram телефони сақланмади: {{message}}"
     }
   },
   "ownerSettings": {
