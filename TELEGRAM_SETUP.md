@@ -8,6 +8,7 @@ from the owner, sent to each user's own Telegram chat.
 | New request / sale request / loan request | users of the location the items are asked **from** |
 | New transfer | users of the location **receiving** it |
 | New incoming goods from the owner | every warehouse user |
+| New stock correction request | the owner (Settings → Users → owner row → **Telegram** button; needs `TELEGRAM_CORRECTIONS.sql`) |
 
 How a user gets connected: the owner types their phone in **Settings → Users** (add or
 edit user). The employee opens the bot in Telegram, presses **Start** and taps
@@ -18,7 +19,7 @@ Bot commands (also in the bot's **Menu** button, in the user's Telegram language
 | Command | What it does |
 |---|---|
 | `/start` | connect (share phone number) |
-| `/language` | message language: O‘zbekcha / Ўзбекча / Русский / English |
+| `/lang` | message language: O‘zbekcha / Ўзбекча / Русский / English |
 | `/status` | connected or not, and for which location |
 | `/help` | what the bot does and the command list |
 | `/stop` | turn messages off |

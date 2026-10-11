@@ -157,6 +157,9 @@ export default function UsersTab() {
   const [telegram, setTelegram] = useState(new Map());
   const [tgReady, setTgReady] = useState(false);
   const [editPhone, setEditPhone] = useState("");
+  // the owner's own Telegram phone (the owner row has no Edit: its role can't change)
+  const [ownerTg, setOwnerTg] = useState(null); // { user, phone } | null
+  const [savingOwnerTg, setSavingOwnerTg] = useState(false);
 
   // Edit role state
   const [editingUser, setEditingUser] = useState(null);
@@ -445,6 +448,21 @@ export default function UsersTab() {
     }
   }
 
+  async function handleSaveOwnerTg() {
+    if (!ownerTg) return;
+    setSavingOwnerTg(true);
+    setError("");
+    const tgErr = await saveTelegramPhone(ownerTg.user.user_id, ownerTg.phone);
+    setSavingOwnerTg(false);
+    if (tgErr) {
+      setError(t("userManagement.telegram.saveFailed", { message: tgErr }));
+      return;
+    }
+    setOwnerTg(null);
+    setSuccess(t("userManagement.telegram.saved"));
+    setTimeout(() => setSuccess(""), 3000);
+  }
+
   /* ─────────────────────────────────────────────────────────────────────────
      RENDER
   ───────────────────────────────────────────────────────────────────────── */
@@ -576,6 +594,16 @@ export default function UsersTab() {
                     )}
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
+                        {/* Owner: only the Telegram phone (for correction request messages) */}
+                        {tgReady && (u.role_name || "").toLowerCase() === "owner" && u.user_id && (
+                          <button
+                            onClick={() => setOwnerTg({ user: u, phone: telegram.get(u.user_id)?.phone ? `+${telegram.get(u.user_id).phone}` : "" })}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100"
+                          >
+                            <Send className="w-3 h-3" />
+                            {t("userManagement.telegram.column")}
+                          </button>
+                        )}
                         {/* Edit Role Button - hide for Owner role */}
                         {(u.role_name || "").toLowerCase() !== "owner" && (
                           <button
@@ -775,6 +803,59 @@ export default function UsersTab() {
                     {t("userManagement.actions.addUser")}
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Owner's Telegram phone */}
+      {ownerTg && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-sky-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">{t("userManagement.telegram.phoneLabel")}</h3>
+                <p className="text-sm text-sky-100 mt-0.5">{ownerTg.user.name}</p>
+              </div>
+              <button onClick={() => setOwnerTg(null)} className="text-white/70 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+              )}
+              <div className="relative">
+                <Send className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  type="tel"
+                  value={ownerTg.phone}
+                  onChange={(e) => setOwnerTg({ ...ownerTg, phone: e.target.value })}
+                  placeholder={t("userManagement.telegram.phonePlaceholder")}
+                  className="w-full rounded-xl border border-neutral-300 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <p className="text-xs text-neutral-500">
+                {TELEGRAM_BOT
+                  ? t("userManagement.telegram.ownerHint", { bot: `@${TELEGRAM_BOT}` })
+                  : t("userManagement.telegram.ownerHintNoBot")}
+              </p>
+            </div>
+            <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setOwnerTg(null)}
+                className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={handleSaveOwnerTg}
+                disabled={savingOwnerTg}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                {savingOwnerTg ? t("common.saving") : t("userManagement.telegram.save")}
               </button>
             </div>
           </div>

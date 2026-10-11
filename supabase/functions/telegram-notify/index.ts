@@ -16,26 +16,34 @@ const T: Record<Lang, Record<string, string>> = {
   uz: {
     request: "📦 Yangi so‘rov", sale: "🛒 Yangi sotuv so‘rovi", loan: "🤝 Yangi qarz so‘rovi",
     transfer: "🔁 Yangi o‘tkazma", incoming: "📥 Yangi kirim (egasidan)",
-    from: "Kimdan", borrower: "Qarz oluvchi", origin: "Manba", items: "Mahsulotlar",
+    from: "Kimdan", to: "Kimga", borrower: "Qarz oluvchi", origin: "Manba", items: "Mahsulotlar",
     more: "va yana {n} ta", open: "Ilovada ochish",
+    correction: "📝 Yangi tuzatish so‘rovi", place: "Joy", requestedBy: "So‘radi", product: "Mahsulot",
+    systemQty: "Tizimda", countedQty: "Sanalgan", comment: "Izoh",
   },
   uzc: {
     request: "📦 Янги сўров", sale: "🛒 Янги сотув сўрови", loan: "🤝 Янги қарз сўрови",
     transfer: "🔁 Янги ўтказма", incoming: "📥 Янги кирим (эгасидан)",
-    from: "Кимдан", borrower: "Қарз олувчи", origin: "Манба", items: "Маҳсулотлар",
+    from: "Кимдан", to: "Кимга", borrower: "Қарз олувчи", origin: "Манба", items: "Маҳсулотлар",
     more: "ва яна {n} та", open: "Иловада очиш",
+    correction: "📝 Янги тузатиш сўрови", place: "Жой", requestedBy: "Сўради", product: "Маҳсулот",
+    systemQty: "Тизимда", countedQty: "Саналган", comment: "Изоҳ",
   },
   ru: {
     request: "📦 Новый запрос", sale: "🛒 Новый запрос на продажу", loan: "🤝 Новый запрос в долг",
     transfer: "🔁 Новое перемещение", incoming: "📥 Новый приход (от владельца)",
-    from: "От", borrower: "Должник", origin: "Источник", items: "Товары",
+    from: "От", to: "Кому", borrower: "Должник", origin: "Источник", items: "Товары",
     more: "и ещё {n}", open: "Открыть в приложении",
+    correction: "📝 Новый запрос на исправление", place: "Место", requestedBy: "Запросил", product: "Товар",
+    systemQty: "В системе", countedQty: "Посчитано", comment: "Комментарий",
   },
   en: {
     request: "📦 New request", sale: "🛒 New sale request", loan: "🤝 New loan request",
     transfer: "🔁 New transfer", incoming: "📥 New incoming goods (from the owner)",
-    from: "From", borrower: "Borrower", origin: "Origin", items: "Items",
+    from: "From", to: "For", borrower: "Borrower", origin: "Origin", items: "Items",
     more: "and {n} more", open: "Open in the app",
+    correction: "📝 New stock correction request", place: "Location", requestedBy: "Requested by", product: "Product",
+    systemQty: "In the system", countedQty: "Counted", comment: "Comment",
   },
 };
 const langOf = (l: string | null): Lang => (l === "uzc" || l === "ru" || l === "en" ? l : "uz");
@@ -53,9 +61,11 @@ function render(m: Message, lang: Lang) {
   const t = T[lang];
   const out = [`<b>${t[m.title]}</b>`];
   for (const [k, v] of m.lines) out.push(`${t[k]}: <b>${esc(v)}</b>`);
-  out.push("", `${t.items} (${m.items.length}):`);
-  for (const i of m.items.slice(0, MAX_ITEMS)) out.push(`• ${esc(i.name)} — ${i.qty}`);
-  if (m.items.length > MAX_ITEMS) out.push(t.more.replace("{n}", String(m.items.length - MAX_ITEMS)));
+  if (m.items.length) {
+    out.push("", `${t.items} (${m.items.length}):`);
+    for (const i of m.items.slice(0, MAX_ITEMS)) out.push(`• ${esc(i.name)} — ${i.qty}`);
+    if (m.items.length > MAX_ITEMS) out.push(t.more.replace("{n}", String(m.items.length - MAX_ITEMS)));
+  }
   return out.join("\n");
 }
 
@@ -76,8 +86,10 @@ async function send(chatId: number, m: Message, lang: Lang) {
   return true;
 }
 
-async function recipients(location: string | null, allWarehouses = false) {
-  const { data, error } = await sb.rpc("fn_telegram_recipients", { p_location: location, p_all_warehouses: allWarehouses });
+async function recipients(location: string | null, allWarehouses = false, owners = false) {
+  const { data, error } = owners
+    ? await sb.rpc("fn_telegram_owner_recipients")
+    : await sb.rpc("fn_telegram_recipients", { p_location: location, p_all_warehouses: allWarehouses });
   if (error) throw error;
   return (data ?? []) as { chat_id: number; lang: string | null }[];
 }
@@ -87,7 +99,7 @@ const pageFor = (kind: string | null | undefined) => (kind === "warehouse" ? "/w
 
 /* ── one outbox row → messages ─────────────────────────────────────────────── */
 async function messagesFor(row: any) {
-  const out: { location: string | null; allWarehouses?: boolean; message: Message }[] = [];
+  const out: { location: string | null; allWarehouses?: boolean; owners?: boolean; message: Message }[] = [];
 
   if (row.event === "request") {
     const { data: r, error } = await sb.from("branch_requests")
@@ -103,10 +115,12 @@ async function messagesFor(row: any) {
       if (!bySource.has(i.source_location_id)) bySource.set(i.source_location_id, []);
       bySource.get(i.source_location_id)!.push({ name: i.product?.name ?? "—", qty: i.requested_qty });
     }
-    const { data: kinds } = await sb.from("locations").select("id, kind").in("id", [...bySource.keys()]) as any;
-    const kindOf = new Map<string, string>((kinds ?? []).map((l: any) => [l.id, l.kind]));
+    const { data: srcs } = await sb.from("locations").select("id, kind, location_name, name").in("id", [...bySource.keys()]) as any;
+    const kindOf = new Map<string, string>((srcs ?? []).map((l: any) => [l.id, l.kind]));
+    const nameOf = new Map<string, string>((srcs ?? []).map((l: any) => [l.id, locName(l)]));
     for (const [source, items] of bySource) {
-      const lines: [string, string][] = [["from", locName(r.to_location)]];
+      // "for": which location has to act — a "warehouse" user gets every warehouse's messages
+      const lines: [string, string][] = [["from", locName(r.to_location)], ["to", nameOf.get(source) ?? "—"]];
       if (r.purpose === "loan" && borrower) lines.push(["borrower", borrower]);
       out.push({
         location: source,
@@ -115,14 +129,35 @@ async function messagesFor(row: any) {
     }
   } else if (row.event === "transfer") {
     const { data: tr, error } = await sb.from("stock_transfers")
-      .select("to_location_id, from_location:from_location_id ( location_name, name ), to_location:to_location_id ( kind ), items:stock_transfer_items ( qty, status, product:product_id ( name ) )")
+      .select("to_location_id, from_location:from_location_id ( location_name, name ), to_location:to_location_id ( kind, location_name, name ), items:stock_transfer_items ( qty, status, product:product_id ( name ) )")
       .eq("id", row.ref_id).single() as any;
     if (error) throw error;
     const items = ((tr.items ?? []) as any[]).filter((i) => i.status === "pending").map((i) => ({ name: i.product?.name ?? "—", qty: i.qty }));
     if (items.length) {
       out.push({
         location: tr.to_location_id,
-        message: { title: "transfer", lines: [["from", locName(tr.from_location)]], items, path: pageFor(tr.to_location?.kind) },
+        message: { title: "transfer", lines: [["from", locName(tr.from_location)], ["to", locName(tr.to_location)]], items, path: pageFor(tr.to_location?.kind) },
+      });
+    }
+  } else if (row.event === "correction") {
+    const { data: c, error } = await sb.from("inventory_corrections")
+      .select("location_id, current_quantity, reported_quantity, owner_comment, status, requested_by, location:location_id ( location_name, name ), product:product_id ( name, sku )")
+      .eq("id", row.ref_id).maybeSingle() as any;
+    if (error) throw error;
+    if (c && (c.status ?? "pending") === "pending") { // already decided: nothing to say
+      const { data: who } = await sb.from("users_list").select("name").eq("user_id", c.requested_by).maybeSingle() as any;
+      const diff = (c.reported_quantity ?? 0) - (c.current_quantity ?? 0);
+      const lines: [string, string][] = [
+        ["place", locName(c.location)],
+        ["requestedBy", who?.name || "—"],
+        ["product", `${c.product?.name ?? "—"}${c.product?.sku ? ` (${c.product.sku})` : ""}`],
+        ["systemQty", String(c.current_quantity ?? "—")],
+        ["countedQty", `${c.reported_quantity ?? "—"} (${diff > 0 ? "+" : ""}${diff})`],
+      ];
+      if (c.owner_comment) lines.push(["comment", c.owner_comment]);
+      out.push({
+        location: null, owners: true,
+        message: { title: "correction", lines, items: [], path: `/owner/inventory-batches/${c.location_id}` },
       });
     }
   } else if (row.event === "incoming") {
@@ -159,8 +194,8 @@ Deno.serve(async (req) => {
     try {
       let sentAny = false;
       let lastError: unknown = null;
-      for (const { location, allWarehouses, message } of await messagesFor(row)) {
-        for (const r of await recipients(location, allWarehouses)) {
+      for (const { location, allWarehouses, owners, message } of await messagesFor(row)) {
+        for (const r of await recipients(location, allWarehouses, owners)) {
           try { await send(r.chat_id, message, langOf(r.lang)); sentAny = true; } catch (e) { lastError = e; }
         }
       }

@@ -459,7 +459,11 @@
       "hint": "Messages about new requests and transfers. The employee opens {{bot}} in Telegram, presses Start and shares their number once.",
       "hintNoBot": "Messages about new requests and transfers. The employee opens the company bot in Telegram, presses Start and shares their number once.",
       "needsAccount": "The Telegram phone can be added once this user has signed in to the app.",
-      "saveFailed": "Telegram phone not saved: {{message}}"
+      "saveFailed": "Telegram phone not saved: {{message}}",
+      "save": "Save",
+      "saved": "Telegram phone saved",
+      "ownerHint": "You'll get a message for every new stock correction request. Open {{bot}} in Telegram, press Start and share your number once.",
+      "ownerHintNoBot": "You'll get a message for every new stock correction request. Open the company bot in Telegram, press Start and share your number once."
     }
   },
   "ownerSettings": {

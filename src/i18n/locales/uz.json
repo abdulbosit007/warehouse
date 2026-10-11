@@ -459,7 +459,11 @@
       "hint": "Yangi so‘rovlar va o‘tkazmalar haqida xabarlar. Xodim Telegramda {{bot}} ni ochadi, Start bosadi va bir marta raqamini yuboradi.",
       "hintNoBot": "Yangi so‘rovlar va o‘tkazmalar haqida xabarlar. Xodim Telegramda kompaniya botini ochadi, Start bosadi va bir marta raqamini yuboradi.",
       "needsAccount": "Telegram telefonini foydalanuvchi ilovaga kirgandan keyin qo‘shish mumkin.",
-      "saveFailed": "Telegram telefoni saqlanmadi: {{message}}"
+      "saveFailed": "Telegram telefoni saqlanmadi: {{message}}",
+      "save": "Saqlash",
+      "saved": "Telegram telefoni saqlandi",
+      "ownerHint": "Har bir yangi tuzatish so‘rovi haqida xabar olasiz. Telegramda {{bot}} ni oching, Start bosing va bir marta raqamingizni yuboring.",
+      "ownerHintNoBot": "Har bir yangi tuzatish so‘rovi haqida xabar olasiz. Telegramda kompaniya botini oching, Start bosing va bir marta raqamingizni yuboring."
     }
   },
   "ownerSettings": {
