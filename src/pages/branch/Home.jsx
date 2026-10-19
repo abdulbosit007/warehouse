@@ -21,6 +21,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import SkuBadge from "../../components/SkuBadge";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    FILTER MODAL
@@ -628,19 +629,19 @@ export default function BranchHome() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-emerald-600 to-teal-600">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("branch1.home.table.product")}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("branch1.home.table.sku")}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("branch1.home.table.category")}
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-right text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("branch1.home.table.price")}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-center text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("branch1.home.table.quantity")}
                   </th>
                 </tr>
@@ -649,22 +650,22 @@ export default function BranchHome() {
                 {paginatedProducts.map((product) => {
                   const isLowStock = product.quantity > 0 && product.quantity <= 5;
                   return (
-                    <tr key={product.id} className={`hover:bg-neutral-50 transition-colors ${isLowStock ? "bg-amber-50" : ""}`}>
-                      <td className="px-4 py-3 text-sm font-medium text-neutral-900">
+                    <tr key={product.id} className={`transition-colors ${isLowStock ? "bg-amber-50 hover:bg-amber-100/70" : "even:bg-slate-50 hover:bg-emerald-50"}`}>
+                      <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900">
                         {product.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold font-mono text-neutral-700">
-                        {product.sku || "—"}
+                      <td className="px-4 py-3">
+                        <SkuBadge sku={product.sku} />
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">
+                      <td className="px-4 py-3 text-sm font-medium text-neutral-700">
                         {product.categories?.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-700 text-right font-mono">
+                      <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900 text-right tabular-nums">
                         {product.sale_price != null ? Number(product.sale_price).toLocaleString() : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold ${
+                          className={`inline-flex items-center justify-center min-w-[44px] px-2.5 py-1 rounded-full text-sm font-bold ${
                             isLowStock
                               ? "bg-amber-100 text-amber-700"
                               : product.quantity > 0

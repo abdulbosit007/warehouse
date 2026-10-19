@@ -20,6 +20,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import SkuBadge from "../../components/SkuBadge";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    FILTER MODAL
@@ -730,29 +731,29 @@ export default function WarehouseHome() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-blue-600 to-cyan-600">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("warehouseHome.table.product")}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("warehouseHome.table.sku")}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                  <th className="px-4 py-3.5 text-left text-[13px] font-bold uppercase tracking-wide text-white">
                     {t("warehouseHome.table.category")}
                   </th>
                   {isSuperWarehouse && (
-                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white bg-blue-700">
+                    <th className="px-4 py-3.5 text-center text-[13px] font-bold uppercase tracking-wide text-white bg-blue-700">
                       {t("warehouseHome.table.total")}
                     </th>
                   )}
                   {locations.map((loc) => (
                     <th
                       key={loc.id}
-                      className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white bg-blue-600"
+                      className="px-3 py-3.5 text-center text-[13px] font-bold uppercase tracking-wide text-white bg-blue-600"
                       title={loc.location_name || loc.name}
                     >
                       <div className="flex items-center justify-center gap-1">
-                        <Warehouse className="w-3 h-3" />
-                        <span className="truncate max-w-[80px]">
+                        <Warehouse className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[96px]">
                           {(loc.location_name || loc.name || "").slice(0, 10)}
                         </span>
                       </div>
@@ -769,23 +770,23 @@ export default function WarehouseHome() {
                   return (
                     <tr
                       key={product.id}
-                      className={`hover:bg-neutral-50 transition-colors ${
-                        isLowStock ? "bg-amber-50" : ""
+                      className={`transition-colors ${
+                        isLowStock ? "bg-amber-50 hover:bg-amber-100/70" : "even:bg-slate-50 hover:bg-blue-50"
                       }`}
                     >
-                      <td className="px-4 py-3 text-sm font-medium text-neutral-900">
+                      <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900">
                         {product.name || "—"}
                       </td>
-                      <td className="px-4 py-3 text-xs font-mono text-neutral-500">
-                        {product.sku || "—"}
+                      <td className="px-4 py-3">
+                        <SkuBadge sku={product.sku} />
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">
+                      <td className="px-4 py-3 text-sm font-medium text-neutral-700">
                         {product.categories?.name || "—"}
                       </td>
                       {isSuperWarehouse && (
                         <td className="px-4 py-3 text-center">
                           <span
-                            className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold ${
+                            className={`inline-flex items-center justify-center min-w-[44px] px-2.5 py-1 rounded-full text-sm font-bold ${
                               isLowStock
                                 ? "bg-amber-100 text-amber-700"
                                 : totalQty > 0
@@ -803,7 +804,7 @@ export default function WarehouseHome() {
                         return (
                           <td key={loc.id} className="px-3 py-3 text-center">
                             <span
-                              className={`inline-flex items-center justify-center min-w-[32px] px-1.5 py-0.5 rounded text-xs font-medium ${
+                              className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-md text-sm font-semibold ${
                                 qty > 0
                                   ? "bg-blue-50 text-blue-700"
                                   : "text-neutral-300"
