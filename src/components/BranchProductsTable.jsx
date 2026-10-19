@@ -1,9 +1,31 @@
-import React from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Package } from "lucide-react";
+import { Package, ChevronLeft, ChevronRight } from "lucide-react";
 
+const PAGE_SIZE = 25;
+
+// All rows are already loaded (search and filters work on them in the browser);
+// this table only shows them one page at a time.
 export default function BranchProductsTable({ loading, rows, onAdd }) {
   const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [seenCount, setSeenCount] = useState(rows.length);
+  const bodyRef = useRef(null);
+
+  // new search / filter result → back to the first page
+  if (rows.length !== seenCount) {
+    setSeenCount(rows.length);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = Math.min(page, totalPages);
+  const pageRows = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+
+  const goTo = (p) => {
+    setPage(p);
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  };
 
   const colWidths = {
     name: "w-[30%]",
@@ -30,6 +52,7 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
 
       {/* Scrollable Body */}
       <div
+        ref={bodyRef}
         className="max-h-[320px] overflow-y-auto"
         style={{ scrollbarWidth: "thin", scrollbarColor: "#d4d4d4 transparent" }}
       >
@@ -54,7 +77,7 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
                 </td>
               </tr>
             ) : (
-              rows.map((r, idx) => {
+              pageRows.map((r, idx) => {
                 const hasStock = (r.overallQty ?? 0) > 0;
                 return (
                   <tr
@@ -92,8 +115,41 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
 
       {/* Footer */}
       {!loading && rows.length > 0 && (
-        <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-xs text-neutral-500 text-center">
-          {t("branchOperations.productsTable.footerCount", { count: rows.length })}
+        <div className="flex items-center justify-between gap-2 border-t border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-500">
+          <span>
+            {totalPages > 1
+              ? t("branch1.home.pagination.showing", {
+                  from: (current - 1) * PAGE_SIZE + 1,
+                  to: Math.min(current * PAGE_SIZE, rows.length),
+                  total: rows.length,
+                })
+              : t("branchOperations.productsTable.footerCount", { count: rows.length })}
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => goTo(current - 1)}
+                disabled={current === 1}
+                title={t("common.prev")}
+                aria-label={t("common.prev")}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="min-w-[56px] text-center font-semibold text-neutral-700">
+                {current} / {totalPages}
+              </span>
+              <button
+                onClick={() => goTo(current + 1)}
+                disabled={current === totalPages}
+                title={t("common.next")}
+                aria-label={t("common.next")}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
