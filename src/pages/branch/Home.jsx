@@ -650,7 +650,7 @@ export default function BranchHome() {
                 {paginatedProducts.map((product) => {
                   const isLowStock = product.quantity > 0 && product.quantity <= 5;
                   return (
-                    <tr key={product.id} className={`transition-colors ${isLowStock ? "bg-amber-50 hover:bg-amber-100/70" : "even:bg-slate-50 hover:bg-emerald-50"}`}>
+                    <tr key={product.id} className="transition-colors even:bg-slate-50 hover:bg-emerald-50">
                       <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900">
                         {product.name || "—"}
                       </td>
