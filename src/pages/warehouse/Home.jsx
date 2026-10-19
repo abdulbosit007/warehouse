@@ -770,9 +770,7 @@ export default function WarehouseHome() {
                   return (
                     <tr
                       key={product.id}
-                      className={`transition-colors ${
-                        isLowStock ? "bg-amber-50 hover:bg-amber-100/70" : "even:bg-slate-50 hover:bg-blue-50"
-                      }`}
+                      className="transition-colors even:bg-slate-50 hover:bg-blue-50"
                     >
                       <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900">
                         {product.name || "—"}
