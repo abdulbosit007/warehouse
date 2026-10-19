@@ -211,8 +211,8 @@ export default function OwnerBranchRequests() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col gap-5 bg-white p-5 rounded-2xl shadow-sm border border-neutral-200">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex flex-col gap-5 bg-white p-5 max-md:p-4 rounded-2xl shadow-sm border border-neutral-200">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 max-md:flex-row max-md:items-start max-md:gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">{t("ownerBranchRequests.title")}</h1>
             <p className="text-sm text-neutral-500 mt-1">{t("ownerBranchRequests.subtitle")}</p>
@@ -339,16 +339,16 @@ export default function OwnerBranchRequests() {
                   <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
                     {/* Header Row */}
                     <div 
-                      className={`flex items-center justify-between p-5 cursor-pointer ${requestHeaderClass(req.purpose)} transition-colors`}
+                      className={`flex items-center justify-between p-5 max-md:p-4 max-md:gap-2 cursor-pointer ${requestHeaderClass(req.purpose)} transition-colors`}
                       onClick={() => toggleExpand(req.id)}
                     >
-                      <div className="flex items-center gap-4">
-                         <div className="p-3 bg-indigo-50 rounded-xl">
+                      <div className="flex items-center gap-4 max-md:min-w-0">
+                         <div className="p-3 bg-indigo-50 rounded-xl max-md:hidden">
                             <GitBranch className="w-5 h-5 text-indigo-600" />
                          </div>
-                         <div>
-                             <div className="flex items-center gap-2">
-                                <p className="font-bold text-neutral-900 text-lg">{t("ownerBranchRequests.transferTo", { name: destinationName })}</p>
+                         <div className="max-md:min-w-0">
+                             <div className="flex items-center gap-2 max-md:flex-wrap">
+                                <p className="font-bold text-neutral-900 text-lg max-md:text-base max-md:basis-full">{t("ownerBranchRequests.transferTo", { name: destinationName })}</p>
                                 <StatusBadge status={req.status} />
                                 <RequestTypeBadge purpose={req.purpose} />
                              </div>
@@ -371,14 +371,14 @@ export default function OwnerBranchRequests() {
                              </p>
                          </div>
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-neutral-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`w-5 h-5 text-neutral-400 transition-transform max-md:shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
                     </div>
 
                     {/* Expanded Content */}
                     {isExpanded && (
-                       <div className="border-t border-neutral-100 p-5 bg-neutral-50 space-y-6">
+                       <div className="border-t border-neutral-100 p-5 max-md:p-3 bg-neutral-50 space-y-6 max-md:space-y-3">
                           {Object.entries(bySource).map(([srcName, items]) => (
-                             <div key={srcName} className="bg-white rounded-xl border border-neutral-200 shadow-sm p-4">
+                             <div key={srcName} className="bg-white rounded-xl border border-neutral-200 shadow-sm p-4 max-md:p-3">
                                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-neutral-100">
                                    <div className="flex items-center gap-2 text-sm font-semibold text-neutral-700">
                                       <span className="text-rose-600">{srcName}</span>
@@ -400,7 +400,7 @@ export default function OwnerBranchRequests() {
                                         <tbody className="divide-y divide-neutral-100">
                                            {items.map(item => (
                                                <tr key={item.id}>
-                                                  <td className="px-4 py-3">
+                                                  <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                                                       <p className="font-medium text-neutral-900">{item.product?.name}</p>
                                                       <p className="text-xs text-neutral-500">SKU: {item.product?.sku}</p>
                                                   </td>

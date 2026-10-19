@@ -302,8 +302,8 @@ export default function OwnerAuditDetail() {
 
   if (authError || error) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{authError || error}</span>
@@ -315,8 +315,8 @@ export default function OwnerAuditDetail() {
 
   if (roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("common.ownerOnly")}</span>
@@ -328,7 +328,7 @@ export default function OwnerAuditDetail() {
 
   if (!session) {
     return (
-      <div className="p-6">
+      <div className="p-6 max-md:p-4">
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center">
           <Package className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
           <p className="text-neutral-500">{t("ownerAuditDetail.notFound")}</p>

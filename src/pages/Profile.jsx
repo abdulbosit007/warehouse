@@ -134,8 +134,8 @@ export default function Profile() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{error}</span>
@@ -163,7 +163,7 @@ export default function Profile() {
       </div>
 
       {/* ── Avatar + Name Card ── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-6">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-6 max-md:p-4">
         <div className="flex items-center gap-4">
           <div className={`w-16 h-16 rounded-2xl ${rc.avatarBg} flex items-center justify-center text-2xl font-bold text-white shadow-sm shrink-0`}>
             {initials}
@@ -191,7 +191,7 @@ export default function Profile() {
       {/* ── Details Card ── */}
       <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm divide-y divide-neutral-100">
         {/* Full Name */}
-        <div className="flex items-center gap-4 px-6 py-4">
+        <div className="flex items-center gap-4 px-6 max-md:px-4 py-4">
           <div className={`p-2.5 rounded-xl ${rc.iconBg} shrink-0`}>
             <User className={`w-5 h-5 ${rc.iconColor}`} />
           </div>
@@ -206,7 +206,7 @@ export default function Profile() {
         </div>
 
         {/* Email */}
-        <div className="flex items-center gap-4 px-6 py-4">
+        <div className="flex items-center gap-4 px-6 max-md:px-4 py-4">
           <div className="p-2.5 rounded-xl bg-sky-50 shrink-0">
             <Mail className="w-5 h-5 text-sky-600" />
           </div>
@@ -239,7 +239,7 @@ export default function Profile() {
         </div>
 
         {/* Role */}
-        <div className="flex items-center gap-4 px-6 py-4">
+        <div className="flex items-center gap-4 px-6 max-md:px-4 py-4">
           <div className={`p-2.5 rounded-xl ${rc.iconBg} shrink-0`}>
             <Shield className={`w-5 h-5 ${rc.iconColor}`} />
           </div>
@@ -254,7 +254,7 @@ export default function Profile() {
         </div>
 
         {/* Location */}
-        <div className="flex items-center gap-4 px-6 py-4">
+        <div className="flex items-center gap-4 px-6 max-md:px-4 py-4">
           <div className="p-2.5 rounded-xl bg-amber-50 shrink-0">
             <MapPin className="w-5 h-5 text-amber-600" />
           </div>
@@ -270,7 +270,7 @@ export default function Profile() {
 
         {/* Joined Date */}
         {joinedDate && (
-          <div className="flex items-center gap-4 px-6 py-4">
+          <div className="flex items-center gap-4 px-6 max-md:px-4 py-4">
             <div className="p-2.5 rounded-xl bg-violet-50 shrink-0">
               <Calendar className="w-5 h-5 text-violet-600" />
             </div>
@@ -287,7 +287,7 @@ export default function Profile() {
       </div>
 
       {/* ── Sign Out Card ── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm px-6 py-5">
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm px-6 max-md:px-4 py-5">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
             <p className="text-sm font-medium text-neutral-900">

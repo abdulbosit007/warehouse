@@ -280,8 +280,8 @@ export default function InventoryBatches() {
 
   if (authError) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">
@@ -295,8 +295,8 @@ export default function InventoryBatches() {
 
   if (roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("common.ownerOnly")}</span>

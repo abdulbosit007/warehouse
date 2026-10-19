@@ -187,7 +187,7 @@ export default function InlineSearchAdd({
 
       <div className="relative">
         <div className="flex items-end gap-2">
-          <label className="flex-1">
+          <label className="flex-1 max-md:min-w-0">
             <span className="mb-1 block text-xs text-gray-600">
               Type SKU or product name
             </span>

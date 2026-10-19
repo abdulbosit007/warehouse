@@ -38,7 +38,7 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
       {/* Fixed Header */}
-      <table className="w-full text-sm table-fixed">
+      <table className="w-full text-sm table-fixed max-md:hidden">
         <thead>
           <tr className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-medium uppercase tracking-wide">
             <th className={`${colWidths.name} px-4 py-3 text-left`}>{t("branchOperations.productsTable.colName")}</th>
@@ -53,10 +53,10 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
       {/* Scrollable Body */}
       <div
         ref={bodyRef}
-        className="max-h-[320px] overflow-y-auto"
+        className="max-h-[320px] max-md:max-h-[55vh] overflow-y-auto"
         style={{ scrollbarWidth: "thin", scrollbarColor: "#d4d4d4 transparent" }}
       >
-        <table className="w-full text-sm table-fixed">
+        <table className="w-full text-sm table-fixed max-md:hidden">
           <tbody>
             {loading ? (
               <tr>
@@ -111,6 +111,47 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
             )}
           </tbody>
         </table>
+
+        {/* Phones: one line per product instead of five squeezed columns */}
+        <div className="md:hidden">
+          {loading ? (
+            <div className="flex flex-col items-center gap-2 px-4 py-12">
+              <div className="w-6 h-6 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+              <p className="text-sm text-neutral-500">{t("common.loading")}</p>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-4 py-12">
+              <Package className="w-8 h-8 text-neutral-300" />
+              <p className="text-sm text-neutral-500">{t("branchOperations.productsTable.noProducts")}</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {pageRows.map((r) => (
+                <li key={r.product_id} className="flex items-center gap-3 px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-snug text-neutral-900">{r.name}</p>
+                    <div className="mt-0.5 flex items-center gap-3 text-xs text-neutral-500">
+                      <span className="min-w-0 truncate font-mono">{r.sku}</span>
+                      <span className="shrink-0">
+                        {t("branchOperations.productsTable.colBranch")}: <QtyBadge qty={r.branchQty ?? 0} kind="branch" />
+                      </span>
+                      <span className="shrink-0">
+                        {t("branchOperations.productsTable.colOverall")}: <QtyBadge qty={r.overallQty ?? 0} kind="warehouse" />
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onAdd(r)}
+                    disabled={!((r.overallQty ?? 0) > 0)}
+                    className="shrink-0 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-40"
+                  >
+                    {t("branchOperations.productsTable.addBtn")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Footer */}

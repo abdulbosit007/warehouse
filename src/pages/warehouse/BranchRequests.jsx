@@ -345,7 +345,7 @@ export default function BranchRequests() {
 
   if (authError) {
     return (
-      <div className="p-6">
+      <div className="p-6 max-md:p-4">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {authError}
         </div>
@@ -355,7 +355,7 @@ export default function BranchRequests() {
 
   if (roleBase !== "warehouse") {
     return (
-      <div className="p-6">
+      <div className="p-6 max-md:p-4">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {t("warehouseRequests.guard.warehouseOnly")}
         </div>
@@ -384,11 +384,11 @@ export default function BranchRequests() {
   return (
     <div className="space-y-6">
       {/* Header — title left, warehouse selector right */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 to-blue-900 p-6 shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 to-blue-900 p-6 max-md:p-4 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(59,130,246,0.15),transparent_50%)]" />
-        <div className="relative flex items-center justify-between">
+        <div className="relative flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/20 backdrop-blur-sm">
+            <div className="p-2.5 rounded-xl bg-blue-500/20 backdrop-blur-sm max-md:hidden">
               <ArrowRightLeft className="w-5 h-5 text-blue-400" />
             </div>
             <div>
@@ -403,7 +403,7 @@ export default function BranchRequests() {
 
           {/* Warehouse selector only */}
           {locations.length > 1 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:flex-wrap">
               {locations.map((loc) => (
                 <button
                   key={loc.id}
@@ -429,7 +429,7 @@ export default function BranchRequests() {
       <div className="flex flex-col gap-3">
         {/* Row 1: Mode toggle */}
         <div>
-          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
             {[
               { key: "requests",  label: t("branchRequests.modeToggle.requests") },
               { key: "transfers", label: t("branchRequests.modeToggle.transfers") },
@@ -437,7 +437,7 @@ export default function BranchRequests() {
               <button
                 key={key}
                 onClick={() => setMode(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                   mode === key
                     ? "bg-white text-neutral-900 shadow-sm"
                     : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -452,7 +452,7 @@ export default function BranchRequests() {
         {/* Row 2: Subtabs — only in requests mode */}
         {mode === "requests" && (
           <div>
-            <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+            <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.key;
@@ -463,7 +463,7 @@ export default function BranchRequests() {
                       setActiveTab(tab.key);
                       if (tab.key === "history") markHistorySeen();
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                       isActive
                         ? "bg-white text-neutral-900 shadow-sm"
                         : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -890,7 +890,7 @@ function NewRequestTab({ t, location, showToast }) {
             <button
               onClick={handleSubmitRequests}
               disabled={submitting}
-              className="w-full mt-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 px-6 font-semibold shadow-lg hover:from-blue-600 hover:to-cyan-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full mt-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 px-6 max-md:px-4 font-semibold shadow-lg hover:from-blue-600 hover:to-cyan-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -1200,7 +1200,7 @@ function OutgoingTab({ t, location, showToast }) {
               {/* Request Header — clickable to expand/collapse */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
+                className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1251,7 +1251,7 @@ function OutgoingTab({ t, location, showToast }) {
               {isExpanded && (
                 <div className="border-t border-neutral-100">
                   {/* Items table header */}
-                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                     <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
                     <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
                     <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
@@ -1268,7 +1268,7 @@ function OutgoingTab({ t, location, showToast }) {
                       return (
                         <div
                           key={item.id}
-                          className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                          className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${
                             item.status === "completed"
                               ? "bg-emerald-50/50"
                               : isItemApproved
@@ -1278,17 +1278,17 @@ function OutgoingTab({ t, location, showToast }) {
                               : "hover:bg-blue-50/30"
                           }`}
                         >
-                          <div className="col-span-4">
+                          <div className="col-span-4 max-md:basis-full">
                             <p className="text-sm font-medium text-neutral-900">
                               {item.product?.name || t("warehouseRequests.common.unknown")}
                             </p>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-2 max-md:flex-1 max-md:min-w-0">
                             <p className="text-sm text-neutral-500">
                               {item.product?.sku || "—"}
                             </p>
                           </div>
-                          <div className="col-span-2 text-center">
+                          <div className="col-span-2 max-md:shrink-0 text-center">
                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
                               {item.requested_qty}
                             </span>
@@ -1298,7 +1298,7 @@ function OutgoingTab({ t, location, showToast }) {
                               </span>
                             )}
                           </div>
-                          <div className="col-span-4 flex items-center justify-end gap-2">
+                          <div className="col-span-4 max-md:shrink-0 flex items-center justify-end gap-2">
                             {isItemApproved && (
                               processingIds.has(item.id) ? (
                                 <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
@@ -1730,7 +1730,7 @@ function IncomingTab({ t, location, showToast }) {
               {/* Request Header — clickable to expand/collapse */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
+                className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1767,7 +1767,7 @@ function IncomingTab({ t, location, showToast }) {
               {isExpanded && (
                 <div className="border-t border-neutral-100">
                   {/* Items table header */}
-                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                     <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
                     <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
                     <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
@@ -1785,7 +1785,7 @@ function IncomingTab({ t, location, showToast }) {
                       return (
                         <div
                           key={item.id}
-                          className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                          className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${
                             isItemApproved
                               ? "bg-emerald-50/50"
                               : isItemRejected
@@ -1793,22 +1793,22 @@ function IncomingTab({ t, location, showToast }) {
                               : "hover:bg-blue-50/30"
                           }`}
                         >
-                          <div className="col-span-4">
+                          <div className="col-span-4 max-md:basis-full">
                             <p className="text-sm font-medium text-neutral-900">
                               {item.product?.name || t("warehouseRequests.common.unknown")}
                             </p>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-2 max-md:flex-1 max-md:min-w-0">
                             <p className="text-sm text-neutral-500">
                               {item.product?.sku || "—"}
                             </p>
                           </div>
-                          <div className="col-span-2 text-center">
+                          <div className="col-span-2 max-md:shrink-0 text-center">
                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
                               {item.approved_qty || item.requested_qty}
                             </span>
                           </div>
-                          <div className="col-span-1 text-center">
+                          <div className="col-span-1 max-md:shrink-0 text-center">
                             {isItemApproved && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
                                 <Clock className="w-3 h-3" />
@@ -1840,7 +1840,7 @@ function IncomingTab({ t, location, showToast }) {
                               </span>
                             )}
                           </div>
-                          <div className="col-span-3 flex items-center justify-end gap-2">
+                          <div className="col-span-3 max-md:shrink-0 flex items-center justify-end gap-2">
                             {item.status === "fulfilled" && (
                               <span className="text-xs text-emerald-600 font-medium">{t("warehouseRequests.status.accepted")}</span>
                             )}
@@ -2077,19 +2077,19 @@ function HistoryTab({ t, location }) {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2 max-md:w-full max-md:gap-2">
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer max-md:min-w-0 max-md:flex-1"
             />
             <span className="text-neutral-400">→</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer max-md:min-w-0 max-md:flex-1"
             />
           </div>
         </div>
@@ -2196,7 +2196,7 @@ function HistoryTab({ t, location }) {
                 {/* Card Header */}
                 <button
                   onClick={() => toggleExpand(req.id)}
-                  className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
+                  className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
@@ -2231,7 +2231,7 @@ function HistoryTab({ t, location }) {
                 {/* Expanded Items */}
                 {isExpanded && (
                   <div className="border-t border-neutral-100">
-                    <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                    <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                       <div className="col-span-4">{t("warehouseRequests.table.products")}</div>
                       <div className="col-span-2">{t("warehouseRequests.common.sku")}</div>
                       <div className="col-span-2 text-center">{t("warehouseRequests.table.qty")}</div>
@@ -2245,16 +2245,16 @@ function HistoryTab({ t, location }) {
                         const itemLabel = itemConfig.labelKey ? t(itemConfig.labelKey) : String(itemStatus);
 
                         return (
-                          <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                          <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${
                             itemStatus === "approved" || itemStatus === "completed" ? "bg-emerald-50/30" : itemStatus === "rejected" ? "bg-red-50/30" : ""
                           }`}>
-                            <div className="col-span-4">
+                            <div className="col-span-4 max-md:basis-full">
                               <p className="text-sm font-medium text-neutral-900">{item.product?.name || t("warehouseRequests.common.unknown")}</p>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-2 max-md:flex-1 max-md:min-w-0">
                               <p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p>
                             </div>
-                            <div className="col-span-2 text-center">
+                            <div className="col-span-2 max-md:shrink-0 text-center">
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
                                 {item.approved_qty || item.requested_qty}
                               </span>
@@ -2262,7 +2262,7 @@ function HistoryTab({ t, location }) {
                                 <span className="ml-1 text-xs text-neutral-400 line-through">{item.requested_qty}</span>
                               )}
                             </div>
-                            <div className="col-span-4 text-center">
+                            <div className="col-span-4 max-md:shrink-0 text-center">
                               <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${itemConfig.color}`}>
                                 <ItemIcon className="w-3 h-3" />
                                 {itemLabel}
@@ -2286,7 +2286,7 @@ function HistoryTab({ t, location }) {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="px-6 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
+            className="px-6 max-md:px-4 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
           >
             {loadingMore ? (
               <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
@@ -2445,7 +2445,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-visible"
       >
-        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
+        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 max-md:px-4 py-4 flex items-center justify-between rounded-t-2xl`}>
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">Filtrlar</h3>
@@ -2455,7 +2455,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
           </button>
         </div>
 
-        <div className="p-6 min-h-[200px]">
+        <div className="p-6 max-md:p-4 min-h-[200px]">
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
               Kategoriya
@@ -2476,7 +2476,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
           </div>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
           <button
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"

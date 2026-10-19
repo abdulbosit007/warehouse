@@ -324,7 +324,7 @@ export default function SaleHistory({
       <div className="space-y-4">
         {/* View Mode Toggle */}
         {searchProducts && (
-          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
             {[
               { key: "date", labelKey: "byDate", icon: Calendar },
               { key: "product", labelKey: "byProduct", icon: Search },
@@ -335,7 +335,7 @@ export default function SaleHistory({
                   setViewMode(key);
                   if (key === "date") clearProductSearch();
                 }}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                   viewMode === key
                     ? "bg-white text-neutral-900 shadow-sm"
                     : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -441,10 +441,10 @@ export default function SaleHistory({
 
             {/* Results panel */}
             <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-3 flex items-center justify-between max-md:flex-wrap max-md:gap-y-1.5">
                 {/* Left: date + toggle (stable anchor) */}
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-white">{ymd(selectedDay)}</span>
+                  <span className="text-sm font-semibold text-white max-md:whitespace-nowrap">{ymd(selectedDay)}</span>
                   {saleHistory.length > 0 && (
                     <div className="flex items-center bg-white/15 rounded-lg p-0.5 gap-0.5">
                       <button
@@ -471,7 +471,7 @@ export default function SaleHistory({
                   )}
                 </div>
                 {/* Right: count (changes independently, doesn't affect toggle) */}
-                <span className="text-xs text-emerald-200">
+                <span className="text-xs text-emerald-200 max-md:basis-full">
                   {displayMode === "transactions"
                     ? t("branchOperations.saleHistory.txCount", { count: saleHistory.length }) || `${saleHistory.length} sales`
                     : groupedItems.length === 1
@@ -786,7 +786,7 @@ export default function SaleHistory({
                                 : "hover:bg-emerald-50/30"
                             }`}
                           >
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-neutral-800">{item.name}</span>
                                 {isHighlighted && (
@@ -853,7 +853,7 @@ export default function SaleHistory({
                                     : "bg-amber-50/40 hover:bg-amber-50/60"
                                 }`}
                               >
-                                <td className="px-4 py-3">
+                                <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                                   <div className="font-medium text-neutral-800">
                                     {it.product?.name || "—"}
                                   </div>
@@ -1194,7 +1194,7 @@ export default function SaleHistory({
           onClick={() => setReturnModal(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-xl shadow-xl max-w-sm w-full p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

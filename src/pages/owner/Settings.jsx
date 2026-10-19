@@ -31,17 +31,17 @@ function StatCard({ label, count, icon: Icon, gradient, iconColor, active, onCli
   return (
     <button
       onClick={onClick}
-      className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${
+      className={`relative overflow-hidden rounded-2xl p-4 max-md:p-3 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${
         active ? "ring-2 ring-indigo-500 ring-offset-2" : "hover:ring-1 hover:ring-neutral-200"
       }`}
       style={{ background: gradient }}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-neutral-900">{count}</p>
+          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight max-md:[overflow-wrap:anywhere]">{label}</p>
+          <p className="mt-1 text-3xl font-bold text-neutral-900 max-md:text-2xl">{count}</p>
         </div>
-        <div className={`p-2 rounded-xl ${iconColor} bg-white/50 backdrop-blur-sm`}>
+        <div className={`p-2 rounded-xl ${iconColor} bg-white/50 backdrop-blur-sm max-md:hidden`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
@@ -316,7 +316,7 @@ function CategoriesTab() {
       )}
 
       {/* Stats Cards - matching UsersTab */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 max-md:gap-2">
         <StatCard
           label={t("ownerSettings.categories.stats.all")}
           count={stats.all}
@@ -460,10 +460,10 @@ function CategoriesTab() {
 
       {/* Add Category Modal - matching UsersTab modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
+          <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">{t("ownerSettings.categories.modal.title")}</h3>
                 <p className="text-sm text-indigo-100 mt-0.5">{t("ownerSettings.categories.modal.subtitle")}</p>
@@ -474,7 +474,7 @@ function CategoriesTab() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-6 max-md:p-4 space-y-4">
               {error && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
@@ -502,7 +502,7 @@ function CategoriesTab() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3">
+            <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50 flex items-center justify-end gap-3">
               <button
                 onClick={() => {
                   resetForm();
@@ -567,8 +567,8 @@ export default function Settings() {
 
   if (authError || roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">
@@ -595,7 +595,7 @@ export default function Settings() {
       </div>
 
       {/* Tabs - Modern pill style */}
-      <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl w-fit max-md:w-full max-md:overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -603,7 +603,7 @@ export default function Settings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 max-md:shrink-0 max-md:px-3 max-md:whitespace-nowrap ${
                 isActive
                   ? "bg-white text-indigo-600 shadow-sm"
                   : "text-neutral-500 hover:text-neutral-700"

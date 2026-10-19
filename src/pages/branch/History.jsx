@@ -2187,14 +2187,14 @@ function QuantityInputModal({ row, sources, onConfirm, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-4">
           <p className="text-xs text-emerald-100 font-medium uppercase tracking-wider mb-0.5">
             {t("branchOperations.modal.addToCartLabel")}
           </p>
-          <h3 className="text-base font-bold text-white leading-tight truncate">{row.name}</h3>
+          <h3 className="text-base font-bold text-white leading-tight truncate max-md:whitespace-normal">{row.name}</h3>
           <p className="text-xs text-emerald-200 font-mono mt-0.5">{row.sku}</p>
         </div>
 
@@ -2225,8 +2225,8 @@ function QuantityInputModal({ row, sources, onConfirm, onClose }) {
 
               {/* Name + tag */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-neutral-800 truncate">{src.locationName}</span>
+                <div className="flex items-center gap-1.5 max-md:flex-wrap max-md:gap-y-0.5">
+                  <span className="text-sm font-medium text-neutral-800 truncate max-md:whitespace-normal">{src.locationName}</span>
                   {src.isOwn && (
                     <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md shrink-0">
                       {t("branchOperations.modal.tagCurrent")}

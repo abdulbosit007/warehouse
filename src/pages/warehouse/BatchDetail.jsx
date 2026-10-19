@@ -68,9 +68,9 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
   if (!item) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
+      <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Check className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">{t("warehouseBatchDetail.approveModal.title")}</h3>
@@ -80,7 +80,7 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 max-md:p-4 space-y-4">
           {/* Item Info */}
           <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50">
             <div className="flex items-start justify-between">
@@ -194,10 +194,10 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
+      <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">
@@ -209,7 +209,7 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 max-md:p-4 space-y-4">
           {/* Reason: Qty Mismatch */}
           <label
             className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -346,15 +346,15 @@ function RejectedInfoModal({ item, onClose }) {
       : (item.rejection_code?.replace(/_/g, " ") || t("warehouseBatchDetail.labels.dash"));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
+      <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">{t("warehouseBatchDetail.rejectedInfo.title")}</h3>
           <button onClick={onClose} className="text-white/70 hover:text-white" aria-label={t("warehouseBatchDetail.actions.close")}>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 max-md:p-4">
           <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
             <div className="flex justify-between px-4 py-2">
               <span className="text-sm text-neutral-500">{t("warehouseBatchDetail.table.sku")}</span>
@@ -626,7 +626,7 @@ export default function WarehouseBatchDetail() {
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                   {t("warehouseBatchDetail.table.category")}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white max-md:sticky max-md:right-0 max-md:bg-purple-600">
                   {mode === "needs" ? t("warehouseBatchDetail.table.actions") : t("warehouseBatchDetail.table.status")}
                 </th>
               </tr>
@@ -636,7 +636,7 @@ export default function WarehouseBatchDetail() {
               {visible.map((row) => (
                 <tr key={row.id} className="hover:bg-neutral-50">
                   <td className="px-4 py-3 text-sm font-mono text-neutral-600">{row.sku || t("warehouseBatchDetail.labels.dash")}</td>
-                  <td className="px-4 py-3 text-sm font-medium">{row.product_name || t("warehouseBatchDetail.labels.dash")}</td>
+                  <td className="px-4 py-3 text-sm font-medium max-md:whitespace-normal max-md:min-w-[9rem]">{row.product_name || t("warehouseBatchDetail.labels.dash")}</td>
 
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
@@ -646,7 +646,7 @@ export default function WarehouseBatchDetail() {
 
                   <td className="px-4 py-3 text-center text-sm text-neutral-600">{catName(row.category_id)}</td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 max-md:sticky max-md:right-0 max-md:bg-white max-md:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.18)]">
                     <div className="flex items-center justify-end gap-2">
                       {mode === "needs" ? (
                         <>

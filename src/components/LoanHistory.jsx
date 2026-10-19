@@ -154,7 +154,7 @@ export default function LoanHistory({
       <div className="space-y-4">
         {/* View Mode Toggle */}
         {searchProducts && (
-          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
             {[
               { key: "date", label: t("branchOperations.loanHistory.viewByDate"), icon: Calendar },
               { key: "product", label: t("branchOperations.loanHistory.viewByProduct"), icon: Search },
@@ -165,7 +165,7 @@ export default function LoanHistory({
                   setViewMode(key);
                   if (key === "date") clearProductSearch();
                 }}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                   viewMode === key
                     ? "bg-white text-neutral-900 shadow-sm"
                     : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -271,7 +271,7 @@ export default function LoanHistory({
                             className={`hover:bg-amber-50/30 transition-colors ${hasDetails ? 'cursor-pointer' : ''}`}
                             onClick={() => hasDetails && setSelectedItem(item)}
                           >
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                               <div className="font-medium text-neutral-800">{item.name}</div>
                               <div className="text-xs text-neutral-400">{item.sku || "—"}</div>
                             </td>
@@ -523,7 +523,7 @@ export default function LoanHistory({
           onClick={() => setSelectedItem(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-xs w-full p-5"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-xl shadow-xl max-w-xs w-full p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

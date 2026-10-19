@@ -815,7 +815,7 @@ function TransferCard({ transfer, closedAt, directionLabel, expanded, onToggle, 
           )}
 
           {/* Column header */}
-          <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+          <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-semibold text-neutral-500 uppercase tracking-wide">
             <div className="col-span-5">{t("stockTransfers.card.colProduct", "Product")}</div>
             <div className="col-span-2">{t("stockTransfers.card.colSku", "SKU")}</div>
             <div className="col-span-2 text-center">{t("stockTransfers.card.colQty", "Qty")}</div>
@@ -833,23 +833,23 @@ function TransferCard({ transfer, closedAt, directionLabel, expanded, onToggle, 
                 itemStatus === "cancelled" ? "bg-neutral-50"    :
                                             "hover:bg-blue-50/20";
               return (
-                <div key={it.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${rowBg}`}>
+                <div key={it.id} className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${rowBg}`}>
                   {/* Product name */}
-                  <div className="col-span-5 min-w-0">
+                  <div className="col-span-5 max-md:basis-full min-w-0">
                     <p className="text-sm font-medium text-neutral-900 truncate">{it.product?.name}</p>
                   </div>
                   {/* SKU */}
-                  <div className="col-span-2">
+                  <div className="col-span-2 max-md:flex-1 max-md:min-w-0">
                     <p className="text-xs text-neutral-400 font-mono truncate">{it.product?.sku || "—"}</p>
                   </div>
                   {/* Qty — centred circle */}
-                  <div className="col-span-2 flex justify-center">
+                  <div className="col-span-2 max-md:shrink-0 flex justify-center">
                     <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
                       {it.qty}
                     </span>
                   </div>
                   {/* Status badge / action buttons */}
-                  <div className="col-span-3 flex items-center justify-end gap-2">
+                  <div className="col-span-3 max-md:shrink-0 flex items-center justify-end gap-2">
                     {showBadge && <ItemStatusBadge status={itemStatus} />}
                     {itemActions?.(it)}
                   </div>

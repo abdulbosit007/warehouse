@@ -98,7 +98,7 @@ export default function ReturnDestModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4">

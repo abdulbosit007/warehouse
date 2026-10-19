@@ -65,13 +65,13 @@ function StatusBadge({ status }) {
 
 function StatCard({ label, count, icon: Icon, gradient, iconColor }) {
   return (
-    <div className="rounded-2xl p-4" style={{ background: gradient }}>
+    <div className="rounded-2xl p-4 max-md:p-3" style={{ background: gradient }}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">{label}</p>
+          <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight max-md:[overflow-wrap:anywhere]">{label}</p>
           <p className="mt-1 text-2xl font-bold text-neutral-900">{count}</p>
         </div>
-        <div className={`p-2 rounded-xl ${iconColor} bg-white/50`}>
+        <div className={`p-2 rounded-xl ${iconColor} bg-white/50 max-md:hidden`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
@@ -161,7 +161,7 @@ export default function WarehouseBatches() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 max-md:gap-2">
         <StatCard
           label={t("warehouseOwnerRequests.stats.needsAction")}
           count={needsAction}

@@ -69,11 +69,11 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
       <div className={`w-1 self-stretch shrink-0 ${accentColor}`} />
 
       {/* Row body */}
-      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3 max-md:flex-wrap max-md:gap-y-2.5 max-md:px-3">
 
         {/* Product name + SKU */}
         <div className="flex-1 min-w-0">
-          <span className="font-semibold text-neutral-900 text-sm leading-tight block truncate">
+          <span className="font-semibold text-neutral-900 text-sm leading-tight block truncate max-md:whitespace-normal">
             {product.name}
           </span>
           <span className="text-xs text-neutral-400 font-mono">{product.sku}</span>
@@ -88,10 +88,10 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 bg-neutral-200 shrink-0" />
+        <div className="w-px h-8 bg-neutral-200 shrink-0 max-md:hidden" />
 
         {/* Action zone */}
-        <div className="shrink-0">
+        <div className="shrink-0 max-md:basis-full">
           {status === "confirmed" ? (
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -137,7 +137,7 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
                 onChange={(e) => setEditQty(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="0"
-                className="w-20 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-20 max-md:flex-1 max-md:min-w-0 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 autoFocus
               />
               <button
@@ -159,14 +159,14 @@ function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onRe
             <div className="flex items-center gap-2">
               <button
                 onClick={onConfirm}
-                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 max-md:flex-1 max-md:justify-center max-md:py-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all"
               >
                 <Check className="w-4 h-4" />
                 {t("warehouseAudit.actions.correct")}
               </button>
               <button
                 onClick={() => setShowEdit(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 px-3 py-1.5 text-sm font-semibold hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 max-md:flex-1 max-md:justify-center max-md:py-2 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 px-3 py-1.5 text-sm font-semibold hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all"
               >
                 <X className="w-4 h-4" />
                 {t("warehouseAudit.actions.wrong")}
@@ -200,13 +200,13 @@ function AuditDetailModal({ audit, products, onClose }) {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 max-md:px-4 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">
               {t("warehouseAudit.modal.title")} - {new Date(audit.created_at).toLocaleDateString()}
@@ -232,7 +232,7 @@ function AuditDetailModal({ audit, products, onClose }) {
           </button>
         </div>
 
-        <div className="px-6 py-4 bg-neutral-50 border-b flex gap-6">
+        <div className="px-6 max-md:px-4 py-4 bg-neutral-50 border-b flex gap-6">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -253,7 +253,7 @@ function AuditDetailModal({ audit, products, onClose }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 max-md:p-4 space-y-6">
           {rejected.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-neutral-700 mb-3 flex items-center gap-2">
@@ -711,8 +711,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   if (!asTab && (authError || error)) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{authError || error}</span>
@@ -724,7 +724,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
         <div className="flex items-center gap-3">
           <AlertCircle className="w-6 h-6" />
           <span className="font-medium">{error}</span>
@@ -735,8 +735,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   if (!asTab && roleBase !== "warehouse") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("warehouseAudit.errors.warehouseOnly")}</span>
@@ -868,7 +868,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
           )}
 
           {openSession && submitted && justSubmitted && (
-            <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-8 text-center shadow-sm">
+            <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-8 max-md:p-4 text-center shadow-sm">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8 text-white" />
               </div>
@@ -954,50 +954,50 @@ export default function WarehouseAuditReview({ asTab = false }) {
             {t("warehouseAudit.actions.backToAudits")}
           </button>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" }}>
+          <div className="grid grid-cols-3 gap-4 max-md:gap-2">
+            <div className="rounded-2xl p-4 max-md:p-3" style={{ background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" }}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("warehouseAudit.labels.confirmed")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {Object.values(reviews).filter((r) => r.status === "confirmed").length}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-emerald-600 bg-white/50">
+                <div className="p-2 rounded-xl text-emerald-600 bg-white/50 max-md:hidden">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" }}>
+            <div className="rounded-2xl p-4 max-md:p-3" style={{ background: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)" }}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-red-700 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-red-700 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("warehouseAudit.labels.discrepancies")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {Object.values(reviews).filter((r) => r.status === "rejected").length}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-red-600 bg-white/50">
+                <div className="p-2 rounded-xl text-red-600 bg-white/50 max-md:hidden">
                   <XCircle className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)" }}>
+            <div className="rounded-2xl p-4 max-md:p-3" style={{ background: "linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)" }}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("warehouseAudit.labels.pending")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {nonZeroProducts.length - nonZeroProducts.filter((p) => reviews[p.id]).length}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-neutral-500 bg-white/50">
+                <div className="p-2 rounded-xl text-neutral-500 bg-white/50 max-md:hidden">
                   <Clock className="w-5 h-5" />
                 </div>
               </div>
@@ -1105,11 +1105,11 @@ export default function WarehouseAuditReview({ asTab = false }) {
               <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
                 {filteredProducts.length} products
               </div>
-              <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+              <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider max-md:hidden">
                 {t("warehouseAudit.labels.systemQty")}
               </div>
-              <div className="w-px h-4 bg-neutral-200 shrink-0" />
-              <div className="w-56 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-1">
+              <div className="w-px h-4 bg-neutral-200 shrink-0 max-md:hidden" />
+              <div className="w-56 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-1 max-md:hidden">
                 {t("warehouseAudit.actions.correct")} / {t("warehouseAudit.actions.wrong")}
               </div>
             </div>
@@ -1130,10 +1130,10 @@ export default function WarehouseAuditReview({ asTab = false }) {
                     }`}
                   >
                     <div className="flex items-center">
-                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none">
+                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none max-md:hidden">
                         {idx + 1}
                       </span>
-                      <div className="flex-1">
+                      <div className="flex-1 max-md:min-w-0">
                         <ProductCard
                           product={product}
                           currentQty={getQtyAt(product.id)}
@@ -1157,7 +1157,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
                 <button
                   onClick={handleSubmitAll}
                   disabled={submitting}
-                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3.5 px-6 text-base font-bold shadow-lg hover:from-blue-600 hover:to-cyan-700 transition-all disabled:opacity-50"
+                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3.5 px-6 max-md:px-4 text-base font-bold shadow-lg hover:from-blue-600 hover:to-cyan-700 transition-all disabled:opacity-50"
                 >
                   {submitting ? (
                     <span className="inline-flex items-center justify-center gap-3">

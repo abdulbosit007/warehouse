@@ -119,12 +119,12 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
   const isNoSuch = item.rejection_code === "no_such_product";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
       >
-        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">
@@ -136,7 +136,7 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 max-md:p-4 space-y-4">
           <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
             <div className="flex justify-between px-4 py-2">
               <span className="text-sm text-neutral-500">{t("ownerBatchDetail.fields.product")}</span>
@@ -248,7 +248,7 @@ function DraftRow({ row, onDelete, categories }) {
 
   return (
     <tr className="hover:bg-neutral-50 transition-colors">
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-md:min-w-[12rem]">
         <input
           value={form.product_name}
           onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
@@ -257,7 +257,7 @@ function DraftRow({ row, onDelete, categories }) {
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-md:min-w-[9rem]">
         <input
           value={form.sku}
           onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
@@ -266,7 +266,7 @@ function DraftRow({ row, onDelete, categories }) {
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-md:min-w-[9rem]">
         <select
           value={form.category_id}
           onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || "" }))}
@@ -319,7 +319,7 @@ function ItemRow({ row, categories, onClickRejected }) {
       onClick={() => isRejected && onClickRejected?.(row)}
       className={`hover:bg-neutral-50 transition-colors ${isRejected ? "cursor-pointer bg-red-50/30" : ""}`}
     >
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
         <span className="text-sm">{row.product_name || <span className="text-neutral-400">—</span>}</span>
       </td>
       <td className="px-4 py-3">
@@ -607,7 +607,7 @@ export default function BatchDetail() {
       {/* Draft Items */}
       {drafts.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between max-md:flex-wrap max-md:gap-2">
             <h2 className="text-lg font-semibold text-neutral-900">
               {t("ownerBatchDetail.sections.draftItems")}
             </h2>
