@@ -60,7 +60,7 @@ export default function CartPanel({
                   className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-neutral-900">{l.name}</div>
+                    <div className="truncate text-sm font-medium text-neutral-900 max-md:whitespace-normal">{l.name}</div>
                     <div className="truncate text-xs text-neutral-500 mb-1">
                       {l.sku} • {t("branchOperations.cartPanel.max")} {nf.format(l.maxQty ?? 999)}
                     </div>

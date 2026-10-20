@@ -323,7 +323,7 @@ export default function BranchRequests() {
 
   if (authError || locationError) {
     return (
-      <div className="p-6">
+      <div className="p-6 max-md:p-4">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {authError || locationError}
         </div>
@@ -363,7 +363,7 @@ export default function BranchRequests() {
         </div>
 
         {/* Mode toggle: Requests vs Transfers */}
-        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
           {[
             { key: "requests",  label: t("branchRequests.modeToggle.requests") },
             { key: "transfers", label: t("branchRequests.modeToggle.transfers") },
@@ -371,7 +371,7 @@ export default function BranchRequests() {
             <button
               key={key}
               onClick={() => setMode(key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                 mode === key
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -390,7 +390,7 @@ export default function BranchRequests() {
       {mode === "requests" && <>
 
       {/* Modern Pill Tabs */}
-      <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+      <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -401,7 +401,7 @@ export default function BranchRequests() {
                 setActiveTab(tab.key);
                 if (tab.key === "history") markHistorySeen();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                 isActive
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
@@ -882,17 +882,17 @@ function NewRequestTab({ location, showToast }) {
       <div className="space-y-4">
         {/* Mode Toggle */}
         <div className="flex items-center justify-between">
-          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+          <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
             <button
               onClick={() => setMode("search")}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
             >
               <Search className="w-4 h-4" />
               {t("branchRequests.newRequest.modeSearch")}
             </button>
             <button
               onClick={() => setMode("incoming")}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white text-neutral-900 shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap bg-white text-neutral-900 shadow-sm"
             >
               <Globe className="w-4 h-4 text-emerald-600" />
               {t("branchRequests.newRequest.modeIncoming")}
@@ -921,7 +921,7 @@ function NewRequestTab({ location, showToast }) {
 
         {/* Batch loading */}
         {batchLoading && (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm text-center">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 max-md:p-4 shadow-sm text-center">
             <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin mx-auto mb-3" />
             <p className="text-sm text-neutral-500">{t("branchRequests.newRequest.loadingBatch")}</p>
           </div>
@@ -929,7 +929,7 @@ function NewRequestTab({ location, showToast }) {
 
         {/* No batch found */}
         {!batchLoading && selectedOrigin && !batchInfo && (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm text-center">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 max-md:p-4 shadow-sm text-center">
             <Package className="w-12 h-12 mx-auto mb-3 text-neutral-300" />
             <p className="text-sm text-neutral-500">
               {t("branchRequests.newRequest.noBatchFound")}
@@ -1029,7 +1029,7 @@ function NewRequestTab({ location, showToast }) {
                 <button
                   onClick={handleIncomingSubmit}
                   disabled={submitting}
-                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 max-md:px-4 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
@@ -1058,17 +1058,17 @@ function NewRequestTab({ location, showToast }) {
       {/* Left: Product Search */}
       <div className="space-y-4">
         {/* Mode Toggle */}
-        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
           <button
             onClick={() => setMode("search")}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white text-neutral-900 shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap bg-white text-neutral-900 shadow-sm"
           >
             <Search className="w-4 h-4 text-emerald-600" />
             {t("branchRequests.newRequest.modeSearch")}
           </button>
           <button
             onClick={() => setMode("incoming")}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap text-neutral-500 hover:text-neutral-700 hover:bg-white/50"
           >
             <Globe className="w-4 h-4" />
             {t("branchRequests.newRequest.modeIncoming")}
@@ -1310,7 +1310,7 @@ function NewRequestTab({ location, showToast }) {
             <button
               onClick={handleSubmitRequests}
               disabled={submitting}
-              className="w-full mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-6 max-md:px-4 font-semibold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -1733,12 +1733,12 @@ function OutgoingTab({ location, showToast }) {
               {/* Header */}
               <button
                 onClick={() => toggleExpand(req.id)}
-                className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
+                className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}
               >
                 <div className="flex items-center gap-2">
                   {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                   <div className="text-left">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 max-md:flex-wrap">
                       <p className="font-semibold text-neutral-900">
                         {t("branchRequests.outgoing.columns.source")}: {source}
                       </p>
@@ -1786,7 +1786,7 @@ function OutgoingTab({ location, showToast }) {
                       )}
                     </div>
                   )}
-                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                     <div className="col-span-4">{t("branchRequests.outgoing.columns.products")}</div>
                     <div className="col-span-2">SKU</div>
                     <div className="col-span-2 text-center">{t("branchRequests.outgoing.columns.qty")}</div>
@@ -1798,16 +1798,16 @@ function OutgoingTab({ location, showToast }) {
                       const isItemRejected = item.status === "rejected";
                       const isItemPending = item.status === "requested";
                       return (
-                        <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${item.status === "completed" ? "bg-emerald-50/50" : isItemApproved ? "bg-emerald-50/30" : isItemRejected ? "bg-red-50/50" : "hover:bg-emerald-50/30"}`}>
-                          <div className="col-span-4"><p className="text-sm font-medium text-neutral-900">{item.product?.name || t("branchRequests.common.unknown")}</p></div>
-                          <div className="col-span-2"><p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p></div>
-                          <div className="col-span-2 text-center">
+                        <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${item.status === "completed" ? "bg-emerald-50/50" : isItemApproved ? "bg-emerald-50/30" : isItemRejected ? "bg-red-50/50" : "hover:bg-emerald-50/30"}`}>
+                          <div className="col-span-4 max-md:basis-full"><p className="text-sm font-medium text-neutral-900">{item.product?.name || t("branchRequests.common.unknown")}</p></div>
+                          <div className="col-span-2 max-md:flex-1 max-md:min-w-0"><p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p></div>
+                          <div className="col-span-2 max-md:shrink-0 text-center">
                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">{item.requested_qty}</span>
                             {isItemApproved && item.approved_qty != null && item.approved_qty !== item.requested_qty && (
                               <span className="ml-1 text-xs text-emerald-600 font-medium">(✓{item.approved_qty})</span>
                             )}
                           </div>
-                          <div className="col-span-4 flex items-center justify-end gap-2">
+                          <div className="col-span-4 max-md:shrink-0 flex items-center justify-end gap-2">
                             {isItemApproved && req.purpose !== "loan" && (
                               processingIds.has(item.id) ? (
                                 <RefreshCw className="w-4 h-4 text-neutral-400 animate-spin" />
@@ -2175,7 +2175,7 @@ function IncomingTab({ location, showToast }) {
 
           return (
             <div key={req.id} className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
-              <button onClick={() => toggleExpand(req.id)} className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}>
+              <button onClick={() => toggleExpand(req.id)} className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}>
                 <div className="flex items-center gap-2">
                   {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
                   <div className="text-left">
@@ -2195,7 +2195,7 @@ function IncomingTab({ location, showToast }) {
 
               {isExpanded && (
                 <div className="border-t border-neutral-100">
-                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                  <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                     <div className="col-span-4">{t("branchRequests.incoming.columns.products")}</div>
                     <div className="col-span-2">SKU</div>
                     <div className="col-span-2 text-center">{t("branchRequests.incoming.columns.qty")}</div>
@@ -2209,13 +2209,13 @@ function IncomingTab({ location, showToast }) {
                       const isItemCancelled = item.status === "cancelled";
                       const isItemPending = item.status === "requested";
                       return (
-                        <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${isItemCompleted ? "bg-emerald-50/30" : isItemApproved ? "bg-amber-50/30" : isItemRejected ? "bg-red-50/50" : isItemCancelled ? "bg-neutral-50/50" : "hover:bg-emerald-50/30"}`}>
-                          <div className="col-span-4"><p className="text-sm font-medium text-neutral-900">{item.product?.name || t("branchRequests.common.unknown")}</p></div>
-                          <div className="col-span-2"><p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p></div>
-                          <div className="col-span-2 text-center">
+                        <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${isItemCompleted ? "bg-emerald-50/30" : isItemApproved ? "bg-amber-50/30" : isItemRejected ? "bg-red-50/50" : isItemCancelled ? "bg-neutral-50/50" : "hover:bg-emerald-50/30"}`}>
+                          <div className="col-span-4 max-md:basis-full"><p className="text-sm font-medium text-neutral-900">{item.product?.name || t("branchRequests.common.unknown")}</p></div>
+                          <div className="col-span-2 max-md:flex-1 max-md:min-w-0"><p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p></div>
+                          <div className="col-span-2 max-md:shrink-0 text-center">
                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">{item.approved_qty || item.requested_qty}</span>
                           </div>
-                          <div className="col-span-4 flex items-center justify-end gap-2">
+                          <div className="col-span-4 max-md:shrink-0 flex items-center justify-end gap-2">
                             {isItemPending && (
                               <>
                                 {processingIds.has(item.id) ? (
@@ -2452,19 +2452,19 @@ function HistoryTab({ location }) {
           </div>
 
           {/* Date Range */}
-          <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-3 bg-neutral-50 rounded-lg px-3 py-2 max-md:w-full max-md:gap-2">
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer max-md:min-w-0 max-md:flex-1"
             />
             <span className="text-neutral-400">→</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer"
+              className="bg-transparent border-none text-sm text-neutral-700 focus:outline-none cursor-pointer max-md:min-w-0 max-md:flex-1"
             />
           </div>
         </div>
@@ -2575,7 +2575,7 @@ function HistoryTab({ location }) {
                 {/* Card Header */}
                 <button
                   onClick={() => toggleExpand(req.id)}
-                  className={`w-full flex items-center justify-between px-5 py-4 ${requestHeaderClass(req.purpose)} transition-colors`}
+                  className={`w-full flex items-center justify-between px-5 py-4 max-md:px-4 ${requestHeaderClass(req.purpose)} transition-colors`}
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded ? <ChevronDown className="w-5 h-5 text-neutral-400" /> : <ChevronRight className="w-5 h-5 text-neutral-400" />}
@@ -2610,7 +2610,7 @@ function HistoryTab({ location }) {
                 {/* Expanded Items */}
                 {isExpanded && (
                   <div className="border-t border-neutral-100">
-                    <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                    <div className="grid grid-cols-12 gap-3 px-5 py-2 bg-neutral-50 max-md:hidden text-xs font-medium text-neutral-500 uppercase tracking-wide">
                       <div className="col-span-4">{t("branchRequests.history.columns.products")}</div>
                       <div className="col-span-2">SKU</div>
                       <div className="col-span-2 text-center">{t("branchRequests.history.columns.qty")}</div>
@@ -2624,16 +2624,16 @@ function HistoryTab({ location }) {
                         const itemLabel = itemConfig.labelKey ? t(itemConfig.labelKey) : String(itemStatus);
 
                         return (
-                          <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 items-center transition-colors ${
+                          <div key={item.id} className={`grid grid-cols-12 gap-3 px-5 py-3 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 items-center transition-colors ${
                             itemStatus === "approved" || itemStatus === "completed" ? "bg-emerald-50/30" : itemStatus === "rejected" ? "bg-red-50/30" : ""
                           }`}>
-                            <div className="col-span-4">
+                            <div className="col-span-4 max-md:basis-full">
                               <p className="text-sm font-medium text-neutral-900">{item.product?.name || t("branchRequests.common.unknown")}</p>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-2 max-md:flex-1 max-md:min-w-0">
                               <p className="text-sm text-neutral-500">{item.product?.sku || "—"}</p>
                             </div>
-                            <div className="col-span-2 text-center">
+                            <div className="col-span-2 max-md:shrink-0 text-center">
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
                                 {item.approved_qty || item.requested_qty}
                               </span>
@@ -2641,7 +2641,7 @@ function HistoryTab({ location }) {
                                 <span className="ml-1 text-xs text-neutral-400 line-through">{item.requested_qty}</span>
                               )}
                             </div>
-                            <div className="col-span-4 text-center">
+                            <div className="col-span-4 max-md:shrink-0 text-center">
                               <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${itemConfig.color}`}>
                                 <ItemIcon className="w-3 h-3" />
                                 {itemLabel}
@@ -2665,7 +2665,7 @@ function HistoryTab({ location }) {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="px-6 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
+            className="px-6 max-md:px-4 py-2 rounded-lg bg-white border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 transition-colors disabled:opacity-50"
           >
             {loadingMore ? (
               <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
@@ -2714,7 +2714,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-visible"
       >
-        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
+        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 max-md:px-4 py-4 flex items-center justify-between rounded-t-2xl`}>
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">{t("branchRequests.filterModal.title")}</h3>
@@ -2724,7 +2724,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
           </button>
         </div>
 
-        <div className="p-6 min-h-[200px]">
+        <div className="p-6 max-md:p-4 min-h-[200px]">
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
               {t("branchRequests.filterModal.categoryLabel")}
@@ -2745,7 +2745,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
           </div>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
           <button
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"

@@ -10,3 +10,29 @@
     z-index: 20;
   }
 }
+
+/* ── Phones only (below 768px; tablets and computers are not affected) ── */
+@media (max-width: 767.98px) {
+  /* tables scroll sideways instead of squeezing every cell into a tall column;
+     long-text cells opt back in with max-md:whitespace-normal (a class, so it wins).
+     Not in @layer: Tailwind would move it out of this media query. */
+  th,
+  td {
+    white-space: nowrap;
+  }
+
+  /* calendars (Sale / Loan history): 7 days must fit a phone-wide card */
+  .rdp-root {
+    --rdp-day-width: 40px;
+    --rdp-day-height: 40px;
+    --rdp-day_button-width: 38px;
+    --rdp-day_button-height: 38px;
+  }
+
+  /* iPhone zooms the page into any field whose text is smaller than 16px */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

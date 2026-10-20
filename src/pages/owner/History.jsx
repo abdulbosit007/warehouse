@@ -56,13 +56,13 @@ const nf = new Intl.NumberFormat();
 
 function SummaryCard({ icon: Icon, label, value, sub, color }) {
   return (
-    <div className={`rounded-2xl p-5 flex items-start gap-4 ${color}`}>
+    <div className={`rounded-2xl p-5 flex items-start gap-4 max-md:flex-col max-md:gap-2 max-md:p-4 ${color}`}>
       <div className="p-2.5 rounded-xl bg-white/40 backdrop-blur-sm shrink-0">
         <Icon className="w-5 h-5" />
       </div>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{label}</p>
-        <p className="text-3xl font-bold mt-0.5">{value}</p>
+      <div className="max-md:min-w-0 max-md:w-full">
+        <p className="text-xs font-semibold uppercase tracking-wider opacity-80 max-md:tracking-normal max-md:break-words">{label}</p>
+        <p className="text-3xl font-bold mt-0.5 max-md:text-2xl">{value}</p>
         {sub && <p className="text-xs opacity-70 mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -201,13 +201,13 @@ function DateRangePicker({ preset, onPresetChange, customFrom, customTo, onCusto
   }
 
   return (
-    <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+    <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 max-md:flex-wrap max-md:flex-1 max-md:min-w-0">
       {/* Preset buttons */}
       {PRESETS.map((p) => (
         <button
           key={p.days}
           onClick={() => onPresetChange(p.days)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap max-md:flex-1 max-md:px-2 ${
             preset === p.days
               ? "bg-white text-violet-900 shadow-sm"
               : "text-white/70 hover:text-white hover:bg-white/10"
@@ -218,13 +218,13 @@ function DateRangePicker({ preset, onPresetChange, customFrom, customTo, onCusto
       ))}
 
       {/* Divider */}
-      <div className="w-px h-4 bg-white/20 mx-0.5" />
+      <div className="w-px h-4 bg-white/20 mx-0.5 max-md:hidden" />
 
       {/* Custom button + popover */}
-      <div className="relative" ref={ref}>
+      <div className="relative max-md:basis-full" ref={ref}>
         <button
           onClick={() => { onPresetChange("custom"); setOpen((o) => !o); }}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 whitespace-nowrap max-md:w-full max-md:justify-center ${
             isCustom
               ? "bg-white text-violet-900 shadow-sm"
               : "text-white/70 hover:text-white hover:bg-white/10"
@@ -560,7 +560,7 @@ export default function OwnerHistory() {
     <div className="space-y-6 pb-20">
 
       {/* ── Header ── */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 p-6 shadow-lg">
+      <div className="relative rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 p-6 max-md:p-4 shadow-lg">
         <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.08),transparent_60%)]" />
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -568,7 +568,7 @@ export default function OwnerHistory() {
             <p className="text-violet-200 text-sm mt-0.5">{t("ownerAnalytics.subtitle")}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 max-md:flex-nowrap max-md:items-start max-md:gap-2">
             <DateRangePicker
               preset={preset}
               onPresetChange={setPreset}
@@ -593,7 +593,7 @@ export default function OwnerHistory() {
       )}
 
       {/* ── Tabs ── */}
-      <div className="inline-flex bg-neutral-100 p-1 rounded-xl shadow-sm border border-neutral-200">
+      <div className="inline-flex bg-neutral-100 p-1 rounded-xl shadow-sm border border-neutral-200 max-md:flex max-md:overflow-x-auto">
         {[
           { key: "analytics", icon: Activity,      label: t("ownerAnalytics.tabs.analytics") },
           { key: "logs",      icon: HistoryIcon,  label: t("ownerAnalytics.tabs.logs")      },
@@ -603,7 +603,7 @@ export default function OwnerHistory() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all max-md:shrink-0 max-md:px-3 max-md:whitespace-nowrap ${
               activeTab === key ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
             }`}
           >
@@ -819,7 +819,7 @@ export default function OwnerHistory() {
                           {(categoryProducts[selectedCategory] || []).map((p, i) => (
                             <tr key={i} className="hover:bg-neutral-50 transition-colors">
                               <td className="px-4 py-2.5 text-neutral-400">{i + 1}</td>
-                              <td className="px-4 py-2.5 font-medium text-neutral-800">{p.name}</td>
+                              <td className="px-4 py-2.5 font-medium text-neutral-800 max-md:whitespace-normal max-md:min-w-[10rem]">{p.name}</td>
                               <td className="px-4 py-2.5 text-right font-mono font-semibold text-neutral-700">{p.qty.toLocaleString()}</td>
                               <td className="px-4 py-2.5 text-right font-semibold text-violet-700">{fmt(p.revenue)}</td>
                             </tr>
@@ -856,7 +856,7 @@ export default function OwnerHistory() {
                         return (
                           <tr key={i} className="hover:bg-neutral-50 transition-colors">
                             <td className="px-5 py-3 text-neutral-400">{i + 1}</td>
-                            <td className="px-5 py-3 font-medium text-neutral-900">{p.name}</td>
+                            <td className="px-5 py-3 font-medium text-neutral-900 max-md:whitespace-normal max-md:min-w-[10rem]">{p.name}</td>
                             <td className="px-5 py-3 text-neutral-500 text-xs">{p.cat}</td>
                             <td className="px-5 py-3 text-right font-mono text-neutral-600">{p.qty.toLocaleString()}</td>
                             <td className="px-5 py-3 text-right font-semibold text-violet-700">{fmt(p.revenue)}</td>
@@ -882,7 +882,7 @@ export default function OwnerHistory() {
           <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
             <button
               onClick={() => setShowInventory(v => !v)}
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
+              className="w-full px-6 max-md:px-4 py-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
             >
               <div className="text-left">
                 <h3 className="text-base font-bold text-neutral-800">{t("ownerAnalytics.inventory.title")}</h3>
@@ -895,29 +895,29 @@ export default function OwnerHistory() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-100">
                     <tr>
-                      <th className="px-6 py-3">{t("ownerAnalytics.inventory.colLocation")}</th>
-                      <th className="px-6 py-3">{t("ownerAnalytics.inventory.colType")}</th>
-                      <th className="px-6 py-3 text-right">{t("ownerAnalytics.inventory.colUnits")}</th>
-                      <th className="px-6 py-3 text-right">{t("ownerAnalytics.inventory.colValue")}</th>
-                      <th className="px-6 py-3 text-right">{t("ownerAnalytics.inventory.colShare")}</th>
+                      <th className="px-6 max-md:px-4 py-3">{t("ownerAnalytics.inventory.colLocation")}</th>
+                      <th className="px-6 max-md:px-4 py-3">{t("ownerAnalytics.inventory.colType")}</th>
+                      <th className="px-6 max-md:px-4 py-3 text-right">{t("ownerAnalytics.inventory.colUnits")}</th>
+                      <th className="px-6 max-md:px-4 py-3 text-right">{t("ownerAnalytics.inventory.colValue")}</th>
+                      <th className="px-6 max-md:px-4 py-3 text-right">{t("ownerAnalytics.inventory.colShare")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-50">
                     {inventoryByLocation.length === 0 ? (
-                      <tr><td colSpan="5" className="px-6 py-10 text-center text-neutral-400">{t("ownerAnalytics.inventory.noData")}</td></tr>
+                      <tr><td colSpan="5" className="px-6 max-md:px-4 py-10 text-center text-neutral-400">{t("ownerAnalytics.inventory.noData")}</td></tr>
                     ) : (() => {
                       const overall = inventoryByLocation.reduce((s, l) => s + l.totalValue, 0);
                       return inventoryByLocation.map(loc => {
                         const share = overall > 0 ? (loc.totalValue / overall) * 100 : 0;
                         return (
                           <tr key={loc.id} className="hover:bg-neutral-50 transition-colors">
-                            <td className="px-6 py-3 font-medium text-neutral-800">
+                            <td className="px-6 max-md:px-4 py-3 font-medium text-neutral-800">
                               <div className="flex items-center gap-2">
                                 <MapPin className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
                                 {loc.name}
                               </div>
                             </td>
-                            <td className="px-6 py-3">
+                            <td className="px-6 max-md:px-4 py-3">
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                                 loc.kind === "branch"    ? "bg-indigo-50 text-indigo-700" :
                                 loc.kind === "warehouse" ? "bg-amber-50 text-amber-700"   :
@@ -926,11 +926,11 @@ export default function OwnerHistory() {
                                 {loc.kind}
                               </span>
                             </td>
-                            <td className="px-6 py-3 text-right text-neutral-600">{nf.format(loc.totalQty)}</td>
-                            <td className="px-6 py-3 text-right font-bold text-neutral-800">
+                            <td className="px-6 max-md:px-4 py-3 text-right text-neutral-600">{nf.format(loc.totalQty)}</td>
+                            <td className="px-6 max-md:px-4 py-3 text-right font-bold text-neutral-800">
                               ${nf.format(Math.round(isNaN(loc.totalValue) ? 0 : loc.totalValue))}
                             </td>
-                            <td className="px-6 py-3 text-right w-40">
+                            <td className="px-6 max-md:px-4 py-3 text-right w-40">
                               <div className="flex items-center justify-end gap-2">
                                 <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                                   <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${share}%` }} />
@@ -946,14 +946,14 @@ export default function OwnerHistory() {
                   {inventoryByLocation.length > 0 && (
                     <tfoot className="bg-neutral-50 border-t-2 border-neutral-200 text-sm font-bold">
                       <tr>
-                        <td className="px-6 py-3 text-neutral-700" colSpan="2">{t("ownerAnalytics.inventory.overallTotal")}</td>
-                        <td className="px-6 py-3 text-right text-neutral-600">
+                        <td className="px-6 max-md:px-4 py-3 text-neutral-700" colSpan="2">{t("ownerAnalytics.inventory.overallTotal")}</td>
+                        <td className="px-6 max-md:px-4 py-3 text-right text-neutral-600">
                           {nf.format(inventoryByLocation.reduce((s, l) => s + l.totalQty, 0))}
                         </td>
-                        <td className="px-6 py-3 text-right text-indigo-700">
+                        <td className="px-6 max-md:px-4 py-3 text-right text-indigo-700">
                           ${nf.format(Math.round(inventoryByLocation.reduce((s, l) => s + (isNaN(l.totalValue) ? 0 : l.totalValue), 0)))}
                         </td>
-                        <td className="px-6 py-3 text-right text-neutral-400 text-xs">100%</td>
+                        <td className="px-6 max-md:px-4 py-3 text-right text-neutral-400 text-xs">100%</td>
                       </tr>
                     </tfoot>
                   )}
@@ -971,16 +971,16 @@ export default function OwnerHistory() {
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-neutral-50 text-neutral-500 font-medium uppercase tracking-wider text-xs border-b border-neutral-200">
                 <tr>
-                  <th className="px-6 py-4">{t("ownerAnalytics.logs.colDate")}</th>
-                  <th className="px-6 py-4">{t("ownerAnalytics.logs.colLocation")}</th>
-                  <th className="px-6 py-4">{t("ownerAnalytics.logs.colType")}</th>
-                  <th className="px-6 py-4">{t("ownerAnalytics.logs.colItems")}</th>
+                  <th className="px-6 max-md:px-4 py-4">{t("ownerAnalytics.logs.colDate")}</th>
+                  <th className="px-6 max-md:px-4 py-4">{t("ownerAnalytics.logs.colLocation")}</th>
+                  <th className="px-6 max-md:px-4 py-4">{t("ownerAnalytics.logs.colType")}</th>
+                  <th className="px-6 max-md:px-4 py-4">{t("ownerAnalytics.logs.colItems")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {filteredTxs.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-neutral-400">
+                    <td colSpan="4" className="px-6 max-md:px-4 py-12 text-center text-neutral-400">
                       {t("ownerAnalytics.logs.noData")}
                     </td>
                   </tr>
@@ -995,21 +995,21 @@ export default function OwnerHistory() {
                     if (tx.type === "loan")        { typeBadge = "bg-amber-100 text-amber-700";     friendlyType = t("ownerAnalytics.logs.loan"); }
                     return (
                       <tr key={tx.id} className="hover:bg-neutral-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-neutral-900">
+                        <td className="px-6 max-md:px-4 py-4 font-medium text-neutral-900">
                           {new Date(tx.created_at).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 max-md:px-4 py-4">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 text-neutral-400" />
                             <span className="font-medium text-neutral-700">{tx.location?.location_name || tx.location?.name || "Unknown"}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 max-md:px-4 py-4">
                           <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${typeBadge}`}>
                             {friendlyType}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-neutral-600">
+                        <td className="px-6 max-md:px-4 py-4 text-neutral-600">
                           {itemSummary}
                           {hasMore && <span className="text-neutral-400 italic"> +{tx.items.length - 2} more</span>}
                         </td>

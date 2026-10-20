@@ -79,7 +79,7 @@ export default function ReportsTab() {
 
       {/* Report Card */}
       <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-        <div className="p-6 space-y-6">
+        <div className="p-6 max-md:p-4 space-y-6">
           {/* Report Type Info */}
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
@@ -173,7 +173,7 @@ export default function ReportsTab() {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:shadow-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 max-md:px-4 py-3 text-sm font-semibold text-white shadow-lg hover:shadow-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {generating ? (
               <>

@@ -62,6 +62,7 @@ export default function StockMonitor() {
   const [bucket, setBucket] = useState("available");
   const [showEarlier, setShowEarlier] = useState(false);
   const loadSeq = useRef(0);
+  const statementRef = useRef(null);
 
   /* ── locations (once) ─────────────────────────────────────────────────── */
   useEffect(() => {
@@ -329,7 +330,7 @@ export default function StockMonitor() {
               {tm("problemsFirst")} · {tm("showing", { shown: products.length, total: analysis?.products.length || 0 })}
             </p>
           </div>
-          <div className="overflow-y-auto max-h-[600px] divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
+          <div className="overflow-y-auto max-h-[600px] max-md:max-h-[45vh] divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
             {loading && !analysis ? (
               <div className="py-16 text-center text-neutral-400 text-sm">…</div>
             ) : searchMissed ? (
@@ -348,7 +349,13 @@ export default function StockMonitor() {
                 return (
                   <button
                     key={p.pid}
-                    onClick={() => setSelectedPid(p.pid)}
+                    onClick={() => {
+                      setSelectedPid(p.pid);
+                      // phones: the statement sits under the list, bring it into view
+                      if (window.matchMedia("(max-width: 767.98px)").matches) {
+                        setTimeout(() => statementRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+                      }
+                    }}
                     className={`w-full text-left px-4 py-3 transition-colors ${active ? "bg-indigo-50" : "hover:bg-neutral-50"}`}
                   >
                     <div className="flex items-center gap-2">
@@ -376,7 +383,7 @@ export default function StockMonitor() {
         </div>
 
         {/* RIGHT: statement */}
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4 md:p-5 min-h-[300px]">
+        <div ref={statementRef} className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4 md:p-5 min-h-[300px] max-md:scroll-mt-16">
           {!selected ? (
             <div className="py-16 text-center text-neutral-400 text-sm">{tm("pickPrompt")}</div>
           ) : (
@@ -493,12 +500,12 @@ export function Statement({ locationId, product, bucket, setBucket, showEarlier,
           <div className="text-base font-semibold text-neutral-900">{product.name}</div>
           <div className="text-xs text-neutral-400">{product.sku}</div>
         </div>
-        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1">
+        <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
           {BUCKETS.map((k) => (
             <button
               key={k}
               onClick={() => setBucket(k)}
-              className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all max-md:shrink-0 max-md:whitespace-nowrap ${
                 bucket === k ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
               }`}
             >

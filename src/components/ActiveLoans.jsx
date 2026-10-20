@@ -171,11 +171,11 @@ export default function ActiveLoans({
                   {/* Loan Header */}
                   <button
                     onClick={() => toggleLoan(loan.id)}
-                    className="w-full p-4 flex items-center justify-between transition-colors"
+                    className="w-full p-4 flex items-center justify-between transition-colors max-md:flex-wrap max-md:gap-y-2 max-md:p-3"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 max-md:gap-3 max-md:min-w-0">
                       {/* Avatar */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shadow-sm ${
+                      <div className={`w-12 h-12 max-md:w-10 max-md:h-10 max-md:text-base max-md:shrink-0 rounded-xl flex items-center justify-center text-lg font-bold shadow-sm ${
                         overdue
                           ? 'bg-gradient-to-br from-red-500 to-orange-500 text-white'
                           : 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
@@ -203,7 +203,7 @@ export default function ActiveLoans({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 max-md:basis-full max-md:flex-wrap max-md:gap-2 max-md:pl-[3.25rem]">
                       {readyCount > 0 && (
                         <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                           <Truck className="w-3 h-3" />
@@ -224,8 +224,8 @@ export default function ActiveLoans({
                         </div>
                       )}
                       {isExpanded
-                        ? <ChevronUp className="w-5 h-5 text-neutral-400" />
-                        : <ChevronDown className="w-5 h-5 text-neutral-400" />}
+                        ? <ChevronUp className="w-5 h-5 text-neutral-400 max-md:ml-auto" />
+                        : <ChevronDown className="w-5 h-5 text-neutral-400 max-md:ml-auto" />}
                     </div>
                   </button>
 
@@ -297,7 +297,7 @@ export default function ActiveLoans({
 
                       {/* Products Table */}
                       {(loan.items || []).length > 0 && (
-                      <div className="rounded-xl overflow-hidden border border-neutral-200">
+                      <div className="rounded-xl overflow-hidden max-md:overflow-x-auto border border-neutral-200">
                         <table className="w-full text-sm">
                           <thead className="bg-neutral-100">
                             <tr className="text-xs text-neutral-600 font-semibold">
@@ -317,7 +317,7 @@ export default function ActiveLoans({
                               const isCompleted = (item.remaining || 0) <= 0;
                               return (
                                 <tr key={item.key || item.product_id} className={isCompleted ? "bg-emerald-50/50" : "hover:bg-neutral-50"}>
-                                  <td className="px-3 py-3">
+                                  <td className="px-3 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                                     <div className={`font-medium ${isCompleted ? 'text-emerald-600' : 'text-neutral-800'}`}>
                                       {item.name}
                                       {isCompleted && <span className="ml-2 text-xs">✓</span>}
@@ -429,7 +429,7 @@ export default function ActiveLoans({
           onClick={() => setActionModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`px-5 py-4 flex items-center justify-between ${
@@ -539,7 +539,7 @@ export default function ActiveLoans({
           onClick={() => setNoteModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 bg-gradient-to-r from-neutral-700 to-neutral-800 flex items-center justify-between">
@@ -606,7 +606,7 @@ export default function ActiveLoans({
           onClick={() => setDueDateModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 bg-gradient-to-r from-neutral-700 to-neutral-800 flex items-center justify-between">
@@ -754,9 +754,9 @@ function WaitingParts({ loan, settled, onAccept, onCancel, t }) {
               {rows.map((w) => {
                 const st = STATUS[w.status];
                 return (
-                  <div key={w.id} className="flex items-center gap-3 px-3 py-2 bg-white">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-neutral-800 truncate">{w.name}</div>
+                  <div key={w.id} className="flex items-center gap-3 px-3 py-2 bg-white max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1">
+                    <div className="min-w-0 flex-1 max-md:basis-full">
+                      <div className="text-sm text-neutral-800 truncate max-md:whitespace-normal">{w.name}</div>
                       <div className="text-xs text-neutral-400">{w.sku || "—"}</div>
                     </div>
                     <span className="text-sm font-semibold tabular-nums text-neutral-600">× {w.qty}</span>
@@ -768,7 +768,7 @@ function WaitingParts({ loan, settled, onAccept, onCancel, t }) {
                         onClick={() => run(w.id, () => onCancel(w.request, w.item))}
                         disabled={busy !== null}
                         title={t("branchOperations.activeLoans.cancelWaitingHint")}
-                        className="px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50"
+                        className="px-2 py-1 max-md:ml-auto rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         {busy === w.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : t("branchOperations.activeLoans.cancelWaiting")}
                       </button>

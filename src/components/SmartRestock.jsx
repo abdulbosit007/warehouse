@@ -252,14 +252,14 @@ export default function SmartRestock({ locationId }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-5 border-b border-neutral-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-xl shadow-sm">
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-5 max-md:px-4 max-md:py-4 border-b border-neutral-200">
+        <div className="flex items-center justify-between max-md:items-start max-md:gap-3">
+          <div className="flex items-center gap-3 max-md:min-w-0">
+            <div className="p-2 bg-white rounded-xl shadow-sm max-md:hidden">
               <TrendingUp className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-neutral-900">Smart Restock Recommendations</h2>
+              <h2 className="text-lg font-bold text-neutral-900 max-md:text-base">Smart Restock Recommendations</h2>
               <p className="text-sm text-neutral-500">
                 {forecastMode === "ml" && mlAvailable
                   ? "Demand forecasted using XGBoost ML model"
@@ -272,15 +272,15 @@ export default function SmartRestock({ locationId }) {
           <button
             onClick={() => loadData()}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:shadow-sm transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 max-md:px-2.5 max-md:shrink-0 bg-white border border-neutral-200 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:shadow-sm transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="max-md:hidden">Refresh</span>
           </button>
         </div>
 
         {/* Forecast Mode Toggle */}
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-3 max-md:flex-wrap max-md:gap-2">
           <div className="bg-white rounded-xl p-1 inline-flex gap-1 shadow-sm border border-neutral-200">
             <button
               onClick={() => setForecastMode("wma")}
@@ -339,7 +339,7 @@ export default function SmartRestock({ locationId }) {
 
       {/* Error State */}
       {error && (
-        <div className="p-6">
+        <div className="p-6 max-md:p-4">
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 flex items-center gap-3">
             <AlertCircle className="w-5 h-5" />
             <p className="text-sm font-medium">{error}</p>
@@ -352,22 +352,22 @@ export default function SmartRestock({ locationId }) {
         <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-neutral-50/80 border-b border-neutral-200">
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                 <div className="flex items-center gap-2"><PackageOpen className="w-4 h-4"/> Product</div>
               </th>
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                 <div className="flex items-center gap-2"><Tag className="w-4 h-4"/> Pricing</div>
               </th>
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
                 <div className="flex items-center gap-2 justify-end"><Banknote className="w-4 h-4"/> Current Stock</div>
               </th>
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
                 <div className="flex items-center gap-2 justify-end"><TrendingUp className="w-4 h-4"/> Predicted Demand</div>
               </th>
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-right">
                 <div className="flex items-center gap-2 justify-end"><Star className="w-4 h-4"/> Score</div>
               </th>
-              <th className="py-4 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-center">
+              <th className="py-4 px-6 max-md:px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider text-center">
                 <div className="flex items-center gap-2 justify-center"><ShoppingCart className="w-4 h-4"/> Suggested Order</div>
               </th>
             </tr>
@@ -401,14 +401,14 @@ export default function SmartRestock({ locationId }) {
                       needsRestock ? 'hover:bg-indigo-50/30' : 'hover:bg-neutral-50'
                     }`}
                   >
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 max-md:px-4 max-md:whitespace-normal max-md:min-w-[10rem]">
                       <div className="font-medium text-neutral-900">{item.name}</div>
                       <div className="text-xs text-neutral-500 mt-1 font-mono bg-neutral-100 inline-block px-2 py-0.5 rounded-md">
                         {item.sku}
                       </div>
                     </td>
                     
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 max-md:px-4">
                       <div className="text-sm">
                         <span className="text-neutral-500">Profit: </span>
                         <span className="font-medium text-emerald-600">
@@ -420,7 +420,7 @@ export default function SmartRestock({ locationId }) {
                       </div>
                     </td>
                     
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 max-md:px-4 text-right">
                       <span className={`inline-flex items-center justify-center min-w-[3rem] px-2 py-1 rounded-lg text-sm font-semibold border ${
                         item.current_stock < item.predicted_demand 
                           ? 'bg-red-50 text-red-700 border-red-100' 
@@ -430,7 +430,7 @@ export default function SmartRestock({ locationId }) {
                       </span>
                     </td>
                     
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 max-md:px-4 text-right">
                       <div className="flex flex-col items-end gap-1">
                         <div>
                           <span className="text-base font-bold text-indigo-700">
@@ -450,14 +450,14 @@ export default function SmartRestock({ locationId }) {
                       </div>
                     </td>
                     
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 max-md:px-4 text-right">
                       <div className="text-sm font-medium text-neutral-700">
                         {Math.round(item.score).toLocaleString()}
                       </div>
                       <div className="text-xs text-neutral-400 mt-0.5">Priority</div>
                     </td>
                     
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-4 px-6 max-md:px-4 text-center">
                       <div className="flex justify-center">
                         {item.suggested_order_qty > 0 ? (
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold border ${getSeverityStyle(item.suggested_order_qty)}`}>
@@ -479,7 +479,7 @@ export default function SmartRestock({ locationId }) {
 
       {/* ML Info Footer (when ML is active) */}
       {forecastMode === "ml" && mlAvailable && recommendations.length > 0 && (
-        <div className="px-6 py-3 bg-purple-50/50 border-t border-purple-100 flex items-center gap-2">
+        <div className="px-6 max-md:px-4 py-3 bg-purple-50/50 border-t border-purple-100 flex items-center gap-2">
           <Info className="w-4 h-4 text-purple-400" />
           <p className="text-xs text-purple-600">
             ML predictions powered by XGBoost model trained on historical demand patterns.

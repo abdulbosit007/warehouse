@@ -54,12 +54,12 @@ function FilterModal({ t, categories, locations, filters, onApply, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
       >
-        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 max-md:px-4 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
             <div>
@@ -78,7 +78,7 @@ function FilterModal({ t, categories, locations, filters, onApply, onClose }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        <div className="p-6 max-md:p-4 space-y-5 overflow-y-auto flex-1">
           {/* Category */}
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
@@ -148,7 +148,7 @@ function FilterModal({ t, categories, locations, filters, onApply, onClose }) {
           </div>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-between gap-3 shrink-0">
+        <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50 flex items-center justify-between gap-3 shrink-0">
           <button
             onClick={handleClear}
             className="text-sm text-neutral-500 hover:text-neutral-700"
@@ -453,8 +453,8 @@ export default function WarehouseHome() {
 
   if (authError || roleBase !== "warehouse") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">
@@ -582,7 +582,7 @@ export default function WarehouseHome() {
 
       {/* Search & Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-md max-md:basis-full max-md:max-w-none">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
           <input
             type="text"
@@ -772,7 +772,7 @@ export default function WarehouseHome() {
                       key={product.id}
                       className="transition-colors even:bg-slate-50 hover:bg-blue-50"
                     >
-                      <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900">
+                      <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900 max-md:px-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                         {product.name || "—"}
                       </td>
                       <td className="px-4 py-3">

@@ -258,7 +258,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-visible"
       >
         {/* Header */}
-        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 py-4 flex items-center justify-between rounded-t-2xl`}>
+        <div className={`bg-gradient-to-r ${gradientMap[color]} px-6 max-md:px-4 py-4 flex items-center justify-between rounded-t-2xl`}>
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">{t("branchOperations.filterModal.title")}</h3>
@@ -269,7 +269,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         </div>
 
         {/* Body */}
-        <div className="p-6 min-h-[200px]">
+        <div className="p-6 max-md:p-4 min-h-[200px]">
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
               {t("branchOperations.filterModal.categoryLabel")}
@@ -291,7 +291,7 @@ function CategoryFilterModal({ categories, selectedCategory, onApply, onClose, c
         </div>
 
         {/* Footer */}
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50 flex items-center justify-end gap-3 rounded-b-2xl">
           <button
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"

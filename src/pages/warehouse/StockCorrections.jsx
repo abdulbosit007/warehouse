@@ -465,8 +465,8 @@ export default function WarehouseStockCorrections({ asTab = false }) {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6" />
             <span className="font-medium">
@@ -480,8 +480,8 @@ export default function WarehouseStockCorrections({ asTab = false }) {
 
   if (roleBase !== "warehouse") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6" />
             <span className="font-medium">{t("warehouseStockCorrections.onlyWarehouse")}</span>
@@ -493,8 +493,8 @@ export default function WarehouseStockCorrections({ asTab = false }) {
 
   if (locationError) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6" />
             <span className="font-medium">{locationError}</span>
@@ -603,7 +603,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
 
       {/* ──────────────── CREATE CORRECTION CARD ──────────────── */}
       <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 rounded-t-2xl">
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 max-md:px-4 py-4 rounded-t-2xl">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <AlertTriangle className="w-5 h-5" />
             {t("warehouseStockCorrections.create.title")}
@@ -613,7 +613,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
           </p>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 max-md:p-4 space-y-4">
           {/* Product Search */}
           <div className="relative z-30">
             <label className="block text-xs font-medium text-neutral-700 mb-1.5">
@@ -766,7 +766,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
                 <button
                   type="submit"
                   disabled={saving || systemQtyLoading || !selectedProduct}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:shadow-xl hover:shadow-indigo-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:shadow-xl hover:shadow-indigo-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {saving ? (
                     <>
@@ -807,7 +807,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
             <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           </div>
         ) : listError ? (
-          <div className="p-6 text-red-600 text-sm">{listError}</div>
+          <div className="p-6 max-md:p-4 text-red-600 text-sm">{listError}</div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
             <Package className="w-12 h-12 mb-3 text-neutral-300" />
@@ -819,13 +819,13 @@ export default function WarehouseStockCorrections({ asTab = false }) {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-blue-600 to-indigo-600">
                 <tr className="text-xs font-medium text-white uppercase tracking-wider">
-                  <th className="px-6 py-4 text-left">{t("warehouseStockCorrections.table.date")}</th>
-                  <th className="px-6 py-4 text-left">{t("warehouseStockCorrections.table.product")}</th>
-                  <th className="px-6 py-4 text-center">{t("warehouseStockCorrections.table.system")}</th>
-                  <th className="px-6 py-4 text-center">{t("warehouseStockCorrections.table.reported")}</th>
-                  <th className="px-6 py-4 text-center">{t("warehouseStockCorrections.table.diff")}</th>
-                  <th className="px-6 py-4 text-left">{t("warehouseStockCorrections.table.status")}</th>
-                  <th className="px-6 py-4 text-right">{t("warehouseStockCorrections.table.action")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-left">{t("warehouseStockCorrections.table.date")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-left">{t("warehouseStockCorrections.table.product")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-center">{t("warehouseStockCorrections.table.system")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-center">{t("warehouseStockCorrections.table.reported")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-center">{t("warehouseStockCorrections.table.diff")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-left">{t("warehouseStockCorrections.table.status")}</th>
+                  <th className="px-6 max-md:px-4 py-4 text-right">{t("warehouseStockCorrections.table.action")}</th>
                 </tr>
               </thead>
 
@@ -835,19 +835,19 @@ export default function WarehouseStockCorrections({ asTab = false }) {
 
                   return (
                     <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
-                      <td className="px-6 py-4 text-xs text-neutral-500">
+                      <td className="px-6 max-md:px-4 py-4 text-xs text-neutral-500">
                         {c.requested_at ? new Date(c.requested_at).toLocaleDateString() : "—"}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 max-md:px-4 py-4 max-md:whitespace-normal max-md:min-w-[10rem]">
                         <p className="text-sm font-medium text-neutral-900">{c.product?.name || "—"}</p>
                         <p className="text-xs font-mono text-neutral-500">{c.product?.sku || "—"}</p>
                       </td>
 
-                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">{c.current_quantity}</td>
-                      <td className="px-6 py-4 text-center font-mono text-sm text-neutral-700">{c.reported_quantity}</td>
+                      <td className="px-6 max-md:px-4 py-4 text-center font-mono text-sm text-neutral-700">{c.current_quantity}</td>
+                      <td className="px-6 max-md:px-4 py-4 text-center font-mono text-sm text-neutral-700">{c.reported_quantity}</td>
 
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 max-md:px-4 py-4 text-center">
                         <span
                           className={`inline-flex items-center gap-1 font-mono text-sm font-semibold ${
                             diff > 0 ? "text-emerald-600" : diff < 0 ? "text-rose-600" : "text-neutral-600"
@@ -858,11 +858,11 @@ export default function WarehouseStockCorrections({ asTab = false }) {
                         </span>
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 max-md:px-4 py-4">
                         <StatusPill status={c.status} />
                       </td>
 
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 max-md:px-4 py-4 text-right">
                         <button
                           onClick={() => setSelected(c)}
                           className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
@@ -883,15 +883,15 @@ export default function WarehouseStockCorrections({ asTab = false }) {
       {/* ──────────────── DETAIL MODAL ──────────────── */}
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0"
           onClick={() => setSelected(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300"
+            className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300"
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 flex items-start justify-between">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 max-md:px-4 py-4 flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">
                   {t("warehouseStockCorrections.modal.title")}
@@ -906,7 +906,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-6 max-md:p-4 space-y-4">
               {/* Product Info */}
               <div className="flex items-center gap-3 p-4 rounded-xl bg-neutral-50">
                 <div className="p-2 rounded-lg bg-indigo-100 text-indigo-600">
@@ -989,7 +989,7 @@ export default function WarehouseStockCorrections({ asTab = false }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end">
+            <div className="px-6 max-md:px-4 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end">
               <button
                 onClick={() => setSelected(null)}
                 className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"

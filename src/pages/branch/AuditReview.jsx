@@ -99,12 +99,12 @@ function ProductCard({
       <div className={`w-1 self-stretch rounded-none shrink-0 ${accentColor}`} />
 
       {/* Row content */}
-      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3 max-md:flex-wrap max-md:gap-y-2.5 max-md:px-3">
 
         {/* Product info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-neutral-900 text-sm leading-tight truncate">
+            <span className="font-semibold text-neutral-900 text-sm leading-tight truncate max-md:whitespace-normal">
               {product?.name || "—"}
             </span>
             {otherEntered && (
@@ -126,12 +126,12 @@ function ProductCard({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 bg-neutral-200 shrink-0" />
+        <div className="w-px h-8 bg-neutral-200 shrink-0 max-md:hidden" />
 
         {/* Input zone */}
         {entered ? (
           /* — Entered state — */
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 max-md:basis-full">
             {StatusIcon && <StatusIcon className={`w-4 h-4 shrink-0 ${statusIconColor}`} />}
             <span className={`text-base font-bold w-10 text-center ${
               bothDone ? isMatch ? "text-emerald-700" : "text-red-700" : "text-blue-700"
@@ -155,7 +155,7 @@ function ProductCard({
           </div>
         ) : (
           /* — Input state — */
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 max-md:basis-full">
             <input
               type="number"
               min="0"
@@ -163,12 +163,12 @@ function ProductCard({
               onChange={(e) => setQty(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="0"
-              className="w-20 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-20 max-md:flex-1 max-md:min-w-0 max-md:py-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
             <button
               onClick={handleSave}
               disabled={qty === ""}
-              className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-1 max-md:px-5 max-md:py-2 rounded-lg bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Check className="w-4 h-4" />
               {t("branchAudit.actions.save")}
@@ -200,14 +200,14 @@ function AuditDetailModal({ t, audit, products, onClose }) {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-500 to-purple-600 px-6 py-4 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-emerald-500 to-purple-600 px-6 max-md:px-4 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">
               {t("branchAudit.modal.audit")} —{" "}
@@ -239,7 +239,7 @@ function AuditDetailModal({ t, audit, products, onClose }) {
         </div>
 
         {/* Summary Stats */}
-        <div className="px-6 py-4 bg-neutral-50 border-b flex gap-6">
+        <div className="px-6 max-md:px-4 py-4 bg-neutral-50 border-b flex gap-6">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -270,7 +270,7 @@ function AuditDetailModal({ t, audit, products, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 max-md:p-4 space-y-6">
           {rejected.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-neutral-700 mb-3 flex items-center gap-2">
@@ -350,7 +350,7 @@ function AuditDetailModal({ t, audit, products, onClose }) {
           )}
         </div>
 
-        <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end">
+        <div className="px-6 max-md:px-4 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end">
           <button
             onClick={onClose}
             className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
@@ -842,8 +842,8 @@ export default function BranchAuditReview({ asTab = false }) {
 
   if (!asTab && (authError || error)) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{authError || error}</span>
@@ -855,8 +855,8 @@ export default function BranchAuditReview({ asTab = false }) {
 
   if (!asTab && roleBase !== "branch") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("branchAudit.errors.branchOnly")}</span>
@@ -1065,7 +1065,7 @@ export default function BranchAuditReview({ asTab = false }) {
 
           {/* Success */}
           {justSubmitted && (
-            <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-8 text-center shadow-sm">
+            <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-8 max-md:p-4 text-center shadow-sm">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8 text-white" />
               </div>
@@ -1079,7 +1079,7 @@ export default function BranchAuditReview({ asTab = false }) {
           )}
 
           {pastAudits.length === 0 && !openSession && !justSubmitted && (
-            <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-8 max-md:p-4 text-center">
               <ClipboardList className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-500">{t("branchAudit.empty.noAudits")}</p>
             </div>
@@ -1091,7 +1091,7 @@ export default function BranchAuditReview({ asTab = false }) {
       {selectedAuditForReview && (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 max-md:gap-2">
             <div
               className="rounded-2xl p-4"
               style={{
@@ -1100,14 +1100,14 @@ export default function BranchAuditReview({ asTab = false }) {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("branchAudit.stats.confirmed")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {confirmedCount}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-emerald-600 bg-white/50">
+                <div className="p-2 rounded-xl text-emerald-600 bg-white/50 max-md:hidden">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
@@ -1121,14 +1121,14 @@ export default function BranchAuditReview({ asTab = false }) {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-red-700 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-red-700 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("branchAudit.stats.discrepancies")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {rejectedCount}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-red-600 bg-white/50">
+                <div className="p-2 rounded-xl text-red-600 bg-white/50 max-md:hidden">
                   <XCircle className="w-5 h-5" />
                 </div>
               </div>
@@ -1142,14 +1142,14 @@ export default function BranchAuditReview({ asTab = false }) {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider">
+                  <p className="text-xs font-medium text-neutral-600 uppercase tracking-wider max-md:text-[11px] max-md:normal-case max-md:tracking-normal max-md:leading-tight">
                     {t("branchAudit.stats.pending")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-neutral-900">
                     {pendingCount}
                   </p>
                 </div>
-                <div className="p-2 rounded-xl text-neutral-500 bg-white/50">
+                <div className="p-2 rounded-xl text-neutral-500 bg-white/50 max-md:hidden">
                   <Clock className="w-5 h-5" />
                 </div>
               </div>
@@ -1169,15 +1169,15 @@ export default function BranchAuditReview({ asTab = false }) {
                   <button
                     key={tab.key}
                     onClick={() => { setActiveLocationTab(tab.key); setCurrentPendingIndex(0); }}
-                    className={`relative flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-all ${
+                    className={`relative flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-all max-md:flex-col max-md:gap-1 max-md:px-2 max-md:py-3 ${
                       isActive
                         ? "bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500"
                         : "text-neutral-500 hover:bg-neutral-50 border-b-2 border-transparent"
                     }`}
                   >
                     <span className="text-lg">{tab.icon}</span>
-                    <span className="truncate">{tab.label}</span>
-                    <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                    <span className="truncate max-md:whitespace-normal max-md:text-center max-md:leading-tight">{tab.label}</span>
+                    <span className={`ml-1 max-md:ml-0 px-2 py-0.5 rounded-full text-xs font-bold ${
                       isDone
                         ? "bg-emerald-100 text-emerald-700"
                         : isActive
@@ -1299,10 +1299,10 @@ export default function BranchAuditReview({ asTab = false }) {
               <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
                 {t("branchAudit.filters.all")} · {filteredProducts.length}
               </div>
-              <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+              <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider max-md:hidden">
                 {t("branchAudit.product.systemQty")}
               </div>
-              <div className="w-px h-4 bg-neutral-200 shrink-0" />
+              <div className="w-px h-4 bg-neutral-200 shrink-0 max-md:hidden" />
               <div className="w-36 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-1">
                 {t("branchAudit.filters.pending")} / {t("branchAudit.stats.confirmed")}
               </div>
@@ -1327,10 +1327,10 @@ export default function BranchAuditReview({ asTab = false }) {
                   >
                     {/* Row number */}
                     <div className="flex items-center">
-                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none">
+                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none max-md:hidden">
                         {idx + 1}
                       </span>
-                      <div className="flex-1">
+                      <div className="flex-1 max-md:min-w-0">
                         <ProductCard
                           t={t}
                           product={product}
@@ -1356,7 +1356,7 @@ export default function BranchAuditReview({ asTab = false }) {
                 <button
                   onClick={handleSubmitAll}
                   disabled={submitting}
-                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3.5 px-6 text-base font-bold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50"
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3.5 px-6 max-md:px-4 text-base font-bold shadow-lg hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50"
                 >
                   {submitting ? (
                     <span className="inline-flex items-center justify-center gap-3">

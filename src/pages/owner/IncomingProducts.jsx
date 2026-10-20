@@ -56,12 +56,12 @@ function OriginModal({ open, onClose, onSelect, disabledOrigins = [] }) {
   const uzbekDisabled = disabledOrigins.includes("uzbek");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
       >
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Package className="w-5 h-5 text-white" />
             <h3 className="text-lg font-semibold text-white">
@@ -73,7 +73,7 @@ function OriginModal({ open, onClose, onSelect, disabledOrigins = [] }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-3">
+        <div className="p-6 max-md:p-4 space-y-3">
           <button
             onClick={() => !chineseDisabled && onSelect("chinese")}
             disabled={chineseDisabled}
@@ -119,7 +119,7 @@ function OriginModal({ open, onClose, onSelect, disabledOrigins = [] }) {
           </button>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50">
+        <div className="border-t border-neutral-100 px-6 max-md:px-4 py-4 bg-neutral-50">
           <button
             onClick={onClose}
             className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
@@ -357,8 +357,8 @@ export default function IncomingBatches() {
 
   if (!userRow || roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("common.ownerOnly")}</span>

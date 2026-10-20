@@ -216,13 +216,13 @@ function SessionDetailModal({ session, location, onClose }) {
   const dateStr = formatDate(session.created_at, i18n.language, { year: "numeric", month: "2-digit", day: "2-digit" });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 max-md:px-4 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">
               {session.name || t("ownerInventoryBatchDetail.modals.sessionDetails.title")}
@@ -237,7 +237,7 @@ function SessionDetailModal({ session, location, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 max-md:p-4">
           {items.length === 0 ? (
             <div className="text-center py-8 text-neutral-500">
               {t("ownerInventoryBatchDetail.modals.sessionDetails.empty")}
@@ -256,7 +256,7 @@ function SessionDetailModal({ session, location, onClose }) {
               <tbody>
                 {items.map((it) => (
                   <tr key={it.id} className="border-t hover:bg-neutral-50">
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-md:whitespace-normal max-md:min-w-[10rem]">
                       <div className="font-medium">{it.product?.name || "—"}</div>
                       <div className="text-[10px] font-mono text-neutral-500">{it.product?.sku || "—"}</div>
                     </td>
@@ -321,14 +321,14 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-5 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 max-md:px-4 py-5 flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-white/15">
               <Package className="w-5 h-5 text-white" />
@@ -351,7 +351,7 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
         </div>
 
         {/* Summary Stats */}
-        <div className="px-6 py-4 bg-neutral-50/80 border-b border-neutral-200 grid grid-cols-3 gap-3">
+        <div className="px-6 max-md:px-4 py-4 bg-neutral-50/80 border-b border-neutral-200 grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5">
             <p className="text-xs text-neutral-500">{t("ownerInventoryBatchDetail.table.product")}</p>
             <p className="text-xl font-bold text-neutral-900">{allResponses.length}</p>
@@ -368,7 +368,7 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
 
         {/* Filter controls */}
         {allResponses.length > 0 && (
-          <div className="px-6 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
+          <div className="px-6 max-md:px-4 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
@@ -550,13 +550,13 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-4xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 max-md:px-4 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">{monthName}</h3>
             <p className="text-sm text-emerald-100 mt-0.5">
@@ -570,7 +570,7 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
         </div>
 
         {/* Filter controls */}
-        <div className="px-6 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
+        <div className="px-6 max-md:px-4 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <input
@@ -603,7 +603,7 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 max-md:p-4">
           <table className="min-w-full text-sm border-collapse">
             <thead>
               <tr className="bg-neutral-50 text-xs text-neutral-500 uppercase">
@@ -630,7 +630,7 @@ function CorrectionsDetailModal({ month, corrections, location, onClose, onReloa
                   <td className="px-3 py-2 text-xs">
                     {formatDate(c.requested_at, i18n.language, { year: "numeric", month: "2-digit", day: "2-digit" })}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 max-md:whitespace-normal max-md:min-w-[10rem]">
                     <div className="font-medium">{c.product?.name || "—"}</div>
                     <div className="text-[10px] font-mono text-neutral-500">{c.product?.sku || "—"}</div>
                   </td>
@@ -864,8 +864,8 @@ export default function InventoryBatchDetail() {
 
   if (authError || error) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{authError || error}</span>
@@ -877,8 +877,8 @@ export default function InventoryBatchDetail() {
 
   if (roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("common.ownerOnly")}</span>
@@ -890,8 +890,8 @@ export default function InventoryBatchDetail() {
 
   if (!location) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 max-md:p-4 text-red-700">
           {t("ownerInventoryBatchDetail.locationNotFound")}
         </div>
       </div>

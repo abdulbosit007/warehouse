@@ -151,8 +151,8 @@ export default function SignIn() {
   console.log("[SIGNIN] Render", { loading, error });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-2xl shadow w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 max-md:px-4">
+      <div className="bg-white p-8 max-md:p-6 rounded-2xl shadow w-full max-w-md">
         <h2 className="text-2xl font-semibold mb-6 text-center">Sign In</h2>
 
         {loading ? (

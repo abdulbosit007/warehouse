@@ -77,12 +77,12 @@ function EditProductModal({ product, categories, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
       >
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">
               {t("ownerHome.editModal.title")}
@@ -98,7 +98,7 @@ function EditProductModal({ product, categories, onClose, onSave }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 max-md:p-4 space-y-4">
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
@@ -176,7 +176,7 @@ function EditProductModal({ product, categories, onClose, onSave }) {
           </div>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-end gap-3">
+        <div className="border-t border-neutral-100 px-6 py-4 max-md:px-4 bg-neutral-50 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
             className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
@@ -252,12 +252,12 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
       >
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <SlidersHorizontal className="w-5 h-5 text-white" />
             <div>
@@ -278,7 +278,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        <div className="p-6 max-md:p-4 space-y-5 overflow-y-auto flex-1">
           {/* Category */}
           <div>
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
@@ -338,7 +338,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
                   onChange={(e) =>
                     setLocalFilters({ ...localFilters, priceMin: e.target.value })
                   }
-                  className="flex-1 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="flex-1 max-md:min-w-0 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <span className="text-neutral-400">—</span>
                 <input
@@ -348,7 +348,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
                   onChange={(e) =>
                     setLocalFilters({ ...localFilters, priceMax: e.target.value })
                   }
-                  className="flex-1 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="flex-1 max-md:min-w-0 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
             )}
@@ -418,12 +418,12 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
           </div>
         </div>
 
-        <div className="border-t border-neutral-100 px-6 py-4 bg-neutral-50 flex items-center justify-between gap-3 shrink-0">
+        <div className="border-t border-neutral-100 px-6 py-4 max-md:px-4 bg-neutral-50 flex items-center justify-between gap-3 max-md:gap-2 shrink-0">
           <button onClick={handleClear} className="text-sm text-neutral-500 hover:text-neutral-700">
             {t("common.clearAll")}
           </button>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 max-md:gap-2">
             <button
               onClick={onClose}
               className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
@@ -740,8 +740,8 @@ export default function OwnerHome() {
 
   if (authError) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{authError}</span>
@@ -753,8 +753,8 @@ export default function OwnerHome() {
 
   if (roleBase !== "owner") {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 text-red-700">
+      <div className="p-6 max-md:p-4">
+        <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-6 max-md:p-4 text-red-700">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6" />
             <span className="font-medium">{t("common.ownerOnly")}</span>
@@ -855,7 +855,7 @@ export default function OwnerHome() {
 
       {/* Search & Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-md max-md:basis-full max-md:max-w-none">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
           <input
             type="text"
@@ -1108,7 +1108,7 @@ export default function OwnerHome() {
 
                   return (
                     <tr key={product.id} className="bg-white">
-                      <td className="px-4 py-3 text-sm font-medium text-neutral-900 sticky left-0 bg-white z-10">
+                      <td className="px-4 py-3 text-sm font-medium text-neutral-900 sticky left-0 bg-white z-10 max-md:px-3 max-md:whitespace-normal max-md:min-w-[9.5rem] max-md:max-w-[9.5rem]">
                         {product.name || "—"}
                       </td>
                       <td className="px-4 py-3 text-xs font-mono text-neutral-500">
