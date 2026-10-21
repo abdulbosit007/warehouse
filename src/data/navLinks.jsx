@@ -13,6 +13,7 @@ import {
   Settings,
   Activity,
   BarChart2,
+  BookOpen,
 } from "lucide-react";
 
 /* -----------------------------
@@ -77,6 +78,11 @@ export const ownerLinks = [
     to: "/owner/incoming-product",
     label: "nav.incomingBatches",
     icon: <Wrench className="w-4 h-4" />,
+  },
+  {
+    to: "/owner/catalog",
+    label: "nav.catalog",
+    icon: <BookOpen className="w-4 h-4" />,
   },
   {
     to: "/owner/settings",

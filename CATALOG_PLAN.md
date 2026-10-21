@@ -85,11 +85,16 @@ Only the owner sees the tab; the database also allows only the owner
 (`fn_is_owner_user`) to read or change the catalog tables. The catalog web app
 itself has no admin and no sign-in.
 
-- [ ] **2.1 Suggestions** — list of suggested groups; fix (remove/add products, labels,
+  Defective items ("брак"): no special handling — the owner decides per product when confirming.
+- [ ] **2.1 Suggestions** (built; `CATALOG_ADMIN.sql` run 2026-10-21) — list of suggested groups; fix (remove/add products, labels,
       colours, sizes) → **Confirm** creates the family, models and variants.
-- [ ] **2.2 Models** — list + edit: name, description, category, size, variant labels and
-      colour circles, order, **On site** switch.
-- [ ] **2.3 Singles** — button "make a single model for every product not in a group".
+- [ ] **2.2 Models** (built; `CATALOG_ADMIN_2.sql` run 2026-10-21) — list + edit: name, web address,
+      description, category, size, family (leave / join / together with another model), colours
+      (order, button text, colour circle, shown first, hidden, remove, add a product),
+      **On site** switch (one or many), remove from the catalog.
+- [ ] **2.3 Singles** (built; `CATALOG_ADMIN_3.sql` run 2026-10-21) — "Singles" tab: products not in the
+      catalog (hides those still in a suggested group), tick some or all shown → one model each,
+      off the site.
 - [ ] **2.4 Photos** — attach photos to a colour or to the whole model, reorder, remove.
 
 Done when: a few real models are made from suggestions, edited and switched on.
