@@ -1801,7 +1801,9 @@
         "noDoc": "Hujjatsiz o‘zgartirilgan",
         "old": "Eski o‘zgarish: {{reason}}",
         "transit_fix": "Osilib qolgan «yo‘lda» tozalandi (ortida haqiqiy tovar yo‘q)",
-        "transit_fix_undo": "Osilib qolgan «yo‘lda» tozalash bekor qilindi"
+        "transit_fix_undo": "Osilib qolgan «yo‘lda» tozalash bekor qilindi",
+        "product_merge": "Takroriy mahsulot shu mahsulotga birlashtirildi",
+        "product_merge_undo": "Mahsulotlarni birlashtirish bekor qilindi"
       },
       "reasons": {
         "stock_in": "kirim",

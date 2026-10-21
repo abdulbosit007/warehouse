@@ -9,10 +9,16 @@
 export const BUCKETS = ["available", "in_transit", "loaned"];
 
 // Labelled lines carry ref_id; these are known even without one
-// (transit_fix: the one-off stuck in-transit cleanup, TRANSIT_CLEANUP.sql).
-const KNOWN_WITHOUT_REF = new Set(["opening", "audit_ok", "transit_fix", "transit_fix_undo"]);
+// (transit_fix: the one-off stuck in-transit cleanup, TRANSIT_CLEANUP.sql;
+//  product_merge: duplicate products merged, PRODUCT_MERGE.sql).
+const KNOWN_WITHOUT_REF = new Set([
+  "opening", "audit_ok", "transit_fix", "transit_fix_undo", "product_merge", "product_merge_undo",
+]);
 // A new statement starts at the latest of these (available only: audits count shelves).
 const STARTS = new Set(["opening", "audit", "audit_ok"]);
+// …and in every bucket at these: after a merge the two products' old lines don't add up
+// line by line, so the statement starts again at the merged stock.
+const STARTS_ALL = new Set(["opening", "product_merge"]);
 
 const sumBy = (rows, key, val) => {
   const m = new Map();
@@ -88,7 +94,7 @@ export function analyzeLocation(raw) {
       let start = -1;
       for (let i = lines.length - 1; i >= 0; i--) {
         const r = lines[i].reason;
-        if (r === "opening" || (status === "available" && STARTS.has(r))) { start = i; break; }
+        if (STARTS_ALL.has(r) || (status === "available" && STARTS.has(r))) { start = i; break; }
       }
       if (start === -1) start = lines.findIndex((l) => l.checked);
       if (start === -1) start = lines.length; // only old lines

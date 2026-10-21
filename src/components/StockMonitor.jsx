@@ -16,7 +16,7 @@ import CustomSelect from "./CustomSelect";
 import {
   Boxes, AlertTriangle, Search, RefreshCw, ShieldCheck, Check, ChevronRight, ChevronDown, Truck,
   Flag, ShoppingCart, Handshake, Undo2, PackageCheck, PackagePlus, XCircle, PencilLine,
-  ClipboardCheck, Wrench, History, ArrowLeftRight, MapPinOff,
+  ClipboardCheck, Wrench, History, ArrowLeftRight, MapPinOff, GitMerge,
 } from "lucide-react";
 
 const CARDS = ["noDoc", "transitOff", "loanOff", "auditDiff", "statementOff"];
@@ -438,7 +438,7 @@ function NotHere({ hits, quiet, query, location, tm }) {
 
 /* ── one product's statement ─────────────────────────────────────────────── */
 
-const START_REASONS = new Set(["opening", "audit", "audit_ok"]);
+const START_REASONS = new Set(["opening", "audit", "audit_ok", "product_merge"]);
 
 // icon + colour per kind of stock change
 const LINE_KIND = {
@@ -465,6 +465,8 @@ const LINE_KIND = {
   audit_ok: { Icon: ClipboardCheck, tone: "bg-violet-100 text-violet-600" },
   transit_fix: { Icon: Wrench, tone: "bg-neutral-100 text-neutral-500" },
   transit_fix_undo: { Icon: Wrench, tone: "bg-neutral-100 text-neutral-500" },
+  product_merge: { Icon: GitMerge, tone: "bg-indigo-100 text-indigo-600" },
+  product_merge_undo: { Icon: GitMerge, tone: "bg-neutral-100 text-neutral-500" },
 };
 const OLD_KIND = { Icon: History, tone: "bg-neutral-100 text-neutral-400" };
 const NODOC_KIND = { Icon: AlertTriangle, tone: "bg-rose-500 text-white" };

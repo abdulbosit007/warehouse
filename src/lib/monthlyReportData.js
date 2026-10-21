@@ -36,6 +36,8 @@ const SHELF_LABEL = {
   request_approve: "given", transfer_send: "given", request_undo: "given",
   request_cancel: "given", transfer_reject: "given", transfer_cancel: "given",
   correction: "adjust", audit: "adjust", audit_ok: "adjust",
+  // duplicate products merged: −qty and +qty on the kept product, adding up to 0
+  product_merge: "adjust", product_merge_undo: "adjust",
 };
 const ROUGH = new Set(["stock_in", "stock_out", "transit_in", "transit_out", "loan_out", "loan_return", "init", "adjust"]);
 const LOAN_SOLD_NOTES = ["Sold (money received)", "Sold (all items)"];

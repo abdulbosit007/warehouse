@@ -1801,7 +1801,9 @@
         "noDoc": "Changed with no document",
         "old": "Old change: {{reason}}",
         "transit_fix": "Stuck in-transit cleanup (nothing real behind it)",
-        "transit_fix_undo": "Stuck in-transit cleanup undone"
+        "transit_fix_undo": "Stuck in-transit cleanup undone",
+        "product_merge": "Duplicate product merged into this one",
+        "product_merge_undo": "Product merge undone"
       },
       "reasons": {
         "stock_in": "stock in",
