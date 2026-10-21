@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { DayPicker } from "react-day-picker";
-import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse, RefreshCw } from "lucide-react";
+import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse, RefreshCw, Store, ChevronDown } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 import ReturnDestModal from "./ReturnDestModal";
 import { isItemDone } from "../lib/saleRequestItems";
@@ -42,6 +42,7 @@ export default function SaleHistory({
   );
   const [actingItemIds, setActingItemIds] = useState(new Set());
   const [openSessions, setOpenSessions] = useState(new Set()); // set of session indices that are expanded
+  const [openLocRows, setOpenLocRows] = useState(new Set()); // overall rows showing the per-location split
   const [sortBy, setSortBy] = useState("name"); // "name" | "qty" | "returned"
   const [sortDir, setSortDir] = useState("asc");
   const [highlightProductId, setHighlightProductId] = useState(null);
@@ -103,32 +104,59 @@ export default function SaleHistory({
   // to add them separately from salePendingRequests (which caused empty sales[] arrays
   // making those items un-returnable). Pending/waiting items are shown via a separate
   // table section below.
+  // Each row also keeps where its units came from (byLoc): this branch's own
+  // stock (no source = own stock) or the warehouse / branch a sale request took them from.
   const groupedMap = useMemo(() => {
+    const locById = new Map(allLocations.map((l) => [l.id, l]));
     const map = new Map();
     for (const sale of saleHistory) {
       for (const item of sale.items || []) {
         const key = item.product_id;
-        if (map.has(key)) {
-          const existing = map.get(key);
-          existing.qty += item.qty;
-          existing.returned += item.returned || 0;
-          existing.remaining += item.remaining || 0;
-          existing.sales.push({ sale, item });
-        } else {
+        if (!map.has(key)) {
           map.set(key, {
             product_id: item.product_id,
             name: item.name,
             sku: item.sku,
-            qty: item.qty,
-            returned: item.returned || 0,
-            remaining: item.remaining || 0,
-            sales: [{ sale, item }],
+            qty: 0,
+            returned: 0,
+            remaining: 0,
+            sales: [],
+            byLoc: new Map(),
           });
         }
+        const existing = map.get(key);
+        existing.qty += item.qty;
+        existing.returned += item.returned || 0;
+        existing.remaining += item.remaining || 0;
+        existing.sales.push({ sale, item });
+
+        const locId = item.source_location?.id || branchLocationId || "own";
+        if (!existing.byLoc.has(locId)) {
+          const loc = locById.get(locId);
+          existing.byLoc.set(locId, {
+            id: locId,
+            name: item.source_location?.location_name || loc?.location_name || "—",
+            isWarehouse: loc?.kind === "warehouse",
+            qty: 0,
+            returned: 0,
+            remaining: 0,
+          });
+        }
+        const part = existing.byLoc.get(locId);
+        part.qty += item.qty;
+        part.returned += item.returned || 0;
+        part.remaining += item.remaining || 0;
       }
     }
     return map;
-  }, [saleHistory]);
+  }, [saleHistory, allLocations, branchLocationId]);
+
+  const toggleLocRow = (productId) =>
+    setOpenLocRows((prev) => {
+      const next = new Set(prev);
+      next.has(productId) ? next.delete(productId) : next.add(productId);
+      return next;
+    });
 
   // Convert to array, filter and sort
   const groupedItems = useMemo(() => {
@@ -776,9 +804,11 @@ export default function SaleHistory({
                       {/* ── Committed sale rows ── */}
                       {groupedItems.map((item) => {
                         const isHighlighted = item.product_id === highlightProductId;
+                        const locs = Array.from(item.byLoc.values());
+                        const locsOpen = locs.length > 1 && openLocRows.has(item.product_id);
                         return (
+                          <React.Fragment key={item.product_id}>
                           <tr
-                            key={item.product_id}
                             ref={isHighlighted ? highlightRowRef : null}
                             className={`transition-colors ${
                               isHighlighted
@@ -796,6 +826,19 @@ export default function SaleHistory({
                                 )}
                               </div>
                               <div className="text-xs text-neutral-400">{item.sku || "—"}</div>
+                              {locs.length === 1 ? (
+                                <LocationLabel loc={locs[0]} className="mt-0.5" />
+                              ) : (
+                                <button
+                                  onClick={() => toggleLocRow(item.product_id)}
+                                  aria-expanded={locsOpen}
+                                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200 hover:bg-blue-100 transition-colors"
+                                >
+                                  <Warehouse className="w-3 h-3" />
+                                  {t("branchOperations.saleHistory.locationsCount", { count: locs.length })}
+                                  <ChevronDown className={`w-3 h-3 transition-transform ${locsOpen ? "rotate-180" : ""}`} />
+                                </button>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span className="font-bold text-emerald-600">
@@ -828,6 +871,29 @@ export default function SaleHistory({
                               )}
                             </td>
                           </tr>
+                          {locsOpen &&
+                            locs.map((loc) => (
+                              <tr key={`${item.product_id}-${loc.id}`} className="bg-blue-50/40 text-xs">
+                                <td className="py-1.5 pl-8 pr-4">
+                                  <LocationLabel loc={loc} />
+                                </td>
+                                <td className="px-4 py-1.5 text-center font-semibold text-emerald-600">
+                                  {nf.format(loc.qty)}
+                                </td>
+                                <td className="px-4 py-1.5 text-center">
+                                  {loc.returned > 0 ? (
+                                    <span className="font-medium text-amber-600">{nf.format(loc.returned)}</span>
+                                  ) : (
+                                    <span className="text-neutral-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-1.5 text-center font-medium text-neutral-700">
+                                  {nf.format(loc.remaining)}
+                                </td>
+                                <td />
+                              </tr>
+                            ))}
+                          </React.Fragment>
                         );
                       })}
 
@@ -1270,5 +1336,16 @@ export default function SaleHistory({
         />
       )}
     </>
+  );
+}
+
+// Where sold units came from: a warehouse, or a branch (this one or another)
+function LocationLabel({ loc, className = "" }) {
+  const Icon = loc.isWarehouse ? Warehouse : Store;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${loc.isWarehouse ? "text-blue-600" : "text-emerald-700"} ${className}`}>
+      <Icon className="w-3 h-3 shrink-0" />
+      {loc.name}
+    </span>
   );
 }

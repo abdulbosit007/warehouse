@@ -1170,6 +1170,7 @@
       "colReturned": "Қайтарилган",
       "colRemaining": "Қолдиқ",
       "fromLocation": "{{name}} дан",
+      "locationsCount": "{{count}} та жой",
       "statusCompleted": "Бажарилди",
       "statusRejected": "Рад этилди",
       "statusReady": "Тайёр",
