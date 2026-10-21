@@ -1170,6 +1170,7 @@
       "colReturned": "Returned",
       "colRemaining": "Remaining",
       "fromLocation": "from {{name}}",
+      "locationsCount": "{{count}} locations",
       "statusCompleted": "Completed",
       "statusRejected": "Rejected",
       "statusReady": "Ready",

@@ -1170,6 +1170,7 @@
       "colReturned": "Qaytarilgan",
       "colRemaining": "Qoldiq",
       "fromLocation": "{{name}} dan",
+      "locationsCount": "{{count}} ta joy",
       "statusCompleted": "Bajarildi",
       "statusRejected": "Rad etildi",
       "statusReady": "Tayyor",

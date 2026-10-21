@@ -1170,6 +1170,7 @@
       "colReturned": "Возвращено",
       "colRemaining": "Остаток",
       "fromLocation": "из {{name}}",
+      "locationsCount": "Локаций: {{count}}",
       "statusCompleted": "Выполнено",
       "statusRejected": "Отклонено",
       "statusReady": "Готово",
