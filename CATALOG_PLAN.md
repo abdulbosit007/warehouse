@@ -60,22 +60,30 @@ Rules:
 
 ## Step 1 — Database
 
-- [ ] **1.1 `CATALOG_TABLES.sql`** — the four tables above, empty. Only the owner can change
+- [x] **1.1 `CATALOG_TABLES.sql`** (run 2026-10-21, test passed) — the four tables above, empty. Only the owner can change
       them; nobody reads them directly. With `CATALOG_TABLES_UNDO.sql` and a rolled-back test.
-- [ ] **1.2 Read functions for the website** (safe fields only, **never** the cost price):
-  - `catalog_list(page, size, filters)` — cards with pages; filters: category, colour, in stock, search
-  - `catalog_model(slug)` — one model: sizes (siblings), variants, photos, price, stock
+- [x] **1.2 Read functions for the website** (`CATALOG_READ.sql`, run 2026-10-21, test passed) (safe fields only, **no prices at all**):
+  - `catalog_list(page, size, filters)` — one card per family (a model without a family is its
+    own card), with pages; filters: category, colour, in stock, search
+  - `catalog_model(slug)` — one model: its sizes (family members), variants, photos, stock
+  - stock = available quantity added up over **all locations**, shown as a number and a word;
+    0 → "Out of stock"
   - `catalog_filters()` — categories and colours that exist
-- [ ] **1.3 Website access** — `fn_api_gate` blocks everyone not signed in. Add a narrow
+- [x] **1.3 Website access** (`CATALOG_GATE.sql`, run 2026-10-21; checked from outside: the three
+      calls answer, tables and other functions are refused) — `fn_api_gate` blocks everyone not signed in. Add a narrow
       exception: visitors may call **only** the three functions above.
       First: a read-only query showing the current gate (definition + fingerprint).
-- [ ] **1.4 `catalog_suggestions()`** — the tested grouping query as a function, owner only,
+- [x] **1.4 `catalog_suggestions()`** (`CATALOG_SUGGESTIONS.sql`, run 2026-10-21, test passed: 942 products suggested) — the tested grouping query as a function, owner only,
       used by the admin screen.
 
 Done when: the test passes, the functions return correct data for a few models, and a
 visitor (not signed in) can call the three read functions and nothing else.
 
-## Step 2 — Admin screen (WMS, owner → "Catalog" tab)
+## Step 2 — Admin screen (inside the WMS: owner → "Catalog" tab)
+
+Only the owner sees the tab; the database also allows only the owner
+(`fn_is_owner_user`) to read or change the catalog tables. The catalog web app
+itself has no admin and no sign-in.
 
 - [ ] **2.1 Suggestions** — list of suggested groups; fix (remove/add products, labels,
       colours, sizes) → **Confirm** creates the family, models and variants.
@@ -96,9 +104,13 @@ Done when: a few real models are made from suggestions, edited and switched on.
 
 Done when: the photos of the first models show in the admin screen.
 
-## Step 4 — Website (separate project)
+## Step 4 — Website (separate project, deployed to Cloudflare Pages)
 
-- [ ] **4.1** Project set-up (tech and hosting — see decisions).
+Visitors need no account and no role: they only read the catalog (through the
+step 1.2 functions).
+
+- [ ] **4.1** Project set-up: a separate web app (its own repository), on Cloudflare Pages, using the
+      same Supabase project as the WMS (address + public key only).
 - [ ] **4.2** Pages: home with categories · category page with filters and pages ·
       model page with size buttons and colour buttons · search.
 - [ ] **4.3** Languages.
@@ -116,11 +128,14 @@ Done when: the site shows the published models correctly on a phone and a comput
 
 | When | Question | Recommendation | Answer |
 |---|---|---|---|
-| Before step 1 | Which price does the site show? | `sale_price` | |
-| Before step 1 | Stock: exact numbers, or "in stock / few left / out of stock"? Which locations count? | the three words; all locations | |
-| Before step 1 | Product list: one card per family, or one per size? | one per family | |
+| Before step 1 | Which price does the site show? | `sale_price` | **no price for now; may be added later** (then: one owner setting + the price field in the read functions — no table change) |
+| Before step 1 | Stock: exact numbers, or "in stock / few left / out of stock"? Which locations count? | the three words; all locations | **number + word, "Out of stock" at 0; total of all locations** |
+| Before step 1 | Product list: one card per family, or one per size? | one per family | **one card per family; on the page: size (family member) and colour toggles** |
 | Before step 3 | Photos in Cloudflare R2? | yes | |
-| Before step 4 | Website tech and hosting | Astro + Cloudflare Pages | |
+| Before step 4 | Website tech and hosting | Next.js (React, like the WMS; pages made on the server so search engines can read them) | **separate app on Cloudflare Pages** (free plan allows commercial use; Vercel Hobby does not). Tech: to confirm at step 4 |
+| — | Supabase plan | — | **free until going live, then the paid plan** (the paid plan adds daily backups) |
+| Before step 2 | Where is the admin? | inside the WMS | **inside the WMS, owner only ("Catalog" tab)** |
+| — | Who can view the catalog? | — | **everyone, no account or role needed** |
 | Before step 4 | Domain, languages | yours to pick | |
 | Before step 4 | Browse only, or an "order" button (e.g. a message to Telegram)? | browse only first | |
 
