@@ -24,6 +24,7 @@ import OwnerAuditDetail from "../pages/owner/AuditDetail";
 import OwnerSettings from "../pages/owner/Settings";
 import BatchDetail from "../pages/owner/BatchDetail";
 import OwnerHome from "../pages/owner/Home";
+import OwnerCatalog from "../pages/owner/Catalog";
 
 // Branch Pages
 import BranchStockCorrections from "../pages/branch/StockCorrections";
@@ -71,6 +72,7 @@ export default function AllRouters({ user }) {
           <Route path="inventory-batches" element={<OwnerInventoryBatches />} />
           <Route path="inventory-batches/:locationId" element={<OwnerInventoryBatchDetail />} />
           <Route path="audit/:id" element={<OwnerAuditDetail />} />
+          <Route path="catalog" element={<OwnerCatalog />} />
           <Route path="settings" element={<OwnerSettings />} />
           <Route path="profile" element={<Profile />} />
           <Route path="batch/:id" element={<BatchDetail />} />
