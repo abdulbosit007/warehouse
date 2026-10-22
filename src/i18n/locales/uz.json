@@ -2217,5 +2217,24 @@
       "needProduct": "Modelda kamida bitta mahsulot bo‘lishi kerak.",
       "saved": "Saqlandi."
     }
+  },
+  "auditCount": {
+    "system": "Tizim",
+    "counted": "Sanaldi",
+    "noParts": "Hali hech narsa qo'shilmagan",
+    "addingTo": "Qayerga",
+    "viewExisting": "Bor mahsulotlar",
+    "viewZero": "Tizimda 0",
+    "zeroHint": "Ixtiyoriy qayta tekshiruv: faqat shu yerda haqiqatan topganingizni sanang. Sanalmaganlari 0 bo'lib qoladi.",
+    "removePart": "Bu qismni olib tashlash",
+    "qtyPlaceholder": "Soni",
+    "add": "Qo'shish",
+    "addHint": "Boshqa joyda yana topdingizmi? Sonini yozib, «Qo'shish»ni bosing — ustiga qo'shiladi.",
+    "clear": "Sanoqni tozalash",
+    "matchesSystem": "Tizim bilan bir xil ({{qty}})",
+    "doneNext": "Tayyor, keyingisi",
+    "notCounted": "Sanalmagan",
+    "status": "Holat",
+    "confirmFar": "{{name}}: tizimda {{system}}, siz {{total}} sanadingiz. To'g'rimi?"
   }
 }
