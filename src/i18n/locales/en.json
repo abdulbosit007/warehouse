@@ -2217,5 +2217,24 @@
       "needProduct": "The model needs at least one product.",
       "saved": "Saved."
     }
+  },
+  "auditCount": {
+    "system": "System",
+    "counted": "Counted",
+    "noParts": "Nothing added yet",
+    "addingTo": "Adding to",
+    "viewExisting": "In stock",
+    "viewZero": "0 in system",
+    "zeroHint": "Optional double check: count only what you actually find here. Products you don't count stay 0.",
+    "removePart": "Remove this part",
+    "qtyPlaceholder": "Qty",
+    "add": "Add",
+    "addHint": "Found more in another place? Type the number and press Add — it adds up.",
+    "clear": "Clear count",
+    "matchesSystem": "Matches system ({{qty}})",
+    "doneNext": "Done, next",
+    "notCounted": "Not counted",
+    "status": "Status",
+    "confirmFar": "{{name}}: the system shows {{system}}, you counted {{total}}. Is this correct?"
   }
 }

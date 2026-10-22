@@ -6,6 +6,7 @@ import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import WaitingDeliveriesWarning from "../../components/WaitingDeliveriesWarning";
 import CustomSelect from "../../components/CustomSelect";
+import AuditCountRow, { AuditSavedToast } from "../../components/AuditCountRow";
 import {
   Package,
   Check,
@@ -17,7 +18,6 @@ import {
   CheckCircle2,
   XCircle,
   ClipboardList,
-  RotateCcw,
   Hash,
   ChevronDown,
   Search,
@@ -26,158 +26,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   PRODUCT CARD - Professional Styled
-───────────────────────────────────────────────────────────────────────────── */
-function ProductCard({ product, currentQty, status, reportedQty, onConfirm, onReject, onEdit }) {
-  const { t } = useTranslation();
-  const [showEdit, setShowEdit] = useState(false);
-  const [editQty, setEditQty] = useState(reportedQty ?? "");
-
-  const handleReject = () => {
-    if (editQty === "" || editQty === null || editQty === undefined || Number(editQty) < 0) {
-      alert(t("warehouseAudit.alert.enterValidQty"));
-      return;
-    }
-    const enteredQty = Number(editQty);
-    if (enteredQty === currentQty) {
-      onConfirm();
-    } else {
-      onReject(enteredQty);
-    }
-    setShowEdit(false);
-  };
-
-  const handleKeyDown = (e) => { if (e.key === "Enter") handleReject(); };
-
-  const diff = status === "rejected" && reportedQty != null ? reportedQty - currentQty : null;
-
-  // Left accent strip
-  const accentColor =
-    status === "confirmed" ? "bg-emerald-500" :
-    status === "rejected"  ? "bg-red-500"     : "bg-neutral-200";
-
-  // Row background
-  const rowBg =
-    status === "confirmed" ? "bg-emerald-50/60" :
-    status === "rejected"  ? "bg-red-50/60"     :
-    showEdit               ? "bg-blue-50/40"    : "bg-white hover:bg-neutral-50/80";
-
-  return (
-    <div className={`flex items-center gap-0 transition-all duration-150 ${rowBg}`}>
-      {/* Accent strip */}
-      <div className={`w-1 self-stretch shrink-0 ${accentColor}`} />
-
-      {/* Row body */}
-      <div className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3 max-md:flex-wrap max-md:gap-y-2.5 max-md:px-3">
-
-        {/* Product name + SKU */}
-        <div className="flex-1 min-w-0">
-          <span className="font-semibold text-neutral-900 text-sm leading-tight block truncate max-md:whitespace-normal">
-            {product.name}
-          </span>
-          <span className="text-xs text-neutral-400 font-mono">{product.sku}</span>
-        </div>
-
-        {/* System qty */}
-        <div className="text-center shrink-0 w-14">
-          <div className="text-base font-bold text-neutral-800 leading-tight">{currentQty}</div>
-          <div className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider">
-            {t("warehouseAudit.labels.systemQty")}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="w-px h-8 bg-neutral-200 shrink-0 max-md:hidden" />
-
-        {/* Action zone */}
-        <div className="shrink-0 max-md:basis-full">
-          {status === "confirmed" ? (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              <span className="text-sm font-semibold text-emerald-700">
-                {t("warehouseAudit.status.verifiedCorrect")}
-              </span>
-              <button
-                onClick={() => onEdit()}
-                className="ml-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-              >
-                <RotateCcw className="w-3 h-3" />
-                {t("warehouseAudit.actions.undo")}
-              </button>
-            </div>
-
-          ) : status === "rejected" ? (
-            <div className="flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-500" />
-              <span className="text-sm font-semibold text-red-700">
-                {t("warehouseAudit.labels.actual")}: <b>{reportedQty}</b>
-              </span>
-              {diff !== null && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  diff > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                }`}>
-                  {diff > 0 ? "+" : ""}{diff}
-                </span>
-              )}
-              <button
-                onClick={() => { onEdit(); setShowEdit(true); setEditQty(reportedQty ?? ""); }}
-                className="ml-1 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-              >
-                {t("warehouseAudit.actions.edit")}
-              </button>
-            </div>
-
-          ) : showEdit ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                value={editQty}
-                onChange={(e) => setEditQty(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="0"
-                className="w-20 max-md:flex-1 max-md:min-w-0 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                autoFocus
-              />
-              <button
-                onClick={handleReject}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 text-white px-3 py-1.5 text-sm font-semibold hover:bg-emerald-600 active:scale-95 transition-all"
-              >
-                <Check className="w-4 h-4" />
-                {t("warehouseAudit.actions.save")}
-              </button>
-              <button
-                onClick={() => setShowEdit(false)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-neutral-600 bg-white rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
-              >
-                {t("warehouseAudit.actions.cancel")}
-              </button>
-            </div>
-
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onConfirm}
-                className="inline-flex items-center gap-1.5 max-md:flex-1 max-md:justify-center max-md:py-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1.5 text-sm font-semibold hover:bg-emerald-100 hover:border-emerald-300 active:scale-95 transition-all"
-              >
-                <Check className="w-4 h-4" />
-                {t("warehouseAudit.actions.correct")}
-              </button>
-              <button
-                onClick={() => setShowEdit(true)}
-                className="inline-flex items-center gap-1.5 max-md:flex-1 max-md:justify-center max-md:py-2 rounded-lg border-2 border-red-200 bg-red-50 text-red-700 px-3 py-1.5 text-sm font-semibold hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all"
-              >
-                <X className="w-4 h-4" />
-                {t("warehouseAudit.actions.wrong")}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// Audit lists are always in the same order: by name, then SKU
+const byName = (a, b) =>
+  (a.name || "").localeCompare(b.name || "") || (a.sku || "").localeCompare(b.sku || "");
 
 /* ─────────────────────────────────────────────────────────────────────────────
    AUDIT DETAIL MODAL - View submitted audit details
@@ -346,6 +197,10 @@ export default function WarehouseAuditReview({ asTab = false }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
   const [currentPendingIndex, setCurrentPendingIndex] = useState(0);
+  const [openId, setOpenId] = useState(null); // the one product open for counting
+  const [stockView, setStockView] = useState("existing"); // "existing" | "zero" (0 in the system, optional)
+  const [keepIds, setKeepIds] = useState(() => new Set()); // counted just now: stay in the Pending list (no jumping rows)
+  const [toast, setToast] = useState(null);
 
   const getStorageKey = (sessionId, locId) => `audit_reviews_${locId}_${sessionId}`;
 
@@ -577,12 +432,15 @@ export default function WarehouseAuditReview({ asTab = false }) {
     return entry?.quantity || 0;
   };
 
-  const handleConfirm = (productId) => {
-    setReviews((prev) => ({ ...prev, [productId]: { status: "confirmed" } }));
-  };
-
-  const handleReject = (productId, reportedQty) => {
-    setReviews((prev) => ({ ...prev, [productId]: { status: "rejected", reportedQty } }));
+  // The count is kept with its parts (3 + 2 + 1); equal to the system qty → confirmed
+  const handleCount = (productId, parts) => {
+    const total = parts.reduce((s, n) => s + n, 0);
+    setReviews((prev) => ({
+      ...prev,
+      [productId]: total === getQtyAt(productId)
+        ? { status: "confirmed", parts }
+        : { status: "rejected", reportedQty: total, parts },
+    }));
   };
 
   const handleUndo = (productId) => {
@@ -595,15 +453,21 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   // Products with non-zero qty at this location (the main audit list)
   const nonZeroProducts = useMemo(() => {
-    return products.filter((p) => getQtyAt(p.id) > 0);
+    return products.filter((p) => getQtyAt(p.id) > 0).sort(byName);
   }, [products, productList, warehouseLocation]);
+
+  // 0 in the system here: an optional double check (not needed to send the audit)
+  const zeroProducts = useMemo(() => {
+    return products.filter((p) => getQtyAt(p.id) === 0).sort(byName);
+  }, [products, productList, warehouseLocation]);
+  const viewProducts = stockView === "zero" ? zeroProducts : nonZeroProducts;
 
   const filteredProducts = useMemo(() => {
     const isSearching = searchQuery.trim().length > 0;
-    // Start with all products when searching, otherwise only non-zero
-    let result = isSearching ? [...products] : [...nonZeroProducts];
+    // the chosen list: in stock, or 0 in the system
+    let result = [...viewProducts];
 
-    if (statusFilter === "pending") result = result.filter((p) => !reviews[p.id]);
+    if (statusFilter === "pending") result = result.filter((p) => !reviews[p.id] || keepIds.has(p.id));
     else if (statusFilter === "confirmed") result = result.filter((p) => reviews[p.id]?.status === "confirmed");
     else if (statusFilter === "rejected") result = result.filter((p) => reviews[p.id]?.status === "rejected");
 
@@ -614,14 +478,14 @@ export default function WarehouseAuditReview({ asTab = false }) {
       result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     }
 
-    if (sortOrder === "qty_asc") result.sort((a, b) => getQtyAt(a.id) - getQtyAt(b.id));
-    else if (sortOrder === "qty_desc") result.sort((a, b) => getQtyAt(b.id) - getQtyAt(a.id));
+    if (sortOrder === "qty_asc") result.sort((a, b) => getQtyAt(a.id) - getQtyAt(b.id) || byName(a, b));
+    else if (sortOrder === "qty_desc") result.sort((a, b) => getQtyAt(b.id) - getQtyAt(a.id) || byName(a, b));
+    else result.sort(byName);
 
     return result;
-  }, [products, nonZeroProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation]);
+  }, [viewProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation, keepIds]);
 
-  const pendingProducts = useMemo(() => nonZeroProducts.filter((p) => !reviews[p.id]), [nonZeroProducts, reviews]);
-  const currentPendingId = pendingProducts[currentPendingIndex]?.id || null;
+  const pendingProducts = useMemo(() => viewProducts.filter((p) => !reviews[p.id]), [viewProducts, reviews]);
 
   useEffect(() => {
     if (currentPendingIndex >= pendingProducts.length && pendingProducts.length > 0) setCurrentPendingIndex(0);
@@ -631,17 +495,45 @@ export default function WarehouseAuditReview({ asTab = false }) {
     if (pendingProducts.length === 0) return;
     const nextIndex = (currentPendingIndex + 1) % pendingProducts.length;
     setCurrentPendingIndex(nextIndex);
-    const el = document.getElementById(`product-${pendingProducts[nextIndex].id}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setOpenId(pendingProducts[nextIndex].id);
   };
 
   const goToPrevPending = () => {
     if (pendingProducts.length === 0) return;
     const prevIndex = currentPendingIndex === 0 ? pendingProducts.length - 1 : currentPendingIndex - 1;
     setCurrentPendingIndex(prevIndex);
-    const el = document.getElementById(`product-${pendingProducts[prevIndex].id}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setOpenId(pendingProducts[prevIndex].id);
   };
+
+  // Done on a product: save its count, show what was saved, open the next
+  // product of the list (in the order shown) that isn't counted yet
+  const handleCountDone = (product, parts) => {
+    handleCount(product.id, parts);
+    if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
+    setToast({ name: product.name, qty: parts.reduce((s, n) => s + n, 0), at: Date.now() });
+
+    const idx = filteredProducts.findIndex((p) => p.id === product.id);
+    const next = filteredProducts.slice(idx + 1).find((p) => p.id !== product.id && !reviews[p.id]);
+    setOpenId(next ? next.id : null);
+  };
+
+  const handleCountClear = (productId) => {
+    handleUndo(productId);
+    setKeepIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
+  };
+
+  // the saved message goes away by itself
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  // a new list (filter / warehouse) starts without kept rows and with nothing open
+  useEffect(() => {
+    setKeepIds(new Set());
+    setOpenId(null);
+  }, [statusFilter, stockView, warehouseLocation?.id]);
 
   // Allow submission when all non-zero qty products are reviewed
   const allReviewed = nonZeroProducts.length > 0 && nonZeroProducts.every((p) => reviews[p.id]);
@@ -1036,19 +928,47 @@ export default function WarehouseAuditReview({ asTab = false }) {
               />
             </div>
 
+            {/* Which products: in stock (must all be counted) or 0 in the system (optional double check) */}
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-neutral-100 p-1">
+              {[
+                { key: "existing", label: t("auditCount.viewExisting"), count: nonZeroProducts.length },
+                { key: "zero", label: t("auditCount.viewZero"), count: zeroProducts.length },
+              ].map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => { setStockView(v.key); setCurrentPendingIndex(0); }}
+                  aria-pressed={stockView === v.key}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    stockView === v.key
+                      ? v.key === "zero" ? "bg-neutral-700 text-white shadow-sm" : "bg-blue-600 text-white shadow-sm"
+                      : "text-neutral-600 hover:bg-white"
+                  }`}
+                >
+                  <span className="truncate">{v.label}</span>
+                  <span className={`rounded-full px-1.5 text-xs font-bold ${stockView === v.key ? "bg-white/25" : "bg-neutral-200"}`}>
+                    {v.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {stockView === "zero" && (
+              <p className="-mt-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600">{t("auditCount.zeroHint")}</p>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {[
-                { key: "all", label: t("warehouseAudit.tabs.all"), count: searchQuery.trim() ? filteredProducts.length : nonZeroProducts.length },
+                { key: "all", label: t("warehouseAudit.tabs.all"), count: searchQuery.trim() ? filteredProducts.length : viewProducts.length },
                 { key: "pending", label: t("warehouseAudit.tabs.pending"), count: pendingProducts.length },
                 {
                   key: "confirmed",
                   label: t("warehouseAudit.tabs.confirmed"),
-                  count: Object.values(reviews).filter((r) => r.status === "confirmed").length,
+                  count: viewProducts.filter((p) => reviews[p.id]?.status === "confirmed").length,
                 },
                 {
                   key: "rejected",
                   label: t("warehouseAudit.tabs.discrepancies"),
-                  count: Object.values(reviews).filter((r) => r.status === "rejected").length,
+                  count: viewProducts.filter((p) => reviews[p.id]?.status === "rejected").length,
                 },
               ].map((tab) => (
                 <button
@@ -1103,14 +1023,14 @@ export default function WarehouseAuditReview({ asTab = false }) {
             <div className="flex items-center gap-3 px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
               <div className="w-1 shrink-0" />
               <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                {filteredProducts.length} products
+                {t("warehouseAudit.tabs.all")} · {filteredProducts.length}
               </div>
               <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider max-md:hidden">
                 {t("warehouseAudit.labels.systemQty")}
               </div>
               <div className="w-px h-4 bg-neutral-200 shrink-0 max-md:hidden" />
-              <div className="w-56 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-1 max-md:hidden">
-                {t("warehouseAudit.actions.correct")} / {t("warehouseAudit.actions.wrong")}
+              <div className="w-28 text-right text-[11px] font-semibold text-neutral-500 uppercase tracking-wider pr-4 max-md:hidden">
+                {t("auditCount.status")}
               </div>
             </div>
 
@@ -1121,32 +1041,40 @@ export default function WarehouseAuditReview({ asTab = false }) {
               </div>
             ) : (
               <div className="divide-y divide-neutral-100">
-                {filteredProducts.map((product, idx) => (
-                  <div
-                    key={product.id}
-                    id={`product-${product.id}`}
-                    className={`transition-all duration-200 ${
-                      product.id === currentPendingId ? "ring-2 ring-inset ring-blue-400" : ""
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <span className="w-8 shrink-0 text-center text-[11px] text-neutral-300 font-mono select-none max-md:hidden">
+                {filteredProducts.map((product, idx) => {
+                  const r = reviews[product.id];
+                  const systemQty = getQtyAt(product.id);
+                  const total = !r ? null : r.status === "confirmed" ? systemQty : r.reportedQty;
+                  const status = !r ? "pending" : r.status === "confirmed" ? "match" : "diff";
+                  return (
+                    <div
+                      key={product.id}
+                      id={`product-${product.id}`}
+                      className="flex items-stretch"
+                    >
+                      <span className="w-8 shrink-0 pt-4 text-center text-[11px] text-neutral-300 font-mono select-none max-md:hidden">
                         {idx + 1}
                       </span>
-                      <div className="flex-1 max-md:min-w-0">
-                        <ProductCard
+                      <div className="flex-1 min-w-0">
+                        <AuditCountRow
                           product={product}
-                          currentQty={getQtyAt(product.id)}
-                          status={reviews[product.id]?.status}
-                          reportedQty={reviews[product.id]?.reportedQty}
-                          onConfirm={() => handleConfirm(product.id)}
-                          onReject={(qty) => handleReject(product.id, qty)}
-                          onEdit={() => handleUndo(product.id)}
+                          systemQty={systemQty}
+                          status={status}
+                          savedTotal={total}
+                          savedParts={{ count: r?.parts || (total != null ? [total] : []) }}
+                          diff={status === "diff" ? total - systemQty : null}
+                          isOpen={openId === product.id}
+                          dimmed={openId != null && openId !== product.id}
+                          onOpen={() => setOpenId(product.id)}
+                          onClose={() => setOpenId(null)}
+                          onDone={(byPlace) => handleCountDone(product, byPlace.count)}
+                          onClear={() => handleCountClear(product.id)}
+                          quickMatch
                         />
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1199,6 +1127,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
           </div>
         </>
       )}
+
+      <AuditSavedToast toast={toast} />
 
       {selectedAuditDetail && (
         <AuditDetailModal audit={selectedAuditDetail} products={products} onClose={() => setSelectedAuditDetail(null)} />
