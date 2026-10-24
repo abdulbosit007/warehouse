@@ -1,5 +1,5 @@
 // src/pages/owner/BatchDetail.jsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getBatch,
@@ -12,7 +12,9 @@ import {
   ownerAcceptWarehouseDecision,
   ownerResendRejected,
   ownerApproveNoSuchProduct,
+  groupDeliveries,
 } from "../../lib/incoming";
+import { DeliveryQty, DeliveryStatus, DeliveryHistory } from "../../components/incoming/IncomingParts";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
@@ -27,6 +29,7 @@ import {
   Trash2,
   RefreshCw,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -308,41 +311,6 @@ function DraftRow({ row, onDelete, categories }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SENT/APPROVED/REJECTED ROW
-───────────────────────────────────────────────────────────────────────────── */
-function ItemRow({ row, categories, onClickRejected }) {
-  const { t } = useTranslation();
-  const isRejected = row.status === "rejected";
-
-  return (
-    <tr
-      onClick={() => isRejected && onClickRejected?.(row)}
-      className={`hover:bg-neutral-50 transition-colors ${isRejected ? "cursor-pointer bg-red-50/30" : ""}`}
-    >
-      <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
-        <span className="text-sm">{row.product_name || <span className="text-neutral-400">—</span>}</span>
-      </td>
-      <td className="px-4 py-3">
-        <span className="text-sm font-mono text-neutral-600">{row.sku || "—"}</span>
-      </td>
-      <td className="px-4 py-3">
-        <span className="text-sm">
-          {categories.find((c) => c.id === row.category_id)?.name || (
-            <span className="text-red-500">{t("ownerBatchDetail.missing")}</span>
-          )}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-center">
-        <span className="text-sm font-medium">{row.quantity ?? "—"}</span>
-      </td>
-      <td className="px-4 py-3">
-        <StatusBadge status={row.status} />
-      </td>
-    </tr>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function BatchDetail() {
@@ -403,13 +371,25 @@ export default function BatchDetail() {
   }, []);
 
   const drafts = useMemo(() => items.filter((i) => i.status === "draft"), [items]);
-  const others = useMemo(() => {
-    const order = { sent: 0, approved: 1, rejected: 2 };
-    return items
-      .filter((i) => i.status !== "draft")
-      .slice()
-      .sort((a, b) => (order[a.status] ?? 99) - (order[b.status] ?? 99));
-  }, [items]);
+  // sent / approved / rejected lines, and the same as deliveries (a line and the
+  // rest-lines made when it arrived in parts) — waiting deliveries first
+  const others = useMemo(() => items.filter((i) => i.status !== "draft"), [items]);
+  const deliveries = useMemo(() => {
+    const all = groupDeliveries(others);
+    const waiting = (g) => g.status === "sent" || g.status === "coming";
+    return all.filter(waiting).concat(all.filter((g) => !waiting(g)));
+  }, [others]);
+  const [openDeliveries, setOpenDeliveries] = useState(() => new Set());
+  const toggleDelivery = (key) =>
+    setOpenDeliveries((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  const reasonLabel = (line) =>
+    t(`ownerBatchDetail.rejectionCodes.${line.rejection_code}`, {
+      defaultValue: line.rejection_code?.replace(/_/g, " ") || t("ownerBatchDetail.status.rejected"),
+    });
 
   const onDeleteDraft = async (row) => {
     setItems((prev) => prev.filter((r) => r.id !== row.id));
@@ -690,14 +670,61 @@ export default function BatchDetail() {
               </thead>
 
               <tbody className="divide-y divide-neutral-100">
-                {others.map((row) => (
-                  <ItemRow
-                    key={row.id}
-                    row={row}
-                    categories={categories}
-                    onClickRejected={(r) => setReviewing(r)}
-                  />
-                ))}
+                {deliveries.map((g) => {
+                  const open = openDeliveries.has(g.key);
+                  // a decision waits for the owner (qty fix / no such product); "did not arrive" needs none
+                  const needsLook = g.lines.some((l) => l.status === "rejected" && l.rejection_code !== "not_arrived");
+                  return (
+                    <Fragment key={g.key}>
+                      <tr
+                        onClick={() => toggleDelivery(g.key)}
+                        className={`cursor-pointer hover:bg-neutral-50 transition-colors ${g.status === "rejected" ? "bg-red-50/30" : ""}`}
+                      >
+                        <td className="px-4 py-3 max-md:whitespace-normal max-md:min-w-[10rem]">
+                          <span className="inline-flex items-center gap-1.5 text-sm">
+                            <ChevronDown className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                            {g.root.product_name || <span className="text-neutral-400">—</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-mono text-neutral-600">{g.root.sku || "—"}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm">
+                            {categories.find((c) => c.id === g.root.category_id)?.name || (
+                              <span className="text-red-500">{t("ownerBatchDetail.missing")}</span>
+                            )}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <DeliveryQty group={g} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-2">
+                            <DeliveryStatus
+                              group={g}
+                              sentLabel={t("ownerBatchDetail.status.sent")}
+                              rejectedLabel={t("ownerBatchDetail.status.rejected")}
+                            />
+                            {needsLook && <span className="w-2 h-2 rounded-full bg-red-500" title={t("ownerBatchDetail.reviewModal.title")} />}
+                          </span>
+                        </td>
+                      </tr>
+                      {open && (
+                        <tr className="bg-neutral-50/70">
+                          <td colSpan={5} className="px-4 py-3">
+                            <DeliveryHistory
+                              group={g}
+                              reasonLabel={reasonLabel}
+                              onLineClick={(line) => setReviewing(line)}
+                              lineActionLabel={t("incomingParts.review")}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

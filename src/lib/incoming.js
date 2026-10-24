@@ -137,29 +137,87 @@ export async function sendAllDraftItems(batchId) {
  * WAREHOUSE ACTIONS
  * ============================ */
 
-export async function approveItem(itemId, warehouseUserId, locationId = null) {
-  // Atomic: claims the item (sent->approved), resolves/creates the product,
-  // and adds stock in ONE transaction. If stock fails, everything rolls back —
-  // no stuck 'approved' item (the fn_items_edit_guard trigger blocks reverting
-  // approved->sent, so this MUST be done server-side in a single transaction).
-  const { error } = await supabase.rpc("fn_approve_incoming_item", {
+/**
+ * Accept with "how many arrived" (fn_receive_incoming_item, one transaction):
+ * fewer than sent → that many go into stock and the rest waits as a new line of
+ * the same batch; more than sent → all of it goes into stock and the line keeps
+ * what was sent (sent_quantity) for the owner.
+ * Returns the id of the new waiting line (null when nothing is left).
+ */
+export async function receiveItem(itemId, warehouseUserId, locationId, qty) {
+  const { data, error } = await supabase.rpc("fn_receive_incoming_item", {
     p_item_id: itemId,
     p_location_id: locationId,
+    p_qty: qty,
     p_reviewed_by: warehouseUserId,
   });
-  if (error) {
-    console.error("[approveItem] error:", error);
-    return { data: null, error };
-  }
-  // Return the updated row for callers that read it.
-  const { data: item } = await supabase
-    .from("incoming_batch_items")
-    .select("*")
-    .eq("id", itemId)
-    .single();
-  return { data: item, error: null };
+  if (error) console.error("[receiveItem] error:", error);
+  return { data: data ?? null, error };
 }
 
+/**
+ * More arrived later for an already accepted delivery (fn_receive_incoming_extra):
+ * goes into stock at once as one more accepted line of it — the owner sees "+N".
+ * Refused while part of that delivery is still waiting (accept that line instead).
+ */
+export async function receiveExtra(itemId, warehouseUserId, locationId, qty) {
+  const { data, error } = await supabase.rpc("fn_receive_incoming_extra", {
+    p_item_id: itemId,
+    p_location_id: locationId,
+    p_qty: qty,
+    p_reviewed_by: warehouseUserId,
+  });
+  if (error) console.error("[receiveExtra] error:", error);
+  return { data: data ?? null, error };
+}
+
+/**
+ * Lines of one delivery together: the first line, then the rest-lines made when it
+ * arrived in parts (split_from), in the order they were made.
+ */
+export function sortByDelivery(items) {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const root = (i) => byId.get(i.split_from) || i;
+  return items.slice().sort((a, b) =>
+    String(root(a).created_at || "").localeCompare(String(root(b).created_at || "")) ||
+    String(root(a).id).localeCompare(String(root(b).id)) ||
+    (a.split_from ? 1 : 0) - (b.split_from ? 1 : 0) ||
+    String(a.created_at || "").localeCompare(String(b.created_at || ""))
+  );
+}
+
+
+/**
+ * One entry per delivery (a line and the rest-lines made when it arrived in parts):
+ *   sent       what the owner sent (the first line's sent amount)
+ *   arrived    accepted so far · waiting: still to come · notArrived: rejected as never came
+ *   extra      arrived above what was sent
+ *   status     "sent" (nothing decided yet) | "coming" (part arrived, rest waiting)
+ *              | "full" | "partly" (some never came / was rejected) | "rejected"
+ */
+export function groupDeliveries(items) {
+  const groups = new Map();
+  for (const line of sortByDelivery(items)) {
+    const key = line.split_from || line.id;
+    if (!groups.has(key)) groups.set(key, { key, lines: [] });
+    groups.get(key).lines.push(line);
+  }
+  return [...groups.values()].map((g) => {
+    const root = g.lines.find((l) => l.id === g.key) || g.lines[0];
+    const sum = (pick) => g.lines.filter(pick).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+    const sent = Number(root.sent_quantity ?? root.quantity) || 0;
+    const arrived = sum((l) => l.status === "approved");
+    const waiting = sum((l) => l.status === "sent");
+    const notArrived = sum((l) => l.status === "rejected" && l.rejection_code === "not_arrived");
+    const otherRejected = g.lines.some((l) => l.status === "rejected" && l.rejection_code !== "not_arrived");
+    const status =
+      waiting > 0 ? (arrived > 0 ? "coming" : "sent")
+      : arrived === 0 ? "rejected"
+      : notArrived > 0 || otherRejected ? "partly"
+      : "full";
+    return { ...g, root, sent, arrived, waiting, notArrived, extra: Math.max(0, arrived - sent), status };
+  });
+}
 
 /** Reject with strict shape */
 export async function rejectItemWithCode(

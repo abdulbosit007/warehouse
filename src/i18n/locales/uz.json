@@ -315,7 +315,8 @@
     },
     "rejectionCodes": {
       "qty_mismatch": "Miqdor mos kelmadi",
-      "no_such_product": "Bunday mahsulot yo‘q"
+      "no_such_product": "Bunday mahsulot yo‘q",
+      "not_arrived": "Kelmadi"
     },
     "reviewModal": {
       "title": "Ombor javobi"
@@ -1521,7 +1522,8 @@
       "reject": "Rad etish",
       "cancel": "Bekor qilish",
       "details": "Batafsil",
-      "close": "Yopish"
+      "close": "Yopish",
+      "confirmReject": "Rad etish"
     },
     "labels": {
       "dash": "—"
@@ -1538,11 +1540,8 @@
         "noSuchItem": "Bunday mahsulot yo‘q"
       },
       "placeholders": {
-        "correctQty": "To‘g‘ri miqdorni kiriting"
       },
       "errors": {
-        "validPositiveQty": "Iltimos, musbat va to‘g‘ri miqdor kiriting.",
-        "mustBeDifferent": "To‘g‘rilangan miqdor boshqacha bo‘lishi kerak."
       }
     },
     "rejectedInfo": {
@@ -2236,5 +2235,26 @@
     "notCounted": "Sanalmagan",
     "status": "Holat",
     "confirmFar": "{{name}}: tizimda {{system}}, siz {{total}} sanadingiz. To'g'rimi?"
+  },
+  "incomingParts": {
+    "arrivedLabel": "Qancha keldi?",
+    "restNote": "Qolgan {{count}} tasi kelguncha alohida qator bo'lib kutadi.",
+    "extraNote": "Yuborilganidan {{count}} ta ko'p — hammasi omborga qo'shiladi, egasi buni ko'radi.",
+    "notArrived": "Kelmadi",
+    "moreThanSent": "+{{count}} ortiqcha keldi",
+    "statusFull": "To'liq keldi",
+    "statusPartly": "Miqdor mos emas",
+    "statusComing": "Hali keladi",
+    "waitingCount": "{{count}} ta kutilmoqda",
+    "arrivedSoFar": "{{sent}} tadan {{arrived}} tasi allaqachon keldi",
+    "lineArrived": "Keldi",
+    "lineWaiting": "Kutilmoqda",
+    "review": "Ko'rib chiqish",
+    "confirmRest": "{{sent}} tadan {{arrived}} tasi allaqachon keldi. Qolgan {{count}} tasi kelmasligini tasdiqlang — mahsulot «{{reason}}» deb belgilanadi.",
+    "confirmNone": "{{name}} ×{{count}}: kelmaganini (yoki yetkazib berishda yo'qligini) tasdiqlang. Egasi buni ko'radi va qayta yuborishi mumkin.",
+    "extraBtn": "Yana keldi",
+    "extraQtyLabel": "Yana qancha keldi?",
+    "extraHint": "Hozir omborga qo'shiladi; egasi buni ortiqcha kelgan deb ko'radi.",
+    "reviveHint": "{{count}} tasi «Kelmadi» deb belgilangan edi — endi kelgan deb hisoblanadi; undan ko'pi ortiqcha bo'lib qo'shiladi."
   }
 }
