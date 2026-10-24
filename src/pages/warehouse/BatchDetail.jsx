@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   getBatch,
   getBatchItems,
   getCategories,
-  approveItem,
+  receiveItem,
+  receiveExtra,
   rejectItemWithCode,
   getWarehouseLocations,
+  sortByDelivery,
+  groupDeliveries,
 } from "../../lib/incoming";
+import { DeliveryQty, DeliveryStatus, DeliveryHistory } from "../../components/incoming/IncomingParts";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import {
@@ -19,53 +23,30 @@ import {
   AlertCircle,
   RefreshCw,
   MapPin,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   STATUS BADGE
-───────────────────────────────────────────────────────────────────────────── */
-function StatusBadge({ status }) {
-  const { t } = useTranslation();
-  const v = (status || "").toLowerCase();
-
-  const config = {
-    sent: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500" },
-    approved: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
-    rejected: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", dot: "bg-red-500" },
-  };
-  const c = config[v] || config.sent;
-
-  const label =
-    v === "sent"
-      ? t("warehouseBatchDetail.status.sent")
-      : v === "approved"
-      ? t("warehouseBatchDetail.status.approved")
-      : v === "rejected"
-      ? t("warehouseBatchDetail.status.rejected")
-      : (v ? v.charAt(0).toUpperCase() + v.slice(1) : "—");
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full ${c.bg} border ${c.border} px-2.5 py-1 text-xs font-medium ${c.text}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-      {label}
-    </span>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   APPROVE MODAL - Select warehouse location
+   APPROVE MODAL - Select warehouse location, how many arrived
 ───────────────────────────────────────────────────────────────────────────── */
 function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
   const { t } = useTranslation();
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [arrived, setArrived] = useState("");
 
   useEffect(() => {
-    if (item) setSelectedLocation("");
+    if (item) {
+      setSelectedLocation("");
+      setArrived(String(item.quantity ?? ""));
+    }
   }, [item]);
 
   if (!item) return null;
+
+  const sent = Number(item.quantity) || 0;
+  const arrivedNum = Number(arrived);
+  const arrivedOk = arrived !== "" && Number.isInteger(arrivedNum) && arrivedNum >= 1;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
@@ -92,6 +73,31 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
                 ×{item.quantity || 0}
               </span>
             </div>
+          </div>
+
+          {/* How many arrived (fewer: the rest waits as a new line; more: the owner sees it) */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              {t("incomingParts.arrivedLabel")}
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={arrived}
+              onChange={(e) => setArrived(e.target.value)}
+              className="w-full rounded-xl border-2 border-neutral-200 px-4 py-3 text-lg font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+            {arrivedOk && arrivedNum < sent && (
+              <p className="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                {t("incomingParts.restNote", { count: sent - arrivedNum })}
+              </p>
+            )}
+            {arrivedOk && arrivedNum > sent && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {t("incomingParts.extraNote", { count: arrivedNum - sent })}
+              </p>
+            )}
           </div>
 
           {/* Location Selection */}
@@ -125,8 +131,8 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
               {t("warehouseBatchDetail.actions.cancel")}
             </button>
             <button
-              onClick={() => onConfirm(selectedLocation)}
-              disabled={!selectedLocation || loading}
+              onClick={() => onConfirm(selectedLocation, arrivedNum)}
+              disabled={!selectedLocation || !arrivedOk || loading}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -146,57 +152,120 @@ function ApproveModal({ item, locations, onClose, onConfirm, loading }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   REJECT SHEET
+   MORE ARRIVED MODAL - more came later for an accepted delivery
 ───────────────────────────────────────────────────────────────────────────── */
-function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [] }) {
+function ExtraModal({ delivery, locations, onClose, onConfirm, loading }) {
   const { t } = useTranslation();
-  const [code, setCode] = useState("");
-  const [qty, setQty] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [err, setErr] = useState("");
+  const [qty, setQty] = useState("1");
+  const [locationId, setLocationId] = useState("");
 
   useEffect(() => {
-    if (!open) {
-      setCode("");
-      setQty("");
-      setSelectedLocation("");
-      setErr("");
+    if (delivery) {
+      // goods marked "did not arrive" came after all → that amount first
+      setQty(String(delivery.notArrived || 1));
+      setLocationId(delivery.lines.find((l) => l.approved_location_id)?.approved_location_id || "");
     }
-  }, [open]);
+  }, [delivery]);
 
-  if (!open) return null;
-
-  const qtyNum = qty === "" ? null : Number(qty);
-  const canSubmit =
-    code === "no_such_product" ||
-    (code === "qty_mismatch" && Number.isFinite(qtyNum) && qtyNum > 0 && qtyNum !== Number(currentQty) && selectedLocation);
-
-  const submit = () => {
-    if (code === "qty_mismatch") {
-      if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
-        setErr(t("warehouseBatchDetail.reject.errors.validPositiveQty"));
-        return;
-      }
-      if (Number(qtyNum) === Number(currentQty)) {
-        setErr(t("warehouseBatchDetail.reject.errors.mustBeDifferent"));
-        return;
-      }
-      if (!selectedLocation) {
-        setErr(t("warehouseBatchDetail.reject.errors.selectLocation", { defaultValue: "Please select a warehouse location." }));
-        return;
-      }
-    }
-    onSubmit({
-      reasonCode: code,
-      fixQuantity: code === "qty_mismatch" ? qtyNum : null,
-      locationId: code === "qty_mismatch" ? selectedLocation : null,
-    });
-  };
+  if (!delivery) return null;
+  const n = Number(qty);
+  const ok = qty !== "" && Number.isInteger(n) && n >= 1 && locationId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Plus className="w-5 h-5 text-white" />
+            <h3 className="text-lg font-semibold text-white">{t("incomingParts.extraBtn")}</h3>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white" aria-label={t("warehouseBatchDetail.actions.close")}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 max-md:p-4 space-y-4">
+          <div className="rounded-xl border border-neutral-200 p-4 bg-neutral-50 flex items-start justify-between">
+            <div>
+              <p className="font-medium text-neutral-900">{delivery.root.product_name || t("warehouseBatchDetail.labels.dash")}</p>
+              <p className="text-sm text-neutral-500 font-mono">{delivery.root.sku || t("warehouseBatchDetail.labels.dash")}</p>
+            </div>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-800">
+              {delivery.arrived} / {delivery.sent}
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">{t("incomingParts.extraQtyLabel")}</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              className="w-full rounded-xl border-2 border-neutral-200 px-4 py-3 text-lg font-bold text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {delivery.notArrived > 0
+                ? t("incomingParts.reviveHint", { count: delivery.notArrived })
+                : t("incomingParts.extraHint")}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <span className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                {t("warehouseBatchDetail.approveModal.selectLocationLabel")}
+              </span>
+            </label>
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              className="w-full rounded-xl border-2 border-neutral-200 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            >
+              <option value="">{t("warehouseBatchDetail.approveModal.chooseLocation")}</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.location_name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              {t("warehouseBatchDetail.actions.cancel")}
+            </button>
+            <button
+              onClick={() => onConfirm(locationId, n)}
+              disabled={!ok || loading}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check className="w-4 h-4" />
+              {t("warehouseBatchDetail.actions.approve")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REJECT SHEET — one reason: the goods did not come (or are not in the delivery).
+   A different quantity is entered on Accept ("how many arrived").
+───────────────────────────────────────────────────────────────────────────── */
+// arrivedSoFar: { arrived, sent } when part of this delivery was already accepted —
+// then the delivery is shown as "quantity mismatch"
+function RejectSheet({ item, onClose, onSubmit, arrivedSoFar = null }) {
+  const { t } = useTranslation();
+  if (!item) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
+      <div onClick={(e) => e.stopPropagation()} className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-white" />
@@ -208,93 +277,17 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [
             <X className="w-5 h-5" />
           </button>
         </div>
-
         <div className="p-6 max-md:p-4 space-y-4">
-          {/* Reason: Qty Mismatch */}
-          <label
-            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-              code === "qty_mismatch"
-                ? "border-amber-400 bg-amber-50/50 shadow-sm"
-                : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-            }`}
-          >
-            <input
-              type="radio"
-              checked={code === "qty_mismatch"}
-              onChange={() => { setErr(""); setCode("qty_mismatch"); }}
-              className="w-4 h-4 text-amber-600 focus:ring-amber-500"
-            />
-            <span className="text-sm font-medium text-neutral-800">
-              {t("warehouseBatchDetail.reject.reasons.qtyMismatch", { defaultValue: "Quantity mismatch" })}
-            </span>
-          </label>
-
-          {/* Qty Mismatch fields */}
-          {code === "qty_mismatch" && (
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
-                  {t("warehouseBatchDetail.reject.placeholders.correctQty", { defaultValue: "Correct quantity" })}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={qty}
-                  onChange={(e) => { setErr(""); setQty(e.target.value); }}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-shadow"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {t("warehouseBatchDetail.approveModal.selectLocationLabel", { defaultValue: "Warehouse location" })}
-                  </span>
-                </label>
-                <select
-                  value={selectedLocation}
-                  onChange={(e) => { setErr(""); setSelectedLocation(e.target.value); }}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-shadow"
-                >
-                  <option value="">{t("warehouseBatchDetail.approveModal.chooseLocation", { defaultValue: "Choose location..." })}</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>{loc.location_name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Reason: No Such Product */}
-          <label
-            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-              code === "no_such_product"
-                ? "border-red-400 bg-red-50/50 shadow-sm"
-                : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-            }`}
-          >
-            <input
-              type="radio"
-              checked={code === "no_such_product"}
-              onChange={() => { setErr(""); setCode("no_such_product"); }}
-              className="w-4 h-4 text-red-600 focus:ring-red-500"
-            />
-            <span className="text-sm font-medium text-neutral-800">
-              {t("warehouseBatchDetail.reject.reasons.noSuchItem", { defaultValue: "No such product" })}
-            </span>
-          </label>
-
-          {/* Error */}
-          {err && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {err}
-            </div>
-          )}
-
-          {/* Actions */}
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            {arrivedSoFar
+              ? t("incomingParts.confirmRest", {
+                  arrived: arrivedSoFar.arrived,
+                  sent: arrivedSoFar.sent,
+                  count: item.quantity,
+                  reason: t("warehouseBatchDetail.reject.reasons.qtyMismatch"),
+                })
+              : t("incomingParts.confirmNone", { name: item.product_name || item.sku || "—", count: item.quantity })}
+          </p>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button
               onClick={onClose}
@@ -303,25 +296,11 @@ function RejectSheet({ open, onClose, onSubmit, currentQty = null, locations = [
               {t("warehouseBatchDetail.actions.cancel", { defaultValue: "Cancel" })}
             </button>
             <button
-              disabled={!canSubmit}
-              onClick={submit}
-              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
-                code === "qty_mismatch"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                  : "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
-              }`}
+              onClick={() => onSubmit({ reasonCode: "not_arrived", fixQuantity: null, locationId: null })}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-red-600 hover:to-rose-700 transition-all"
             >
-              {code === "qty_mismatch" ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  {t("warehouseBatchDetail.actions.sendCorrection", { defaultValue: "Send Correction" })}
-                </>
-              ) : (
-                <>
-                  <X className="w-4 h-4" />
-                  {t("warehouseBatchDetail.actions.confirmReject", { defaultValue: "Reject Item" })}
-                </>
-              )}
+              <X className="w-4 h-4" />
+              {t("warehouseBatchDetail.actions.confirmReject")}
             </button>
           </div>
         </div>
@@ -343,6 +322,8 @@ function RejectedInfoModal({ item, onClose }) {
       ? t("warehouseBatchDetail.reject.reasons.qtyMismatch")
       : item.rejection_code === "no_such_product"
       ? t("warehouseBatchDetail.reject.reasons.noSuchItem")
+      : item.rejection_code === "not_arrived"
+      ? t("incomingParts.notArrived")
       : (item.rejection_code?.replace(/_/g, " ") || t("warehouseBatchDetail.labels.dash"));
 
   return (
@@ -405,6 +386,7 @@ export default function WarehouseBatchDetail() {
 
   const [approveRow, setApproveRow] = useState(null);
   const [rejectRow, setRejectRow] = useState(null);
+  const [extraFor, setExtraFor] = useState(null); // delivery that got more later
   const [showRejectedInfo, setShowRejectedInfo] = useState(null);
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -417,7 +399,7 @@ export default function WarehouseBatchDetail() {
     if (bErr) setErr(bErr.message);
     if (iErr) setErr(iErr.message);
     setBatch(b || null);
-    setItems((it || []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)));
+    setItems(sortByDelivery(it || []));
     setLoading(false);
   }, [id]);
 
@@ -445,21 +427,32 @@ export default function WarehouseBatchDetail() {
   const catName = (catId) => cats.find((c) => c.id === catId)?.name || t("warehouseBatchDetail.labels.dash");
 
   const needs = useMemo(() => items.filter((i) => i.status === "sent"), [items]);
-  const finals = useMemo(
-    () =>
-      items
-        .filter((i) => i.status === "approved" || i.status === "rejected")
-        .sort((a, b) => {
-          const order = { approved: 0, rejected: 1 };
-          return (order[a.status] ?? 9) - (order[b.status] ?? 9);
-        }),
-    [items]
-  );
+  // one entry per delivery; "Completed" shows every delivery with something decided
+  const deliveries = useMemo(() => groupDeliveries(items.filter((i) => i.status !== "draft")), [items]);
+  const deliveryOf = useMemo(() => new Map(deliveries.map((g) => [g.key, g])), [deliveries]);
+  const finals = useMemo(() => deliveries.filter((g) => g.status !== "sent"), [deliveries]);
+  const [openDeliveries, setOpenDeliveries] = useState(() => new Set());
+  const toggleDelivery = (key) =>
+    setOpenDeliveries((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const reasonLabel = (line) =>
+    line.rejection_code === "qty_mismatch"
+      ? `${t("warehouseBatchDetail.reject.reasons.qtyMismatch")} → ${line.corrected_quantity ?? "—"}`
+      : line.rejection_code === "no_such_product"
+      ? t("warehouseBatchDetail.reject.reasons.noSuchItem")
+      : line.rejection_code === "not_arrived"
+      ? t("incomingParts.notArrived")
+      : t("warehouseBatchDetail.status.rejected");
+  const locName = (locId) => locations.find((l) => l.id === locId)?.location_name || "";
 
   const patchLocal = (rowId, patch) => setItems((prev) => prev.map((x) => (x.id === rowId ? { ...x, ...patch } : x)));
 
-  const doApprove = async (row, locationId) => {
-    if (!locationId) return;
+  const doApprove = async (row, locationId, qty) => {
+    if (!locationId || !(qty >= 1)) return;
     setApproving(true);
 
     const optimistic = {
@@ -468,24 +461,29 @@ export default function WarehouseBatchDetail() {
       reviewed_at: new Date().toISOString(),
       rejection_code: null,
       corrected_quantity: null,
+      quantity: qty,
+      sent_quantity: qty !== row.quantity ? row.quantity : null,
     };
     patchLocal(row.id, optimistic);
     setApproveRow(null);
 
-    const { error } = await approveItem(row.id, userRow?.id ?? null, locationId);
-    if (error) {
-      console.error(error);
-      await load();
-    }
+    const { error } = await receiveItem(row.id, userRow?.id ?? null, locationId, qty);
+    // fewer than sent: the rest is a new waiting line → reload to show it
+    await load({ silent: !error });
+    setApproving(false);
+  };
+
+  const doExtra = async (delivery, locationId, qty) => {
+    setApproving(true);
+    setExtraFor(null);
+    const { error } = await receiveExtra(delivery.root.id, userRow?.id ?? null, locationId, qty);
+    if (error) alert(error.message);
+    await load({ silent: true });
     setApproving(false);
   };
 
   const doReject = async (row, payload) => {
     setRejectRow(null);
-    if (payload.reasonCode === "qty_mismatch" && Number(payload.fixQuantity) === Number(row.quantity)) {
-      alert(t("warehouseBatchDetail.reject.errors.mustBeDifferent"));
-      return;
-    }
     const optimistic = {
       status: "rejected",
       reviewed_by: userRow?.id ?? null,
@@ -503,8 +501,68 @@ export default function WarehouseBatchDetail() {
     }
   };
 
-  const visible = mode === "needs" ? needs : finals;
+  const visible = mode === "needs" ? needs : finals; // lines waiting, or deliveries
   const origin = (batch?.origin || "").toLowerCase();
+
+  const renderDelivery = (g) => {
+    const open = openDeliveries.has(g.key);
+    const pad = "px-4 py-3";
+    // more came later: after an arrival, or goods marked "did not arrive" came after all
+    const canMore = g.status === "full" || g.status === "partly" || (g.status === "rejected" && g.notArrived > 0);
+    return (
+      <Fragment key={g.key}>
+        <tr
+          onClick={() => toggleDelivery(g.key)}
+          className="cursor-pointer hover:bg-neutral-50"
+        >
+          <td className={`${pad} text-sm font-mono text-neutral-600`}>{g.root.sku || t("warehouseBatchDetail.labels.dash")}</td>
+          <td className={`${pad} text-sm font-medium max-md:whitespace-normal max-md:min-w-[9rem]`}>
+            <span className="inline-flex items-center gap-1.5">
+              <ChevronDown className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+              {g.root.product_name || t("warehouseBatchDetail.labels.dash")}
+            </span>
+          </td>
+          <td className={`${pad} text-center`}>
+            <DeliveryQty group={g} />
+          </td>
+          <td className={`${pad} text-center text-sm text-neutral-600`}>{catName(g.root.category_id)}</td>
+          <td className={`${pad} text-right max-md:sticky max-md:right-0 max-md:bg-white max-md:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.18)]`}>
+            <DeliveryStatus
+              group={g}
+              sentLabel={t("warehouseBatchDetail.status.sent")}
+              rejectedLabel={t("warehouseBatchDetail.status.rejected")}
+            />
+          </td>
+        </tr>
+        {open && (
+          <tr className="bg-neutral-50/70">
+            <td colSpan={5} className="px-4 py-3">
+              <DeliveryHistory
+                group={g}
+                reasonLabel={reasonLabel}
+                locName={locName}
+                onLineClick={(line) => setShowRejectedInfo(line)}
+                lineActionLabel={t("warehouseBatchDetail.actions.details")}
+              />
+              {/* more came later (inside the opened row, so the list stays clean) */}
+              {canMore && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setExtraFor(g)}
+                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {t("incomingParts.extraBtn")}
+                  </button>
+                </div>
+              )}
+            </td>
+          </tr>
+        )}
+      </Fragment>
+    );
+  };
 
   if (loading) {
     return (
@@ -633,77 +691,83 @@ export default function WarehouseBatchDetail() {
             </thead>
 
             <tbody className="divide-y divide-neutral-100">
-              {visible.map((row) => (
-                <tr key={row.id} className="hover:bg-neutral-50">
-                  <td className="px-4 py-3 text-sm font-mono text-neutral-600">{row.sku || t("warehouseBatchDetail.labels.dash")}</td>
-                  <td className="px-4 py-3 text-sm font-medium max-md:whitespace-normal max-md:min-w-[9rem]">{row.product_name || t("warehouseBatchDetail.labels.dash")}</td>
-
-                  <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
-                      {row.quantity ?? t("warehouseBatchDetail.labels.dash")}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3 text-center text-sm text-neutral-600">{catName(row.category_id)}</td>
-
-                  <td className="px-4 py-3 max-md:sticky max-md:right-0 max-md:bg-white max-md:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.18)]">
-                    <div className="flex items-center justify-end gap-2">
-                      {mode === "needs" ? (
-                        <>
-                          <button
-                            onClick={() => setApproveRow(row)}
-                            className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-                            title={t("warehouseBatchDetail.actions.approve")}
-                            aria-label={t("warehouseBatchDetail.actions.approve")}
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => setRejectRow(row)}
-                            className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
-                            title={t("warehouseBatchDetail.actions.reject")}
-                            aria-label={t("warehouseBatchDetail.actions.reject")}
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <StatusBadge status={row.status} />
-                          {row.status === "rejected" && (
-                            <button
-                              onClick={() => setShowRejectedInfo(row)}
-                              className="text-xs text-neutral-500 hover:text-neutral-700 underline"
-                            >
-                              {t("warehouseBatchDetail.actions.details")}
-                            </button>
-                          )}
-                        </>
+              {mode === "needs" && needs.map((row) => {
+                const delivery = row.split_from ? deliveryOf.get(row.split_from) : null;
+                return (
+                  <tr key={row.id} className="hover:bg-neutral-50">
+                    <td className="px-4 py-3 text-sm font-mono text-neutral-600">{row.sku || t("warehouseBatchDetail.labels.dash")}</td>
+                    <td className="px-4 py-3 text-sm font-medium max-md:whitespace-normal max-md:min-w-[9rem]">
+                      <div>{row.product_name || t("warehouseBatchDetail.labels.dash")}</div>
+                      {delivery && delivery.arrived > 0 && (
+                        <div className="mt-0.5 text-xs font-normal text-sky-700">
+                          {t("incomingParts.arrivedSoFar", { arrived: delivery.arrived, sent: delivery.sent })}
+                        </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-full text-sm font-bold bg-blue-100 text-blue-700">
+                        {row.quantity ?? t("warehouseBatchDetail.labels.dash")}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-center text-sm text-neutral-600">{catName(row.category_id)}</td>
+
+                    <td className="px-4 py-3 max-md:sticky max-md:right-0 max-md:bg-white max-md:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.18)]">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setApproveRow(row)}
+                          className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                          title={t("warehouseBatchDetail.actions.approve")}
+                          aria-label={t("warehouseBatchDetail.actions.approve")}
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => setRejectRow(row)}
+                          className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                          title={t("warehouseBatchDetail.actions.reject")}
+                          aria-label={t("warehouseBatchDetail.actions.reject")}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {mode === "final" && finals.map((g) => renderDelivery(g))}
             </tbody>
           </table>
         )}
       </div>
 
       {/* Modals */}
+      <ExtraModal
+        delivery={extraFor}
+        locations={locations}
+        onClose={() => setExtraFor(null)}
+        onConfirm={(locationId, qty) => extraFor && doExtra(extraFor, locationId, qty)}
+        loading={approving}
+      />
+
       <ApproveModal
         item={approveRow}
         locations={locations}
         onClose={() => setApproveRow(null)}
-        onConfirm={(locationId) => approveRow && doApprove(approveRow, locationId)}
+        onConfirm={(locationId, qty) => approveRow && doApprove(approveRow, locationId, qty)}
         loading={approving}
       />
 
       <RejectSheet
-        open={!!rejectRow}
+        item={rejectRow}
         onClose={() => setRejectRow(null)}
-        currentQty={rejectRow?.quantity ?? null}
-        locations={locations}
+        arrivedSoFar={(() => {
+          const d = rejectRow?.split_from ? deliveryOf.get(rejectRow.split_from) : null;
+          return d && d.arrived > 0 ? { arrived: d.arrived, sent: d.sent } : null;
+        })()}
         onSubmit={(payload) => rejectRow && doReject(rejectRow, payload)}
       />
 

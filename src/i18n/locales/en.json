@@ -315,7 +315,8 @@
     },
     "rejectionCodes": {
       "qty_mismatch": "Quantity mismatch",
-      "no_such_product": "No such product"
+      "no_such_product": "No such product",
+      "not_arrived": "Did not arrive"
     },
     "reviewModal": {
       "title": "Warehouse Response"
@@ -1521,7 +1522,8 @@
       "reject": "Reject",
       "cancel": "Cancel",
       "details": "Details",
-      "close": "Close"
+      "close": "Close",
+      "confirmReject": "Reject item"
     },
     "labels": {
       "dash": "—"
@@ -1538,11 +1540,8 @@
         "noSuchItem": "No such item"
       },
       "placeholders": {
-        "correctQty": "Enter correct quantity"
       },
       "errors": {
-        "validPositiveQty": "Enter a valid positive quantity.",
-        "mustBeDifferent": "Corrected quantity must be different."
       }
     },
     "rejectedInfo": {
@@ -2236,5 +2235,26 @@
     "notCounted": "Not counted",
     "status": "Status",
     "confirmFar": "{{name}}: the system shows {{system}}, you counted {{total}}. Is this correct?"
+  },
+  "incomingParts": {
+    "arrivedLabel": "How many arrived?",
+    "restNote": "The other {{count}} will wait as a new line until they arrive.",
+    "extraNote": "{{count}} more than sent — all go into stock, the owner will see it.",
+    "notArrived": "Did not arrive",
+    "moreThanSent": "+{{count}} more than sent",
+    "statusFull": "Fully arrived",
+    "statusPartly": "Quantity mismatch",
+    "statusComing": "Still coming",
+    "waitingCount": "{{count}} waiting",
+    "arrivedSoFar": "{{arrived}} of {{sent}} already arrived",
+    "lineArrived": "Arrived",
+    "lineWaiting": "Waiting",
+    "review": "Review",
+    "confirmRest": "{{arrived}} of {{sent}} already arrived. Confirm that the remaining {{count}} will not come — the product will be marked “{{reason}}”.",
+    "confirmNone": "{{name}} ×{{count}}: confirm it did not come (or is not in this delivery). The owner will see it and can send it again.",
+    "extraBtn": "More arrived",
+    "extraQtyLabel": "How many more arrived?",
+    "extraHint": "They go into stock now; the owner will see them as more than sent.",
+    "reviveHint": "{{count}} were marked “did not arrive” — they now count as arrived; anything above goes in as extra."
   }
 }

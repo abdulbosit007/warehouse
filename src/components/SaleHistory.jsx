@@ -41,7 +41,9 @@ export default function SaleHistory({
     () => localStorage.getItem("saleHistoryMode") || "overall"
   );
   const [actingItemIds, setActingItemIds] = useState(new Set());
-  const [openSessions, setOpenSessions] = useState(new Set()); // set of session indices that are expanded
+  // Transactions view: sales are open; this keeps the ones the user closed, by the
+  // sale itself (its first entry), so another day never inherits them
+  const [closedSessions, setClosedSessions] = useState(new Set());
   const [openLocRows, setOpenLocRows] = useState(new Set()); // overall rows showing the per-location split
   const [sortBy, setSortBy] = useState("name"); // "name" | "qty" | "returned"
   const [sortDir, setSortDir] = useState("asc");
@@ -591,7 +593,7 @@ export default function SaleHistory({
 
                   return (
                     <div className="max-h-[500px] overflow-y-auto divide-y divide-neutral-100" style={{ scrollbarWidth: "thin" }}>
-                      {filtered.map((session, si) => {
+                      {filtered.map((session) => {
                         const time = new Date(session.anchorTs).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
                         // Red = has at least one item individually approved (ready to accept)
                         const hasReadyToAccept = session.entries.some(e =>
@@ -612,16 +614,17 @@ export default function SaleHistory({
                           )
                         );
                         const totalItems = session.entries.reduce((s, e) => s + (e.data.items || []).length, 0);
-                        const isOpen     = openSessions.has(si);
+                        const sessionKey = `${session.entries[0].type}-${session.entries[0].data.id}`;
+                        const isOpen     = !closedSessions.has(sessionKey);
 
-                        const toggle = () => setOpenSessions(prev => {
+                        const toggle = () => setClosedSessions(prev => {
                           const next = new Set(prev);
-                          next.has(si) ? next.delete(si) : next.add(si);
+                          next.has(sessionKey) ? next.delete(sessionKey) : next.add(sessionKey);
                           return next;
                         });
 
                         return (
-                          <div key={si} className="transition-colors">
+                          <div key={sessionKey} className="transition-colors">
                             {/* Session header — clickable */}
                             <button
                               onClick={toggle}
