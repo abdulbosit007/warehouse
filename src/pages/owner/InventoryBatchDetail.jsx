@@ -5,6 +5,7 @@ import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
+import AuditResultsList from "../../components/AuditResultsList";
 import {
   ArrowLeft,
   Warehouse,
@@ -292,31 +293,10 @@ function SessionDetailModal({ session, location, onClose }) {
 ───────────────────────────────────────────────────────────────────────────── */
 function AuditCorrectionsModal({ audit, products, location, onClose }) {
   const { t, i18n } = useTranslation();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [changeFilter, setChangeFilter] = useState("all"); // 'all' | 'increase' | 'decrease'
-  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'changed' | 'unchanged'
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const allResponses = audit.responses || [];
   const dateStr = formatDate(audit.created_at, i18n.language, { year: "numeric", month: "2-digit", day: "2-digit" });
-
-  const term = searchTerm.trim().toLowerCase();
-  const corrections = allResponses.filter((r) => {
-    const isChanged = r.status === "rejected";
-    if (statusFilter === "changed" && !isChanged) return false;
-    if (statusFilter === "unchanged" && isChanged) return false;
-    if (changeFilter !== "all") {
-      if (!isChanged) return false; // increase/decrease only apply to changed items
-      const diff = (r.reported_qty ?? 0) - r.system_qty_at_submit;
-      if (changeFilter === "increase" && diff <= 0) return false;
-      if (changeFilter === "decrease" && diff >= 0) return false;
-    }
-    if (term) {
-      const product = products.find((p) => p.id === r.product_id);
-      const haystack = `${product?.name || ""} ${product?.sku || ""}`.toLowerCase();
-      if (!haystack.includes(term)) return false;
-    }
-    return true;
-  });
 
   return (
     <div
@@ -366,103 +346,7 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
           </div>
         </div>
 
-        {/* Filter controls */}
-        {allResponses.length > 0 && (
-          <div className="px-6 max-md:px-4 py-3 border-b bg-white flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t("common.auditFilters.searchPlaceholder")}
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-            >
-              <option value="all">{t("common.auditFilters.allStatuses")}</option>
-              <option value="changed">{t("common.auditFilters.statusChanged")}</option>
-              <option value="unchanged">{t("common.auditFilters.statusUnchanged")}</option>
-            </select>
-            <select
-              value={changeFilter}
-              onChange={(e) => setChangeFilter(e.target.value)}
-              className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-            >
-              <option value="all">{t("common.auditFilters.allChanges")}</option>
-              <option value="increase">{t("common.auditFilters.increasesOnly")}</option>
-              <option value="decrease">{t("common.auditFilters.decreasesOnly")}</option>
-            </select>
-          </div>
-        )}
-
-        {/* Results list */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-neutral-50/40">
-          {corrections.length === 0 ? (
-            <div className="text-center py-10 text-neutral-500 text-sm">
-              {allResponses.length === 0
-                ? t("ownerInventoryBatchDetail.modals.auditCorrections.empty")
-                : t("common.auditFilters.noResults")}
-            </div>
-          ) : (
-            corrections.map((r) => {
-              const product = products.find((p) => p.id === r.product_id);
-              const isChanged = r.status === "rejected";
-              const diff = isChanged ? (r.reported_qty ?? 0) - r.system_qty_at_submit : 0;
-
-              return (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm"
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium text-neutral-900 truncate">
-                      {product?.name || t("ownerInventoryBatchDetail.unknown")}
-                    </div>
-                    <div className="text-xs font-mono text-neutral-400">
-                      {product?.sku || (r.product_id ? r.product_id.slice(0, 8) : "—")}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-24 text-right text-sm font-mono">
-                      <span className="text-neutral-500">{r.system_qty_at_submit}</span>
-                      <span className="mx-1.5 text-neutral-300">→</span>
-                      <span className={isChanged ? "font-bold text-neutral-900" : "font-semibold text-neutral-700"}>
-                        {isChanged ? r.reported_qty : r.system_qty_at_submit}
-                      </span>
-                    </div>
-
-                    <div className="w-32 flex justify-end">
-                      {isChanged ? (
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap ${
-                            diff > 0
-                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 text-emerald-700"
-                              : "bg-gradient-to-r from-rose-50 to-red-50 border-rose-200 text-rose-700"
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${diff > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
-                          {diff > 0 ? "+" : ""}
-                          {diff}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap bg-neutral-50 border-neutral-200 text-neutral-500">
-                          <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
-                          {t("common.auditFilters.noChange")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <AuditResultsList key={audit.session_id} responses={allResponses} productById={productById} />
       </div>
     </div>
   );

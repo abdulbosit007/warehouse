@@ -25,9 +25,6 @@
       "increasesOnly": "Увеличения (+)",
       "decreasesOnly": "Уменьшения (−)",
       "allStatuses": "Все статусы",
-      "statusChanged": "Изменённые",
-      "statusUnchanged": "Без изменений",
-      "noChange": "Без изменений",
       "noResults": "Нет изменений по заданным фильтрам"
     },
     "clearAll": "Очистить всё",
@@ -373,14 +370,23 @@
       "title": "Результаты аудита",
       "confirmed": "Подтверждено",
       "corrections": "Исправления",
-      "totalProducts": "Всего товаров",
-      "correctionsWithCount": "Исправления ({{count}})",
       "unknownProduct": "Неизвестный товар",
+      "checked": "Проверено",
+      "stockChange": "Изменение остатка",
+      "counted": "Посчитано",
+      "difference": "Разница",
       "system": "Система",
-      "actual": "Факт",
       "noCorrections": "Исправления не нужны — все количества совпадают!",
       "branchQty": "Филиал",
-      "smallWarehouseQty": "Мини-склад"
+      "smallWarehouseQty": "Мини-склад",
+      "all": "Все",
+      "product": "Товар",
+      "qtyPlaceholder": "Кол-во",
+      "qtyHint": "Только товары, у которых количество в системе или посчитанное равно этому числу",
+      "sortDiff": "Самая большая разница",
+      "sortName": "Название (А–Я)",
+      "sortCountedDesc": "Посчитано: больше → меньше",
+      "sortCountedAsc": "Посчитано: меньше → больше"
     }
   },
   "userManagement": {

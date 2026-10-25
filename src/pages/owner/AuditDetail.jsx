@@ -17,6 +17,7 @@ import {
   Package,
   Search,
 } from "lucide-react";
+import AuditResultsList from "../../components/AuditResultsList";
 
 /* ───────────────────────────────────────────────────────────────────────────
    Locale helpers
@@ -145,17 +146,6 @@ export default function OwnerAuditDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [changeFilter, setChangeFilter] = useState("all"); // 'all' | 'increase' | 'decrease'
-  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'changed' | 'unchanged'
-
-  // Reset filters whenever a different location modal is opened/closed
-  useEffect(() => {
-    setSearchTerm("");
-    setChangeFilter("all");
-    setStatusFilter("all");
-  }, [selectedLocation]);
-
   /* ─────────────────────────────────────────────────────────────────────────
      LOAD DATA
   ───────────────────────────────────────────────────────────────────────── */
@@ -245,6 +235,19 @@ export default function OwnerAuditDetail() {
     const allSubmitted = submitted === total && total > 0;
     return { submitted, total, allSubmitted };
   }, [locationStats, locations]);
+
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+
+  // The open location's results and their numbers
+  const detail = useMemo(() => {
+    if (!selectedLocation) return null;
+    const rows = responses.filter((r) => r.location_id === selectedLocation.id);
+    return {
+      rows,
+      confirmed: rows.filter((r) => r.status !== "rejected").length,
+      corrections: rows.filter((r) => r.status === "rejected").length,
+    };
+  }, [selectedLocation, responses]);
 
   /* ─────────────────────────────────────────────────────────────────────────
      CLOSE SESSION — ends the audit (no stock changes; see handleClose)
@@ -342,33 +345,6 @@ export default function OwnerAuditDetail() {
   /* ─────────────────────────────────────────────────────────────────────────
      RENDER
   ───────────────────────────────────────────────────────────────────────── */
-  const locationResponses = responses.filter(
-    (r) => r.location_id === selectedLocation?.id
-  );
-
-  const rejectedCount = locationResponses.filter((r) => r.status === "rejected").length;
-  const confirmedCount = locationResponses.filter((r) => r.status === "confirmed").length;
-
-  // Apply status + change-type + search filters
-  const term = searchTerm.trim().toLowerCase();
-  const filteredResponses = locationResponses.filter((resp) => {
-    const isChanged = resp.status === "rejected";
-    if (statusFilter === "changed" && !isChanged) return false;
-    if (statusFilter === "unchanged" && isChanged) return false;
-    if (changeFilter !== "all") {
-      if (!isChanged) return false; // increase/decrease only apply to changed items
-      const diff = (resp.reported_qty ?? 0) - resp.system_qty_at_submit;
-      if (changeFilter === "increase" && diff <= 0) return false;
-      if (changeFilter === "decrease" && diff >= 0) return false;
-    }
-    if (term) {
-      const product = products.find((p) => p.id === resp.product_id);
-      const haystack = `${product?.name || ""} ${product?.sku || ""}`.toLowerCase();
-      if (!haystack.includes(term)) return false;
-    }
-    return true;
-  });
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -473,11 +449,11 @@ export default function OwnerAuditDetail() {
       {/* Correction Detail Modal */}
       {selectedLocation && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 max-sm:p-0"
           onClick={() => setSelectedLocation(null)}
         >
           <div
-            className="w-full max-w-2xl max-h-[80vh] rounded-2xl bg-white shadow-xl overflow-hidden flex flex-col"
+            className="w-full max-w-3xl max-h-[85vh] max-sm:max-h-full max-sm:h-full rounded-2xl max-sm:rounded-none bg-white shadow-xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -510,130 +486,24 @@ export default function OwnerAuditDetail() {
             </div>
 
             {/* Stats Summary */}
-            <div className="p-4 bg-neutral-50 border-b border-neutral-200">
+            <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-600">{confirmedCount}</p>
+                  <p className="text-2xl font-bold text-emerald-600">{detail.confirmed}</p>
                   <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.confirmed")}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                  <p className="text-2xl font-bold text-red-600">{detail.corrections}</p>
                   <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.corrections")}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-neutral-900">{totalProducts}</p>
-                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.totalProducts")}</p>
+                  <p className="text-2xl font-bold text-neutral-900">{detail.rows.length}</p>
+                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.checked")}</p>
                 </div>
               </div>
             </div>
 
-            {/* Filter controls */}
-            <div className="p-4 border-b border-neutral-200 bg-white flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={t("common.auditFilters.searchPlaceholder")}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-                />
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              >
-                <option value="all">{t("common.auditFilters.allStatuses")}</option>
-                <option value="changed">{t("common.auditFilters.statusChanged")}</option>
-                <option value="unchanged">{t("common.auditFilters.statusUnchanged")}</option>
-              </select>
-              <select
-                value={changeFilter}
-                onChange={(e) => setChangeFilter(e.target.value)}
-                className="rounded-xl border border-neutral-200 bg-neutral-50 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
-              >
-                <option value="all">{t("common.auditFilters.allChanges")}</option>
-                <option value="increase">{t("common.auditFilters.increasesOnly")}</option>
-                <option value="decrease">{t("common.auditFilters.decreasesOnly")}</option>
-              </select>
-            </div>
-
-            {/* Corrections List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              <h4 className="font-semibold text-neutral-800 mb-3">
-                <span className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  {t("ownerAuditDetail.modal.correctionsWithCount", { count: filteredResponses.length })}
-                </span>
-              </h4>
-
-              {filteredResponses.map((resp) => {
-                  const product = products.find((p) => p.id === resp.product_id);
-                  const isChanged = resp.status === "rejected";
-                  const diff = isChanged ? (resp.reported_qty ?? 0) - resp.system_qty_at_submit : 0;
-
-                  return (
-                    <div
-                      key={resp.id}
-                      className={`rounded-xl border p-4 space-y-2 ${isChanged ? "border-red-200 bg-red-50" : "border-neutral-200 bg-white"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-neutral-900 truncate">
-                            {product?.name || t("ownerAuditDetail.modal.unknownProduct")}
-                          </h5>
-                          <p className="text-xs text-neutral-500 font-mono">{product?.sku || ""}</p>
-                        </div>
-
-                        <div className="text-right flex-shrink-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-neutral-500">{t("ownerAuditDetail.modal.system")}:</span>
-                            <span className="text-sm font-bold text-neutral-700">{resp.system_qty_at_submit}</span>
-                          </div>
-                          {isChanged ? (
-                            <>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-neutral-500">{t("ownerAuditDetail.modal.actual")}:</span>
-                                <span className="text-sm font-bold text-red-600">{resp.reported_qty}</span>
-                              </div>
-                              <div className="mt-1 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium">
-                                {diff > 0 ? "+" : ""}
-                                {diff}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="mt-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">
-                              {t("common.auditFilters.noChange")}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {resp.metadata && (
-                        <div className="flex items-center gap-3 text-xs text-neutral-500 pt-2 border-t border-neutral-200">
-                          <span>{t("ownerAuditDetail.modal.branchQty")}: <b>{resp.metadata.branch_qty}</b></span>
-                          <span className="text-neutral-300">|</span>
-                          <span>{t("ownerAuditDetail.modal.smallWarehouseQty")}: <b>{resp.metadata.small_warehouse_qty}</b></span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-              {locationResponses.length === 0 && (
-                <div className="text-center py-8 text-neutral-500">
-                  <Check className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-                  <p>{t("ownerAuditDetail.modal.noCorrections")}</p>
-                </div>
-              )}
-
-              {locationResponses.length > 0 && filteredResponses.length === 0 && (
-                <div className="text-center py-8 text-neutral-500">
-                  <Search className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
-                  <p>{t("common.auditFilters.noResults")}</p>
-                </div>
-              )}
-            </div>
+            <AuditResultsList key={selectedLocation.id} responses={detail.rows} productById={productById} />
 
             {/* Modal Footer */}
             <div className="p-4 border-t border-neutral-200 bg-neutral-50">

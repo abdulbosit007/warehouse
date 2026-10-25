@@ -25,9 +25,6 @@
       "increasesOnly": "Кўпайишлар (+)",
       "decreasesOnly": "Камайишлар (−)",
       "allStatuses": "Барча ҳолатлар",
-      "statusChanged": "Ўзгарганлар",
-      "statusUnchanged": "Ўзгармаганлар",
-      "noChange": "Ўзгаришсиз",
       "noResults": "Филтрларга мос ўзгаришлар йўқ"
     },
     "clearAll": "Ҳаммасини тозалаш",
@@ -373,14 +370,23 @@
       "title": "Аудит натижалари",
       "confirmed": "Тасдиқланган",
       "corrections": "Тузатишлар",
-      "totalProducts": "Жами маҳсулотлар",
-      "correctionsWithCount": "Тузатишлар ({{count}})",
       "unknownProduct": "Номаълум маҳсулот",
+      "checked": "Текширилди",
+      "stockChange": "Қолдиқ ўзгариши",
+      "counted": "Саналди",
+      "difference": "Фарқ",
       "system": "Тизим",
-      "actual": "Амалдаги",
       "noCorrections": "Тузатиш керак эмас — ҳамма миқдор мос!",
       "branchQty": "Филиал",
-      "smallWarehouseQty": "Кичик омбор"
+      "smallWarehouseQty": "Кичик омбор",
+      "all": "Барчаси",
+      "product": "Маҳсулот",
+      "qtyPlaceholder": "Сони",
+      "qtyHint": "Фақат тизимдаги ёки саналган сони шу сонга тенг маҳсулотлар",
+      "sortDiff": "Энг катта фарқ",
+      "sortName": "Номи (А–Я)",
+      "sortCountedDesc": "Саналган: кўп → кам",
+      "sortCountedAsc": "Саналган: кам → кўп"
     }
   },
   "userManagement": {

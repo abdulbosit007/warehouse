@@ -25,9 +25,6 @@
       "increasesOnly": "Increases (+)",
       "decreasesOnly": "Decreases (−)",
       "allStatuses": "All statuses",
-      "statusChanged": "Changed",
-      "statusUnchanged": "Unchanged",
-      "noChange": "No change",
       "noResults": "No changes match your filters"
     },
     "clearAll": "Clear all",
@@ -373,14 +370,23 @@
       "title": "Audit Results",
       "confirmed": "Confirmed",
       "corrections": "Corrections",
-      "totalProducts": "Total Products",
-      "correctionsWithCount": "Corrections ({{count}})",
       "unknownProduct": "Unknown Product",
+      "checked": "Checked",
+      "stockChange": "Stock change",
+      "counted": "Counted",
+      "difference": "Difference",
       "system": "System",
-      "actual": "Actual",
       "noCorrections": "No corrections needed - all quantities match!",
       "branchQty": "Branch",
-      "smallWarehouseQty": "Small WH"
+      "smallWarehouseQty": "Small WH",
+      "all": "All",
+      "product": "Product",
+      "qtyPlaceholder": "Qty",
+      "qtyHint": "Only products whose system or counted quantity is this number",
+      "sortDiff": "Biggest difference",
+      "sortName": "Name (A–Z)",
+      "sortCountedDesc": "Counted: high → low",
+      "sortCountedAsc": "Counted: low → high"
     }
   },
   "userManagement": {

@@ -25,9 +25,6 @@
       "increasesOnly": "Ko‘payishlar (+)",
       "decreasesOnly": "Kamayishlar (−)",
       "allStatuses": "Barcha holatlar",
-      "statusChanged": "O‘zgarganlar",
-      "statusUnchanged": "O‘zgarmaganlar",
-      "noChange": "O‘zgarishsiz",
       "noResults": "Filtrlarga mos o‘zgarishlar yo‘q"
     },
     "clearAll": "Hammasini tozalash",
@@ -373,14 +370,23 @@
       "title": "Audit natijalari",
       "confirmed": "Tasdiqlangan",
       "corrections": "Tuzatishlar",
-      "totalProducts": "Jami mahsulotlar",
-      "correctionsWithCount": "Tuzatishlar ({{count}})",
       "unknownProduct": "Noma'lum mahsulot",
+      "checked": "Tekshirildi",
+      "stockChange": "Qoldiq o‘zgarishi",
+      "counted": "Sanaldi",
+      "difference": "Farq",
       "system": "Tizim",
-      "actual": "Amaldagi",
       "noCorrections": "Tuzatish kerak emas — hamma miqdor mos!",
       "branchQty": "Filial",
-      "smallWarehouseQty": "Kichik ombor"
+      "smallWarehouseQty": "Kichik ombor",
+      "all": "Barchasi",
+      "product": "Mahsulot",
+      "qtyPlaceholder": "Soni",
+      "qtyHint": "Faqat tizimdagi yoki sanalgan soni shu songa teng mahsulotlar",
+      "sortDiff": "Eng katta farq",
+      "sortName": "Nomi (A–Z)",
+      "sortCountedDesc": "Sanalgan: ko‘p → kam",
+      "sortCountedAsc": "Sanalgan: kam → ko‘p"
     }
   },
   "userManagement": {
