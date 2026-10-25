@@ -39,6 +39,7 @@
     "ownerOnly": "Фақат owner кириши мумкин.",
     "showingRange": "{{total}} дан {{from}}–{{to}} кўрсатилмоқда",
     "authError": "Авторизация хатоси",
+    "signInExpired": "Кириш муддати тугади. Илтимос, саҳифани янгиланг.",
     "failedLoad": "Маълумотларни юклаб бўлмади",
     "close": "Ёпиш",
     "actions": "Амаллар",
@@ -2233,8 +2234,7 @@
     "matchesSystem": "Тизим билан бир хил ({{qty}})",
     "doneNext": "Тайёр, кейингиси",
     "notCounted": "Саналмаган",
-    "status": "Ҳолат",
-    "confirmFar": "{{name}}: тизимда {{system}}, сиз {{total}} санадингиз. Тўғрими?"
+    "status": "Ҳолат"
   },
   "incomingParts": {
     "arrivedLabel": "Қанча келди?",

@@ -1,5 +1,5 @@
 // src/pages/branch/AuditReview.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
@@ -459,39 +459,38 @@ export default function BranchAuditReview({ asTab = false }) {
 
   // byPlace: { branchQty: [3, 2], smallWarehouseQty: [] } — the parts counted in
   // the shop and in the small warehouse; a place with no parts is "not counted"
-  const handleSaveCounts = (productId, byPlace) => {
-    setReviews((prev) => {
-      const updated = { ...(prev[productId] || {}) };
-      for (const [key, parts] of Object.entries(byPlace)) {
-        if (parts.length > 0) {
-          updated[key] = parts.reduce((s, n) => s + n, 0);
-          updated[`${key}Parts`] = parts;
-        } else {
-          delete updated[key];
-          delete updated[`${key}Parts`];
-        }
-      }
-      if (updated.branchQty == null && updated.smallWarehouseQty == null) {
-        const next = { ...prev };
-        delete next[productId];
-        return next;
-      }
-
-      // Compute status if both are entered
-      if (updated.branchQty != null && updated.smallWarehouseQty != null) {
-        const total = updated.branchQty + updated.smallWarehouseQty;
-        const systemQty = getQtyAt(productId);
-        updated.status = total === systemQty ? "confirmed" : "rejected";
-        updated.reportedQty = total;
+  const withCounts = (prev, productId, byPlace) => {
+    const updated = { ...(prev[productId] || {}) };
+    for (const [key, parts] of Object.entries(byPlace)) {
+      if (parts.length > 0) {
+        updated[key] = parts.reduce((s, n) => s + n, 0);
+        updated[`${key}Parts`] = parts;
       } else {
-        // Partial — no final status yet
-        delete updated.status;
-        delete updated.reportedQty;
+        delete updated[key];
+        delete updated[`${key}Parts`];
       }
+    }
+    if (updated.branchQty == null && updated.smallWarehouseQty == null) {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    }
 
-      return { ...prev, [productId]: updated };
-    });
+    // Compute status if both are entered
+    if (updated.branchQty != null && updated.smallWarehouseQty != null) {
+      const total = updated.branchQty + updated.smallWarehouseQty;
+      const systemQty = getQtyAt(productId);
+      updated.status = total === systemQty ? "confirmed" : "rejected";
+      updated.reportedQty = total;
+    } else {
+      // Partial — no final status yet
+      delete updated.status;
+      delete updated.reportedQty;
+    }
+
+    return { ...prev, [productId]: updated };
   };
+  const handleSaveCounts = (productId, byPlace) => setReviews((prev) => withCounts(prev, productId, byPlace));
 
 
   const qtyKey = activeLocationTab === "branch" ? "branchQty" : "smallWarehouseQty";
@@ -521,8 +520,8 @@ export default function BranchAuditReview({ asTab = false }) {
   };
 
   // Check if a product is fully done: both tabs filled, OR one tab covers full system qty
-  const isProductFullyReviewed = (productId) => {
-    const r = reviews[productId];
+  const isProductFullyReviewed = (productId, rv = reviews) => {
+    const r = rv[productId];
     if (!r) return false;
     if (r.branchQty != null && r.smallWarehouseQty != null) return true;
     const systemQty = getQtyAt(productId);
@@ -612,7 +611,7 @@ export default function BranchAuditReview({ asTab = false }) {
     if (pendingProducts.length === 0) return;
     const nextIndex = (currentPendingIndex + 1) % pendingProducts.length;
     setCurrentPendingIndex(nextIndex);
-    setOpenId(pendingProducts[nextIndex].id);
+    openProduct(pendingProducts[nextIndex].id);
   };
 
   const goToPrevPending = () => {
@@ -622,19 +621,22 @@ export default function BranchAuditReview({ asTab = false }) {
         ? pendingProducts.length - 1
         : currentPendingIndex - 1;
     setCurrentPendingIndex(prevIndex);
-    setOpenId(pendingProducts[prevIndex].id);
+    openProduct(pendingProducts[prevIndex].id);
   };
 
   // Done on a product: save its count, show what was saved, open the next
   // product of the list (in the order shown) that isn't counted yet
+  // "🏪 5 · 📦 2" for the saved message
+  const placesText = (byPlace) => AUDIT_PLACES
+    .filter((p) => byPlace[p.key]?.length > 0)
+    .map((p) => `${p.icon} ${byPlace[p.key].reduce((s, n) => s + n, 0)}`)
+    .join(" · ");
+
   const handleCountDone = (product, byPlace) => {
+    draftRef.current = null; // saved right here
     handleSaveCounts(product.id, byPlace);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
-    const shown = AUDIT_PLACES
-      .filter((p) => byPlace[p.key].length > 0)
-      .map((p) => `${p.icon} ${byPlace[p.key].reduce((s, n) => s + n, 0)}`)
-      .join(" · ");
-    setToast({ name: product.name, qty: shown, at: Date.now() });
+    setToast({ name: product.name, qty: placesText(byPlace), at: Date.now() });
 
     const idx = filteredProducts.findIndex((p) => p.id === product.id);
     const next = filteredProducts.slice(idx + 1).find(
@@ -643,14 +645,44 @@ export default function BranchAuditReview({ asTab = false }) {
     setOpenId(next ? next.id : null);
   };
 
-  // Clear: the product's count in both places
+  // Clear: the product's count in both places (and the card closes)
   const handleCountClear = (productId) => {
+    draftRef.current = null;
+    setOpenId(null);
     setReviews((prev) => {
       const next = { ...prev };
       delete next[productId];
       return next;
     });
     setKeepIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
+  };
+
+  // The open card's parts as the card reports them (onDraft). They are saved
+  // whenever the card closes without Done — another product, ✕, Previous/Next,
+  // a filter, Submit — so added parts are never lost. Returns the reviews with
+  // the draft applied (Submit sends those).
+  const draftRef = useRef(null); // { productId, byPlace }
+  const savedPartsOf = (productId, rv = reviews) => {
+    const r = rv[productId] || {};
+    return {
+      branchQty: r.branchQtyParts || (r.branchQty != null ? [r.branchQty] : []),
+      smallWarehouseQty: r.smallWarehouseQtyParts || (r.smallWarehouseQty != null ? [r.smallWarehouseQty] : []),
+    };
+  };
+  const flushDraft = () => {
+    const d = draftRef.current;
+    draftRef.current = null;
+    if (!d || JSON.stringify(d.byPlace) === JSON.stringify(savedPartsOf(d.productId))) return reviews;
+    const next = withCounts(reviews, d.productId, d.byPlace);
+    setReviews(next);
+    const shown = placesText(d.byPlace);
+    if (shown) setToast({ name: products.find((p) => p.id === d.productId)?.name || "", qty: shown, at: Date.now() });
+    return next;
+  };
+  // open another product (or none): the one open now keeps what was added
+  const openProduct = (productId) => {
+    flushDraft();
+    setOpenId(productId);
   };
 
   // the saved message goes away by itself
@@ -663,8 +695,10 @@ export default function BranchAuditReview({ asTab = false }) {
   // a new filter starts without kept rows and with nothing open
   // (switching the place keeps the open card: shop first, then the small warehouse)
   useEffect(() => {
+    flushDraft();
     setKeepIds(new Set());
     setOpenId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, stockView]);
 
   // Allow submission when all non-zero qty products are fully reviewed
@@ -674,18 +708,22 @@ export default function BranchAuditReview({ asTab = false }) {
     nonZeroProducts.every((p) => isProductFullyReviewed(p.id));
 
   async function handleSubmitAll() {
-    if (!allReviewed || !openSession || !locationId) return;
+    // an open card's added parts are saved first and sent with the rest
+    const current = flushDraft();
+    setOpenId(null);
+    const ready = nonZeroProducts.length > 0 && nonZeroProducts.every((p) => isProductFullyReviewed(p.id, current));
+    if (!ready || !openSession || !locationId) return;
 
     // Collect all products that are fully reviewed (including auto-covered ones)
     // For products where one tab covers the full qty, auto-fill 0 for the missing tab
-    const reviewedProducts = products.filter((p) => isProductFullyReviewed(p.id));
+    const reviewedProducts = products.filter((p) => isProductFullyReviewed(p.id, current));
 
     setSubmitting(true);
     setError(null);
 
     try {
       const responses = reviewedProducts.map((p) => {
-        const r = reviews[p.id] || {};
+        const r = current[p.id] || {};
         const systemQty = getQtyAt(p.id);
         // Auto-fill 0 for the missing tab when one tab covers the full qty
         const branchQty = r.branchQty ?? 0;
@@ -1297,8 +1335,9 @@ export default function BranchAuditReview({ asTab = false }) {
                           defaultPlace={qtyKey}
                           isOpen={openId === product.id}
                           dimmed={openId != null && openId !== product.id}
-                          onOpen={() => setOpenId(product.id)}
-                          onClose={() => setOpenId(null)}
+                          onOpen={() => openProduct(product.id)}
+                          onClose={() => openProduct(null)}
+                          onDraft={(byPlace) => { draftRef.current = { productId: product.id, byPlace }; }}
                           onDone={(byPlace) => handleCountDone(product, byPlace)}
                           onClear={() => handleCountClear(product.id)}
                         />

@@ -39,6 +39,7 @@
     "ownerOnly": "Owner access only.",
     "showingRange": "Showing {{from}}–{{to}} of {{total}}",
     "authError": "Auth error",
+    "signInExpired": "Your sign-in has expired. Please reload the page.",
     "failedLoad": "Failed to load data",
     "close": "Close",
     "actions": "Actions",
@@ -2233,8 +2234,7 @@
     "matchesSystem": "Matches system ({{qty}})",
     "doneNext": "Done, next",
     "notCounted": "Not counted",
-    "status": "Status",
-    "confirmFar": "{{name}}: the system shows {{system}}, you counted {{total}}. Is this correct?"
+    "status": "Status"
   },
   "incomingParts": {
     "arrivedLabel": "How many arrived?",
