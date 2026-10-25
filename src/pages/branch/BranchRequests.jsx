@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import TransfersSection from "../../components/TransfersSection";
 import { Link } from "react-router-dom";
-import { DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/saleRequestItems";
+import { DONE_ITEM_FILTER, closedRequestStatus, requestHasOpenLines, closeIfFinished } from "../../lib/saleRequestItems";
 import RequestTypeBadge from "../../components/RequestTypeBadge";
 import { requestHeaderClass } from "../../lib/requestType";
 
@@ -215,13 +215,14 @@ export default function BranchRequests() {
   const fetchTabBadges = useCallback(async () => {
     if (!location) return;
     try {
-      // Outgoing: requests where to_location_id = my location, status sent/approved
-      // (sale / loan requests too: they can be accepted from the Outgoing tab as well)
-      const { count: outCount } = await supabase
+      // Outgoing: requests coming here (sale / loan ones too) with a line that still
+      // needs something — the same requests the Outgoing tab shows
+      const { data: outRows } = await supabase
         .from("branch_requests")
-        .select("id", { count: "exact", head: true })
+        .select("id, purpose, items:branch_request_items(status)")
         .eq("to_location_id", location.id)
         .in("status", ["sent", "approved"]);
+      const outCount = (outRows || []).filter(requestHasOpenLines).length;
 
       // Incoming: only count requests that have items with status "requested"
       // (items the user still needs to approve/reject — not already acted on)
@@ -1422,7 +1423,11 @@ function OutgoingTab({ location, showToast }) {
 
     if (error && silent) return; // keep what is on screen
 
-    const rows = data || [];
+    // finished requests whose status was never updated: not shown, and their
+    // final status is saved (they move to History)
+    const finished = (data || []).filter((r) => !requestHasOpenLines(r));
+    finished.forEach((r) => closeIfFinished(r.id));
+    const rows = (data || []).filter(requestHasOpenLines);
     const seen = seenIdsRef.current;
     seenIdsRef.current = new Set(rows.map((r) => r.id));
     setRequests(rows);
@@ -1446,10 +1451,7 @@ function OutgoingTab({ location, showToast }) {
           it.id === itemId ? { ...it, status: newStatus } : it
         );
         // Remove request if no actionable items remain
-        const hasActionable = updatedItems.some((it) =>
-          ["requested", "approved"].includes(it.status)
-        );
-        if (!hasActionable) return null;
+        if (!requestHasOpenLines({ ...req, items: updatedItems })) return null;
         return { ...req, items: updatedItems };
       });
       return updated.filter(Boolean);

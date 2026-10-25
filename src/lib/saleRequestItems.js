@@ -14,6 +14,24 @@ export const isItemDone = (item) => DONE_ITEM_STATUSES.includes(item.status);
 // for PostgREST: .not("status", "in", DONE_ITEM_FILTER)
 export const DONE_ITEM_FILTER = `(${DONE_ITEM_STATUSES.join(",")})`;
 
+// A request line the requester still has something to do with: waiting for the
+// other side, on its way (Received / Accept), or a rejected sale line to close or
+// resend on the Sale page. Rejected restock / loan lines need nothing more.
+export const isLineOpen = (item, purpose) =>
+  item.status === "requested" ||
+  item.status === "approved" ||
+  (item.status === "rejected" && purpose === "sale");
+
+export const requestHasOpenLines = (req) =>
+  (req.items || []).some((item) => isLineOpen(item, req.purpose));
+
+// A request still marked sent / approved although none of its lines needs
+// anything: save the status it should have (same rule as after Received / Cancel).
+export async function closeIfFinished(requestId) {
+  const status = await closedRequestStatus(requestId);
+  if (status) await supabase.from("branch_requests").update({ status }).eq("id", requestId);
+}
+
 /**
  * Status a request should close with now, or null while someone still has to act
  * (or the check failed — then leave it as it is). Used after Received, Cancel, Reject.

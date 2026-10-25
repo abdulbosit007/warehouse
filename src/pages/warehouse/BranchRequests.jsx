@@ -30,7 +30,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import TransfersSection from "../../components/TransfersSection";
-import { closedRequestStatus } from "../../lib/saleRequestItems";
+import { closedRequestStatus, requestHasOpenLines, closeIfFinished } from "../../lib/saleRequestItems";
 import RequestTypeBadge from "../../components/RequestTypeBadge";
 import { requestHeaderClass } from "../../lib/requestType";
 
@@ -241,12 +241,14 @@ export default function BranchRequests() {
   const fetchTabBadges = useCallback(async () => {
     if (!selectedLocation) return;
     try {
-      // Outgoing: requests where to_location_id = this warehouse, status sent/approved
-      const { count: outCount } = await supabase
+      // Outgoing: requests coming here (sale / loan ones too) with a line that still
+      // needs something — the same requests the Outgoing tab shows
+      const { data: outRows } = await supabase
         .from("branch_requests")
-        .select("id", { count: "exact", head: true })
+        .select("id, purpose, items:branch_request_items(status)")
         .eq("to_location_id", selectedLocation.id)
         .in("status", ["sent", "approved"]);
+      const outCount = (outRows || []).filter(requestHasOpenLines).length;
 
       // Incoming: only count requests that have items with status "requested"
       // (items the user still needs to approve/reject)
@@ -999,7 +1001,11 @@ function OutgoingTab({ t, location, showToast }) {
 
     if (error && silent) return; // keep what is on screen
 
-    const rows = data || [];
+    // finished requests whose status was never updated: not shown, and their
+    // final status is saved (they move to History)
+    const finished = (data || []).filter((r) => !requestHasOpenLines(r));
+    finished.forEach((r) => closeIfFinished(r.id));
+    const rows = (data || []).filter(requestHasOpenLines);
     const seen = seenIdsRef.current;
     seenIdsRef.current = new Set(rows.map((r) => r.id));
     setRequests(rows);
@@ -1022,10 +1028,7 @@ function OutgoingTab({ t, location, showToast }) {
         const updatedItems = req.items.map((it) =>
           it.id === itemId ? { ...it, status: newStatus } : it
         );
-        const hasActionable = updatedItems.some((it) =>
-          ["requested", "approved"].includes(it.status)
-        );
-        if (!hasActionable) return null;
+        if (!requestHasOpenLines({ ...req, items: updatedItems })) return null;
         return { ...req, items: updatedItems };
       });
       return updated.filter(Boolean);
