@@ -753,8 +753,6 @@
       "back": "Auditlar ro‘yxatiga qaytish",
       "submit": "Auditni boshqaruvchiga yuborish",
       "submitting": "Yuborilmoqda...",
-      "next": "Keyingi",
-      "previous": "Oldingi",
       "undo": "Bekor qilish",
       "save": "Saqlash",
       "close": "Yopish"
@@ -1456,8 +1454,6 @@
       "title": "Tekshiruv jarayoni"
     },
     "nav": {
-      "previous": "Oldingi",
-      "next": "Keyingi",
       "remaining": "Qolgan"
     },
     "list": {
@@ -2238,7 +2234,8 @@
     "addHint": "Boshqa joyda yana topdingizmi? Sonini yozib, «Qo'shish»ni bosing — ustiga qo'shiladi.",
     "clear": "Sanoqni tozalash",
     "matchesSystem": "Tizim bilan bir xil ({{qty}})",
-    "doneNext": "Tayyor, keyingisi",
+    "done": "Tayyor",
+    "leaveConfirm": "Auditdan chiqasizmi? Sanaganlaringiz shu telefonda saqlanib qoladi.",
     "notCounted": "Sanalmagan",
     "status": "Holat"
   },
