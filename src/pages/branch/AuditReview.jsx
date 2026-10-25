@@ -249,7 +249,9 @@ export default function BranchAuditReview({ asTab = false }) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
-  const searchRef = useRef(null);
+  // after Done the search (text and products) stays; the next tap on the search
+  // box clears it for a new search
+  const [clearSearchOnTap, setClearSearchOnTap] = useState(false);
   const [openId, setOpenId] = useState(null); // the one product open for counting
   const [stockView, setStockView] = useState("existing"); // "existing" | "zero" (0 in the system, optional)
   const [keepIds, setKeepIds] = useState(() => new Set()); // counted just now: stay in the Pending list (no jumping rows)
@@ -512,27 +514,16 @@ export default function BranchAuditReview({ asTab = false }) {
   }, [products, productList, locationId]);
   const viewProducts = stockView === "zero" ? zeroProducts : nonZeroProducts;
 
-  // Check if the OTHER tab already covers the full system qty (0 remaining for current tab)
-  const hasZeroRemaining = (productId) => {
-    const systemQty = getQtyAt(productId);
-    const otherKey = activeLocationTab === "branch" ? "smallWarehouseQty" : "branchQty";
-    const otherVal = reviews[productId]?.[otherKey];
-    return otherVal != null && otherVal >= systemQty;
-  };
-
-  // Check if a product is fully done: both tabs filled, OR one tab covers full system qty
+  // A product is finished once the shop OR the small warehouse has a number (the
+  // place not counted counts as 0). Only products with system stock and no number
+  // in either place keep Submit waiting.
   const isProductFullyReviewed = (productId, rv = reviews) => {
     const r = rv[productId];
-    if (!r) return false;
-    if (r.branchQty != null && r.smallWarehouseQty != null) return true;
-    const systemQty = getQtyAt(productId);
-    if (r.branchQty != null && r.branchQty >= systemQty) return true;
-    if (r.smallWarehouseQty != null && r.smallWarehouseQty >= systemQty) return true;
-    return false;
+    return !!r && (r.branchQty != null || r.smallWarehouseQty != null);
   };
 
   // A finished product's result, as it will be sent: "confirmed" / "rejected"
-  // (a place not counted counts as 0 once the other covers the system qty); null = not finished
+  // (a place not counted counts as 0); null = not finished
   const countResult = (productId) => {
     if (!isProductFullyReviewed(productId)) return null;
     const r = reviews[productId];
@@ -543,23 +534,18 @@ export default function BranchAuditReview({ asTab = false }) {
     const isSearching = searchQuery.trim().length > 0;
     let result;
 
-    if (isSearching) {
-      // When searching, show the whole chosen list (also the ones the other place
-      // covers); on the in-stock list also the 0-in-system ones (found on a shelf)
-      result = stockView === "existing" ? [...nonZeroProducts, ...zeroProducts] : [...viewProducts];
+    // searching the in-stock list also finds the 0-in-system ones (found on a shelf)
+    if (isSearching && stockView === "existing") {
+      result = [...nonZeroProducts, ...zeroProducts];
     } else {
-      // Pending: hide products the other place already covers (nothing left to count
-      // here); the other lists show every product, finished ones included
-      result = statusFilter === "pending"
-        ? viewProducts.filter((p) => !hasZeroRemaining(p.id) || p.id === openId)
-        : [...viewProducts];
+      result = [...viewProducts];
     }
 
+    // Pending = not counted in either place; Counted = counted in at least one
     if (statusFilter === "pending") {
-      result = result.filter((p) => reviews[p.id]?.[qtyKey] == null || keepIds.has(p.id) || p.id === openId);
+      result = result.filter((p) => !isProductFullyReviewed(p.id) || keepIds.has(p.id) || p.id === openId);
     } else if (statusFilter === "confirmed") {
-      // counted here, or already covered by the other place (same as its count)
-      result = result.filter((p) => reviews[p.id]?.[qtyKey] != null || hasZeroRemaining(p.id));
+      result = result.filter((p) => isProductFullyReviewed(p.id));
     } else if (statusFilter === "rejected") {
       result = result.filter((p) => countResult(p.id) === "rejected");
     }
@@ -593,22 +579,22 @@ export default function BranchAuditReview({ asTab = false }) {
     return result;
   }, [viewProducts, nonZeroProducts, zeroProducts, stockView, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey, activeLocationTab, keepIds, openId]);
 
-  // Pending: products of the chosen list that need input on this tab AND aren't auto-covered by the other tab
+  // Pending: products of the chosen list with no number in either place
   const pendingProducts = useMemo(() => {
-    return viewProducts.filter((p) => reviews[p.id]?.[qtyKey] == null && !hasZeroRemaining(p.id));
-  }, [viewProducts, reviews, qtyKey, activeLocationTab]);
+    return viewProducts.filter((p) => !isProductFullyReviewed(p.id));
+  }, [viewProducts, reviews]);
 
-  // Count of products entered or auto-covered on this tab
+  // In-stock products counted in at least one place (the progress)
   const tabEnteredCount = useMemo(() => {
-    return nonZeroProducts.filter((p) => reviews[p.id]?.[qtyKey] != null || hasZeroRemaining(p.id)).length;
-  }, [nonZeroProducts, reviews, qtyKey, activeLocationTab]);
+    return nonZeroProducts.filter((p) => isProductFullyReviewed(p.id)).length;
+  }, [nonZeroProducts, reviews]);
 
   const branchDoneCount = useMemo(() => {
-    return nonZeroProducts.filter((p) => reviews[p.id]?.branchQty != null || (reviews[p.id]?.smallWarehouseQty != null && reviews[p.id]?.smallWarehouseQty >= getQtyAt(p.id))).length;
+    return nonZeroProducts.filter((p) => reviews[p.id]?.branchQty != null).length;
   }, [nonZeroProducts, reviews, productList, locationId]);
 
   const swDoneCount = useMemo(() => {
-    return nonZeroProducts.filter((p) => reviews[p.id]?.smallWarehouseQty != null || (reviews[p.id]?.branchQty != null && reviews[p.id]?.branchQty >= getQtyAt(p.id))).length;
+    return nonZeroProducts.filter((p) => reviews[p.id]?.smallWarehouseQty != null).length;
   }, [nonZeroProducts, reviews, productList, locationId]);
 
 
@@ -624,11 +610,10 @@ export default function BranchAuditReview({ asTab = false }) {
     handleSaveCounts(product.id, byPlace);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
     setToast({ name: product.name, qty: placesText(byPlace), at: Date.now() });
-    // counting goes shelf by shelf, not by the list: close the card and get the
-    // search ready for the next product
+    // counting goes shelf by shelf, not by the list: close the card; the search
+    // stays on screen until the search box is tapped again
     setOpenId(null);
-    setSearchQuery("");
-    setTimeout(() => searchRef.current?.focus(), 50);
+    if (searchQuery.trim()) setClearSearchOnTap(true);
   };
 
   // Clear: the product's count in both places (and the card closes)
@@ -1167,11 +1152,16 @@ export default function BranchAuditReview({ asTab = false }) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
-                ref={searchRef}
                 type="text"
                 placeholder={t("branchAudit.search.placeholder")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (clearSearchOnTap) {
+                    setSearchQuery("");
+                    setClearSearchOnTap(false);
+                  }
+                }}
+                onChange={(e) => { setClearSearchOnTap(false); setSearchQuery(e.target.value); }}
                 className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               />
             </div>

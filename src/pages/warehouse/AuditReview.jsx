@@ -197,7 +197,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
-  const searchRef = useRef(null);
+  // after Done the search (text and products) stays; the next tap on the search
+  // box clears it for a new search
+  const [clearSearchOnTap, setClearSearchOnTap] = useState(false);
   const [openId, setOpenId] = useState(null); // the one product open for counting
   const [stockView, setStockView] = useState("existing"); // "existing" | "zero" (0 in the system, optional)
   const [keepIds, setKeepIds] = useState(() => new Set()); // counted just now: stay in the Pending list (no jumping rows)
@@ -505,11 +507,10 @@ export default function WarehouseAuditReview({ asTab = false }) {
     handleCount(product.id, parts);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
     setToast({ name: product.name, qty: parts.reduce((s, n) => s + n, 0), at: Date.now() });
-    // counting goes shelf by shelf, not by the list: close the card and get the
-    // search ready for the next product
+    // counting goes shelf by shelf, not by the list: close the card; the search
+    // stays on screen until the search box is tapped again
     setOpenId(null);
-    setSearchQuery("");
-    setTimeout(() => searchRef.current?.focus(), 50);
+    if (searchQuery.trim()) setClearSearchOnTap(true);
   };
 
   // Clear: the product's count (and the card closes)
@@ -969,11 +970,16 @@ export default function WarehouseAuditReview({ asTab = false }) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
-                ref={searchRef}
                 type="text"
                 placeholder={t("warehouseAudit.search.placeholder")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (clearSearchOnTap) {
+                    setSearchQuery("");
+                    setClearSearchOnTap(false);
+                  }
+                }}
+                onChange={(e) => { setClearSearchOnTap(false); setSearchQuery(e.target.value); }}
                 className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
