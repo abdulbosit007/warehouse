@@ -39,6 +39,7 @@
     "ownerOnly": "Доступ только для владельца.",
     "showingRange": "Показано {{from}}–{{to}} из {{total}}",
     "authError": "Ошибка авторизации",
+    "signInExpired": "Срок входа истёк. Пожалуйста, обновите страницу.",
     "failedLoad": "Не удалось загрузить данные",
     "close": "Закрыть",
     "actions": "Действия",
@@ -2233,8 +2234,7 @@
     "matchesSystem": "Совпадает с системой ({{qty}})",
     "doneNext": "Готово, дальше",
     "notCounted": "Не посчитано",
-    "status": "Статус",
-    "confirmFar": "{{name}}: в системе {{system}}, вы посчитали {{total}}. Всё верно?"
+    "status": "Статус"
   },
   "incomingParts": {
     "arrivedLabel": "Сколько пришло?",

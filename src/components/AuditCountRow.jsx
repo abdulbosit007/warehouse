@@ -28,15 +28,12 @@ const PLACE_STYLES = {
   amber: { chip: "bg-amber-100 text-amber-900", x: "text-amber-600 hover:bg-amber-200 hover:text-amber-900", on: "bg-amber-500 text-white border-amber-500" },
 };
 
-// A count far above the system qty is most likely a typo (an extra digit)
-function isFarFromSystem(total, systemQty) {
-  return total - systemQty >= 5 && total >= systemQty * 2;
-}
-
 // status: "pending" | "partial" (one place counted, the other one not yet)
 //         | "match" | "diff"
 // savedParts: { [place key]: number[] } — what is saved for each place
 // onDone({ [place key]: number[] }) — every place; [] = nothing counted there
+// onDraft(same shape) — while open: what the card holds now (parts + a typed
+// number), so the page can save it when the card closes without Done
 export default function AuditCountRow({
   product,
   systemQty,
@@ -51,6 +48,7 @@ export default function AuditCountRow({
   onClose,
   onDone,
   onClear,
+  onDraft,
   places = SINGLE_PLACE,
   defaultPlace,
   quickMatch = false,
@@ -61,13 +59,19 @@ export default function AuditCountRow({
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
   const cardRef = useRef(null);
+  const startedRef = useRef(false); // false until the parts loaded on opening are in place
   const multi = places.length > 1;
   const placeOf = (key) => places.find((p) => p.key === key) || places[0];
   const styleOf = (key) => PLACE_STYLES[placeOf(key).color || "indigo"];
 
   // (re)start from what is saved each time the card opens
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setParts([]);
+      setInput("");
+      return;
+    }
+    startedRef.current = false;
     setParts(places.flatMap((p) => (savedParts[p.key] || []).map((n) => ({ place: p.key, n }))));
     setInput("");
     cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -77,13 +81,27 @@ export default function AuditCountRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const total = sum(parts.map((p) => p.n));
-  const placeTotal = (key) => sum(parts.filter((p) => p.place === key).map((p) => p.n));
-
   const typedNumber = () => {
     const n = Number(input);
     return input !== "" && Number.isInteger(n) && n >= 0 ? n : null;
   };
+
+  // tell the page what the card holds (skipping the first run after opening,
+  // which still sees the parts from before they were loaded)
+  useEffect(() => {
+    if (!isOpen || !onDraft) return;
+    if (!startedRef.current) {
+      startedRef.current = true;
+      return;
+    }
+    const n = typedNumber();
+    const all = n != null ? [...parts, { place, n }] : parts;
+    onDraft(Object.fromEntries(places.map((p) => [p.key, all.filter((x) => x.place === p.key).map((x) => x.n)])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, parts, input, place]);
+
+  const total = sum(parts.map((p) => p.n));
+  const placeTotal = (key) => sum(parts.filter((p) => p.place === key).map((p) => p.n));
 
   const addPart = () => {
     const n = typedNumber();
@@ -97,11 +115,6 @@ export default function AuditCountRow({
   const removePart = (idx) => setParts((prev) => prev.filter((_, i) => i !== idx));
 
   const finish = (finalParts) => {
-    const finalTotal = sum(finalParts.map((p) => p.n));
-    if (isFarFromSystem(finalTotal, systemQty) &&
-        !window.confirm(t("auditCount.confirmFar", { name: product?.name || "", system: systemQty, total: finalTotal }))) {
-      return;
-    }
     const byPlace = Object.fromEntries(
       places.map((p) => [p.key, finalParts.filter((x) => x.place === p.key).map((x) => x.n)])
     );

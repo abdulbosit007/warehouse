@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import i18n from "../i18n";
+
+// This user's row (with role). Returns { data: null } when no row comes back.
+const loadUserRow = (userId) =>
+  supabase
+    .from("users_list")
+    .select("user_id, is_approved, name, user_role, roles:roles(id, name)")
+    .eq("user_id", userId)
+    .maybeSingle();
 
 /**
  * Returns:
@@ -53,19 +62,33 @@ export default function useCurrentUser() {
         return;
       }
 
-      const user = session.user;
+      let user = session.user;
 
       // users_list -> roles (id, name)
-      const { data, error: dbErr } = await supabase
-        .from("users_list")
-        .select("user_id, is_approved, name, user_role, roles:roles(id, name)")
-        .eq("user_id", user.id)
-        .single();
+      let { data, error: dbErr } = await loadUserRow(user.id);
+
+      // No row although the browser has a sign-in: usually the sign-in key went
+      // stale (another tab renewed it while this one was in the background), so
+      // the request counted as "not signed in". Renew it and ask once more.
+      let signInExpired = false;
+      if (!dbErr && !data) {
+        const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+        if (refreshErr || !refreshed?.session) {
+          signInExpired = true;
+        } else {
+          user = refreshed.session.user;
+          ({ data, error: dbErr } = await loadUserRow(user.id));
+        }
+      }
 
       if (dbErr || !data) {
         if (!ignore) {
           setAuthUser(user);
-          setError(dbErr ? dbErr.message : "User not found");
+          setError(
+            dbErr ? dbErr.message
+              : signInExpired ? i18n.t("common.signInExpired")
+              : "User not found"
+          );
           setLoading(false);
         }
         return;

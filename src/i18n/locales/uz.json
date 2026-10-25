@@ -39,6 +39,7 @@
     "ownerOnly": "Faqat owner kirishi mumkin.",
     "showingRange": "{{total}} dan {{from}}–{{to}} ko‘rsatilmoqda",
     "authError": "Avtorizatsiya xatosi",
+    "signInExpired": "Kirish muddati tugadi. Iltimos, sahifani yangilang.",
     "failedLoad": "Ma’lumotlarni yuklab bo‘lmadi",
     "close": "Yopish",
     "actions": "Amallar",
@@ -2233,8 +2234,7 @@
     "matchesSystem": "Tizim bilan bir xil ({{qty}})",
     "doneNext": "Tayyor, keyingisi",
     "notCounted": "Sanalmagan",
-    "status": "Holat",
-    "confirmFar": "{{name}}: tizimda {{system}}, siz {{total}} sanadingiz. To'g'rimi?"
+    "status": "Holat"
   },
   "incomingParts": {
     "arrivedLabel": "Qancha keldi?",

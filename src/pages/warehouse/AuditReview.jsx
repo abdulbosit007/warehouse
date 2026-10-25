@@ -1,5 +1,5 @@
 // src/pages/warehouse/AuditReview.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
@@ -433,15 +433,20 @@ export default function WarehouseAuditReview({ asTab = false }) {
   };
 
   // The count is kept with its parts (3 + 2 + 1); equal to the system qty → confirmed
-  const handleCount = (productId, parts) => {
+  // no parts = not counted
+  const withCount = (prev, productId, parts) => {
+    const next = { ...prev };
+    if (parts.length === 0) {
+      delete next[productId];
+      return next;
+    }
     const total = parts.reduce((s, n) => s + n, 0);
-    setReviews((prev) => ({
-      ...prev,
-      [productId]: total === getQtyAt(productId)
-        ? { status: "confirmed", parts }
-        : { status: "rejected", reportedQty: total, parts },
-    }));
+    next[productId] = total === getQtyAt(productId)
+      ? { status: "confirmed", parts }
+      : { status: "rejected", reportedQty: total, parts };
+    return next;
   };
+  const handleCount = (productId, parts) => setReviews((prev) => withCount(prev, productId, parts));
 
   const handleUndo = (productId) => {
     setReviews((prev) => {
@@ -495,19 +500,20 @@ export default function WarehouseAuditReview({ asTab = false }) {
     if (pendingProducts.length === 0) return;
     const nextIndex = (currentPendingIndex + 1) % pendingProducts.length;
     setCurrentPendingIndex(nextIndex);
-    setOpenId(pendingProducts[nextIndex].id);
+    openProduct(pendingProducts[nextIndex].id);
   };
 
   const goToPrevPending = () => {
     if (pendingProducts.length === 0) return;
     const prevIndex = currentPendingIndex === 0 ? pendingProducts.length - 1 : currentPendingIndex - 1;
     setCurrentPendingIndex(prevIndex);
-    setOpenId(pendingProducts[prevIndex].id);
+    openProduct(pendingProducts[prevIndex].id);
   };
 
   // Done on a product: save its count, show what was saved, open the next
   // product of the list (in the order shown) that isn't counted yet
   const handleCountDone = (product, parts) => {
+    draftRef.current = null; // saved right here
     handleCount(product.id, parts);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
     setToast({ name: product.name, qty: parts.reduce((s, n) => s + n, 0), at: Date.now() });
@@ -517,9 +523,43 @@ export default function WarehouseAuditReview({ asTab = false }) {
     setOpenId(next ? next.id : null);
   };
 
+  // Clear: the product's count (and the card closes)
   const handleCountClear = (productId) => {
+    draftRef.current = null;
+    setOpenId(null);
     handleUndo(productId);
     setKeepIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
+  };
+
+  // The open card's parts as the card reports them (onDraft). They are saved
+  // whenever the card closes without Done — another product, ✕, Previous/Next,
+  // a filter, Submit — so added parts are never lost. Returns the reviews with
+  // the draft applied (Submit sends those).
+  const draftRef = useRef(null); // { productId, parts }
+  const savedPartsOf = (productId, rv = reviews) => {
+    const r = rv[productId];
+    if (!r) return [];
+    return r.parts || [r.status === "confirmed" ? getQtyAt(productId) : r.reportedQty];
+  };
+  const flushDraft = () => {
+    const d = draftRef.current;
+    draftRef.current = null;
+    if (!d || JSON.stringify(d.parts) === JSON.stringify(savedPartsOf(d.productId))) return reviews;
+    const next = withCount(reviews, d.productId, d.parts);
+    setReviews(next);
+    if (d.parts.length > 0) {
+      setToast({
+        name: products.find((p) => p.id === d.productId)?.name || "",
+        qty: d.parts.reduce((s, n) => s + n, 0),
+        at: Date.now(),
+      });
+    }
+    return next;
+  };
+  // open another product (or none): the one open now keeps what was added
+  const openProduct = (productId) => {
+    flushDraft();
+    setOpenId(productId);
   };
 
   // the saved message goes away by itself
@@ -531,18 +571,24 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   // a new list (filter / warehouse) starts without kept rows and with nothing open
   useEffect(() => {
+    flushDraft();
     setKeepIds(new Set());
     setOpenId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, stockView, warehouseLocation?.id]);
 
   // Allow submission when all non-zero qty products are reviewed
   const allReviewed = nonZeroProducts.length > 0 && nonZeroProducts.every((p) => reviews[p.id]);
 
   async function handleSubmitAll() {
-    if (!allReviewed || !openSession || !warehouseLocation) return;
+    // an open card's added parts are saved first and sent with the rest
+    const current = flushDraft();
+    setOpenId(null);
+    const ready = nonZeroProducts.length > 0 && nonZeroProducts.every((p) => current[p.id]);
+    if (!ready || !openSession || !warehouseLocation) return;
 
     // Only submit products that have been reviewed (non-zero products + any searched 0-qty that were reviewed)
-    const reviewedProducts = products.filter((p) => reviews[p.id]);
+    const reviewedProducts = products.filter((p) => current[p.id]);
 
     setSubmitting(true);
     setError(null);
@@ -557,8 +603,8 @@ export default function WarehouseAuditReview({ asTab = false }) {
           location_id: warehouseLocation.id,
           responses: reviewedProducts.map((p) => ({
             product_id: p.id,
-            status: reviews[p.id].status,
-            reported_qty: reviews[p.id].reportedQty ?? null,
+            status: current[p.id].status,
+            reported_qty: current[p.id].reportedQty ?? null,
           })),
         },
       });
@@ -1065,8 +1111,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
                           diff={status === "diff" ? total - systemQty : null}
                           isOpen={openId === product.id}
                           dimmed={openId != null && openId !== product.id}
-                          onOpen={() => setOpenId(product.id)}
-                          onClose={() => setOpenId(null)}
+                          onOpen={() => openProduct(product.id)}
+                          onClose={() => openProduct(null)}
+                          onDraft={(byPlace) => { draftRef.current = { productId: product.id, parts: byPlace.count }; }}
                           onDone={(byPlace) => handleCountDone(product, byPlace.count)}
                           onClear={() => handleCountClear(product.id)}
                           quickMatch
