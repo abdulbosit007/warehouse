@@ -305,7 +305,7 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+        className="w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden h-[85vh] flex flex-col"
       >
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 max-md:px-4 py-5 flex items-start justify-between">
@@ -328,22 +328,6 @@ function AuditCorrectionsModal({ audit, products, location, onClose }) {
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="px-6 max-md:px-4 py-4 bg-neutral-50/80 border-b border-neutral-200 grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5">
-            <p className="text-xs text-neutral-500">{t("ownerInventoryBatchDetail.table.product")}</p>
-            <p className="text-xl font-bold text-neutral-900">{allResponses.length}</p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-2.5">
-            <p className="text-xs text-emerald-600">{t("ownerInventoryBatchDetail.modals.auditCorrections.confirmed")}</p>
-            <p className="text-xl font-bold text-emerald-700">{audit.confirmed}</p>
-          </div>
-          <div className="rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 px-3 py-2.5">
-            <p className="text-xs text-rose-600">{t("ownerInventoryBatchDetail.modals.auditCorrections.corrections")}</p>
-            <p className="text-xl font-bold text-rose-700">{audit.rejected}</p>
-          </div>
         </div>
 
         <AuditResultsList key={audit.session_id} responses={allResponses} productById={productById} />

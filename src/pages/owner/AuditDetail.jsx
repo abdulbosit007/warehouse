@@ -241,12 +241,7 @@ export default function OwnerAuditDetail() {
   // The open location's results and their numbers
   const detail = useMemo(() => {
     if (!selectedLocation) return null;
-    const rows = responses.filter((r) => r.location_id === selectedLocation.id);
-    return {
-      rows,
-      confirmed: rows.filter((r) => r.status !== "rejected").length,
-      corrections: rows.filter((r) => r.status === "rejected").length,
-    };
+    return { rows: responses.filter((r) => r.location_id === selectedLocation.id) };
   }, [selectedLocation, responses]);
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -453,11 +448,11 @@ export default function OwnerAuditDetail() {
           onClick={() => setSelectedLocation(null)}
         >
           <div
-            className="w-full max-w-3xl max-h-[85vh] max-sm:max-h-full max-sm:h-full rounded-2xl max-sm:rounded-none bg-white shadow-xl overflow-hidden flex flex-col"
+            className="w-full max-w-3xl h-[85vh] max-sm:h-full rounded-2xl max-sm:rounded-none bg-white shadow-xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-neutral-200 bg-gradient-to-r from-indigo-50 to-violet-50">
+            <div className="flex items-center justify-between px-5 py-4 max-sm:px-3 border-b border-neutral-200 bg-gradient-to-r from-indigo-50 to-violet-50 shrink-0">
               <div className="flex items-center gap-3">
                 {selectedLocation.kind === "warehouse" ? (
                   <div className="p-2 rounded-xl bg-indigo-100">
@@ -485,35 +480,8 @@ export default function OwnerAuditDetail() {
               </button>
             </div>
 
-            {/* Stats Summary */}
-            <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-600">{detail.confirmed}</p>
-                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.confirmed")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">{detail.corrections}</p>
-                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.corrections")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-neutral-900">{detail.rows.length}</p>
-                  <p className="text-xs text-neutral-500">{t("ownerAuditDetail.modal.checked")}</p>
-                </div>
-              </div>
-            </div>
-
             <AuditResultsList key={selectedLocation.id} responses={detail.rows} productById={productById} />
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-neutral-200 bg-neutral-50">
-              <button
-                onClick={() => setSelectedLocation(null)}
-                className="w-full rounded-xl bg-neutral-900 text-white py-3 font-medium hover:bg-neutral-800 transition-colors"
-              >
-                {t("common.close")}
-              </button>
-            </div>
           </div>
         </div>
       )}
