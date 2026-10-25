@@ -6,7 +6,7 @@
 //
 // Open: the count is built from parts. Found 3 here and 2 there → type 3, Add,
 // type 2, Add → 5. A wrong part is removed with its ✕ (there is no minus button
-// to press by mistake). Done saves and the page opens the next product.
+// to press by mistake). Done saves and closes the card.
 //
 // places: where the parts are counted. The warehouse has one place; a branch has
 // two (the shop and its small warehouse): the page's switch (defaultPlace) says
@@ -14,7 +14,7 @@
 // other place are shown but can only be removed after switching to it.
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, X, ChevronRight, CheckCircle2, XCircle, Check, Circle } from "lucide-react";
+import { Plus, X, CheckCircle2, XCircle, Check, Circle } from "lucide-react";
 import SkuBadge from "./SkuBadge";
 
 const sum = (nums) => nums.reduce((s, n) => s + n, 0);
@@ -259,66 +259,72 @@ export default function AuditCountRow({
               {t("auditCount.addingTo")}: {placeOf(place).icon} {placeOf(place).label}
             </div>
           )}
-          <div className="flex items-center gap-2">
+          {/* the count: type it and press Done (or the keyboard's Enter / Go) */}
+          <div className="flex items-stretch gap-2">
             <input
               ref={inputRef}
               type="number"
               inputMode="numeric"
+              enterKeyHint="done"
               min="0"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addPart(); }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleDone(); }}
               placeholder={t("auditCount.qtyPlaceholder")}
-              className="w-28 max-md:flex-1 max-md:min-w-0 rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-lg font-bold font-mono text-center focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              className="w-32 max-md:flex-1 max-md:min-w-0 rounded-xl border-2 border-neutral-300 bg-white px-3 py-2.5 text-xl font-bold font-mono text-center focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
             />
+            <button
+              type="button"
+              onClick={handleDone}
+              disabled={parts.length === 0 && input === ""}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-base font-bold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40"
+            >
+              <Check className="w-5 h-5" />
+              {t("auditCount.done")}
+            </button>
+          </div>
+
+          {/* found more in another place: add it as a part (secondary) */}
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={addPart}
               disabled={input === ""}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold active:scale-95 transition-all disabled:opacity-40 ${
-                multi ? PLACE_STYLES[placeOf(place).color || "indigo"].on : "bg-indigo-600 text-white hover:bg-indigo-700"
-              }`}
+              className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 active:scale-95 transition-all disabled:opacity-40"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               {multi ? `${t("auditCount.add")} ${placeOf(place).icon}` : t("auditCount.add")}
             </button>
+            <span className="text-xs text-neutral-500">{t("auditCount.addHint")}</span>
           </div>
-          <p className="mt-1.5 text-xs text-neutral-500">{t("auditCount.addHint")}</p>
         </div>
 
-        {/* Footer */}
-        <div className="mt-3 flex items-center gap-2 flex-wrap border-t border-neutral-100 bg-neutral-50 px-4 py-3 max-md:px-3">
-          {savedTotal != null && onClear && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="text-sm font-medium text-neutral-500 hover:text-red-600 px-1"
-            >
-              {t("auditCount.clear")}
-            </button>
-          )}
-          <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+        {/* Footer: only when there is something to put here */}
+        {((savedTotal != null && onClear) || (quickMatch && parts.length === 0)) ? (
+          <div className="mt-3 flex items-center gap-2 flex-wrap border-t border-neutral-100 bg-neutral-50 px-4 py-3 max-md:px-3">
+            {savedTotal != null && onClear && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-sm font-medium text-neutral-500 hover:text-red-600 px-1"
+              >
+                {t("auditCount.clear")}
+              </button>
+            )}
             {quickMatch && parts.length === 0 && (
               <button
                 type="button"
                 onClick={() => finish([{ place: places[0].key, n: systemQty }])}
-                className="inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95 transition-all"
+                className="ml-auto inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95 transition-all"
               >
                 <Check className="w-4 h-4" />
                 {t("auditCount.matchesSystem", { qty: systemQty })}
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleDone}
-              disabled={parts.length === 0 && input === ""}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40"
-            >
-              {t("auditCount.doneNext")}
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="pb-4" />
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import WaitingDeliveriesWarning from "../../components/WaitingDeliveriesWarning";
 import CustomSelect from "../../components/CustomSelect";
 import AuditCountRow, { AuditSavedToast } from "../../components/AuditCountRow";
+import useBackGuard from "../../hooks/useBackGuard";
 import { useTranslation } from "react-i18next";
 import {
   Package,
@@ -248,7 +249,7 @@ export default function BranchAuditReview({ asTab = false }) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
-  const [currentPendingIndex, setCurrentPendingIndex] = useState(0);
+  const searchRef = useRef(null);
   const [openId, setOpenId] = useState(null); // the one product open for counting
   const [stockView, setStockView] = useState("existing"); // "existing" | "zero" (0 in the system, optional)
   const [keepIds, setKeepIds] = useState(() => new Set()); // counted just now: stay in the Pending list (no jumping rows)
@@ -543,8 +544,9 @@ export default function BranchAuditReview({ asTab = false }) {
     let result;
 
     if (isSearching) {
-      // When searching, show the whole chosen list (also the ones the other place covers)
-      result = [...viewProducts];
+      // When searching, show the whole chosen list (also the ones the other place
+      // covers); on the in-stock list also the 0-in-system ones (found on a shelf)
+      result = stockView === "existing" ? [...nonZeroProducts, ...zeroProducts] : [...viewProducts];
     } else {
       // Pending: hide products the other place already covers (nothing left to count
       // here); the other lists show every product, finished ones included
@@ -584,7 +586,7 @@ export default function BranchAuditReview({ asTab = false }) {
     }
 
     return result;
-  }, [viewProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey, activeLocationTab, keepIds, openId]);
+  }, [viewProducts, nonZeroProducts, zeroProducts, stockView, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey, activeLocationTab, keepIds, openId]);
 
   // Pending: products of the chosen list that need input on this tab AND aren't auto-covered by the other tab
   const pendingProducts = useMemo(() => {
@@ -605,31 +607,7 @@ export default function BranchAuditReview({ asTab = false }) {
   }, [nonZeroProducts, reviews, productList, locationId]);
 
 
-  useEffect(() => {
-    if (currentPendingIndex >= pendingProducts.length && pendingProducts.length > 0) {
-      setCurrentPendingIndex(0);
-    }
-  }, [pendingProducts.length, currentPendingIndex]);
-
-  const goToNextPending = () => {
-    if (pendingProducts.length === 0) return;
-    const nextIndex = (currentPendingIndex + 1) % pendingProducts.length;
-    setCurrentPendingIndex(nextIndex);
-    openProduct(pendingProducts[nextIndex].id);
-  };
-
-  const goToPrevPending = () => {
-    if (pendingProducts.length === 0) return;
-    const prevIndex =
-      currentPendingIndex === 0
-        ? pendingProducts.length - 1
-        : currentPendingIndex - 1;
-    setCurrentPendingIndex(prevIndex);
-    openProduct(pendingProducts[prevIndex].id);
-  };
-
-  // Done on a product: save its count, show what was saved, open the next
-  // product of the list (in the order shown) that isn't counted yet
+  // Done on a product: save its count, show what was saved, close the card
   // "🏪 5 · 📦 2" for the saved message
   const placesText = (byPlace) => AUDIT_PLACES
     .filter((p) => byPlace[p.key]?.length > 0)
@@ -641,12 +619,11 @@ export default function BranchAuditReview({ asTab = false }) {
     handleSaveCounts(product.id, byPlace);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
     setToast({ name: product.name, qty: placesText(byPlace), at: Date.now() });
-
-    const idx = filteredProducts.findIndex((p) => p.id === product.id);
-    const next = filteredProducts.slice(idx + 1).find(
-      (p) => p.id !== product.id && reviews[p.id]?.[qtyKey] == null && !hasZeroRemaining(p.id)
-    );
-    setOpenId(next ? next.id : null);
+    // counting goes shelf by shelf, not by the list: close the card and get the
+    // search ready for the next product
+    setOpenId(null);
+    setSearchQuery("");
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   // Clear: the product's count in both places (and the card closes)
@@ -688,6 +665,20 @@ export default function BranchAuditReview({ asTab = false }) {
     flushDraft();
     setOpenId(productId);
   };
+
+  // Android back swipe / browser Back while counting: closes the open card (it is
+  // saved); with no card open it asks before leaving the audit
+  useBackGuard(!!selectedAuditForReview && !submitted, () => {
+    if (openId) {
+      openProduct(null);
+      return false;
+    }
+    if (window.confirm(t("auditCount.leaveConfirm"))) {
+      setSelectedAuditForReview(null);
+      return true;
+    }
+    return false;
+  });
 
   // the saved message goes away by itself
   useEffect(() => {
@@ -1114,7 +1105,7 @@ export default function BranchAuditReview({ asTab = false }) {
                 return (
                   <button
                     key={tab.key}
-                    onClick={() => { setActiveLocationTab(tab.key); setCurrentPendingIndex(0); }}
+                    onClick={() => setActiveLocationTab(tab.key)}
                     className={`relative flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-all max-md:flex-col max-md:gap-1 max-md:px-2 max-md:py-3 ${
                       isActive
                         ? "bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500"
@@ -1171,6 +1162,7 @@ export default function BranchAuditReview({ asTab = false }) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
+                ref={searchRef}
                 type="text"
                 placeholder={t("branchAudit.search.placeholder")}
                 value={searchQuery}
@@ -1188,7 +1180,7 @@ export default function BranchAuditReview({ asTab = false }) {
                 <button
                   key={v.key}
                   type="button"
-                  onClick={() => { setStockView(v.key); setCurrentPendingIndex(0); }}
+                  onClick={() => setStockView(v.key)}
                   aria-pressed={stockView === v.key}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                     stockView === v.key
@@ -1326,8 +1318,9 @@ export default function BranchAuditReview({ asTab = false }) {
                             smallWarehouseQty: r.smallWarehouseQtyParts || (small != null ? [small] : []),
                           }}
                           diff={done ? combined - systemQty : null}
-                          extra={counted && (
+                          extra={(counted || (systemQty === 0 && stockView === "existing")) && (
                             <>
+                              {systemQty === 0 && stockView === "existing" && <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-neutral-800 text-[11px] text-white font-medium">{t("auditCount.viewZero")}</span>}
                               {shop != null && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-[11px] text-emerald-800 font-medium ring-1 ring-inset ring-emerald-200">
                                   🏪 {AUDIT_PLACES[0].label}: <b>{shop}</b>
@@ -1371,7 +1364,7 @@ export default function BranchAuditReview({ asTab = false }) {
                     <button
                       key={p.key}
                       type="button"
-                      onClick={() => { setActiveLocationTab(tabKey); setCurrentPendingIndex(0); }}
+                      onClick={() => setActiveLocationTab(tabKey)}
                       aria-pressed={on}
                       className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                         on
@@ -1407,34 +1400,9 @@ export default function BranchAuditReview({ asTab = false }) {
                   )}
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={goToPrevPending}
-                    disabled={pendingProducts.length === 0}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3 px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    {t("branchAudit.actions.previous")}
-                  </button>
-
-                  <div className="flex-shrink-0 text-center px-4">
-                    <p className="text-sm font-bold text-neutral-900">
-                      {pendingProducts.length}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {t("branchAudit.progress.remaining")}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={goToNextPending}
-                    disabled={pendingProducts.length === 0}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3 px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-                  >
-                    {t("branchAudit.actions.next")}
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
+                <p className="text-center text-sm text-neutral-600">
+                  <b className="text-neutral-900 tabular-nums">{pendingProducts.length}</b> {t("branchAudit.progress.remaining")}
+                </p>
               )}
             </div>
           </div>

@@ -753,8 +753,6 @@
       "back": "Back to Audits",
       "submit": "Submit Audit to Owner",
       "submitting": "Submitting...",
-      "next": "Next",
-      "previous": "Previous",
       "undo": "Undo",
       "save": "Save",
       "close": "Close"
@@ -1456,8 +1454,6 @@
       "title": "Review Progress"
     },
     "nav": {
-      "previous": "Previous",
-      "next": "Next",
       "remaining": "Remaining"
     },
     "list": {
@@ -2238,7 +2234,8 @@
     "addHint": "Found more in another place? Type the number and press Add — it adds up.",
     "clear": "Clear count",
     "matchesSystem": "Matches system ({{qty}})",
-    "doneNext": "Done, next",
+    "done": "Done",
+    "leaveConfirm": "Leave the audit? Your counts stay saved on this phone.",
     "notCounted": "Not counted",
     "status": "Status"
   },

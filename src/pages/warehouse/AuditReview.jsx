@@ -7,6 +7,7 @@ import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import WaitingDeliveriesWarning from "../../components/WaitingDeliveriesWarning";
 import CustomSelect from "../../components/CustomSelect";
 import AuditCountRow, { AuditSavedToast } from "../../components/AuditCountRow";
+import useBackGuard from "../../hooks/useBackGuard";
 import {
   Package,
   Check,
@@ -196,7 +197,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
-  const [currentPendingIndex, setCurrentPendingIndex] = useState(0);
+  const searchRef = useRef(null);
   const [openId, setOpenId] = useState(null); // the one product open for counting
   const [stockView, setStockView] = useState("existing"); // "existing" | "zero" (0 in the system, optional)
   const [keepIds, setKeepIds] = useState(() => new Set()); // counted just now: stay in the Pending list (no jumping rows)
@@ -469,8 +470,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
 
   const filteredProducts = useMemo(() => {
     const isSearching = searchQuery.trim().length > 0;
-    // the chosen list: in stock, or 0 in the system
-    let result = [...viewProducts];
+    // the chosen list: in stock, or 0 in the system; searching the in-stock list
+    // also finds the 0-in-system ones (found on a shelf)
+    let result = isSearching && stockView === "existing" ? [...nonZeroProducts, ...zeroProducts] : [...viewProducts];
 
     if (statusFilter === "pending") result = result.filter((p) => !reviews[p.id] || keepIds.has(p.id));
     else if (statusFilter === "confirmed") result = result.filter((p) => reviews[p.id]?.status === "confirmed");
@@ -488,39 +490,21 @@ export default function WarehouseAuditReview({ asTab = false }) {
     else result.sort(byName);
 
     return result;
-  }, [viewProducts, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation, keepIds]);
+  }, [viewProducts, nonZeroProducts, zeroProducts, stockView, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, warehouseLocation, keepIds]);
 
   const pendingProducts = useMemo(() => viewProducts.filter((p) => !reviews[p.id]), [viewProducts, reviews]);
 
-  useEffect(() => {
-    if (currentPendingIndex >= pendingProducts.length && pendingProducts.length > 0) setCurrentPendingIndex(0);
-  }, [pendingProducts.length, currentPendingIndex]);
-
-  const goToNextPending = () => {
-    if (pendingProducts.length === 0) return;
-    const nextIndex = (currentPendingIndex + 1) % pendingProducts.length;
-    setCurrentPendingIndex(nextIndex);
-    openProduct(pendingProducts[nextIndex].id);
-  };
-
-  const goToPrevPending = () => {
-    if (pendingProducts.length === 0) return;
-    const prevIndex = currentPendingIndex === 0 ? pendingProducts.length - 1 : currentPendingIndex - 1;
-    setCurrentPendingIndex(prevIndex);
-    openProduct(pendingProducts[prevIndex].id);
-  };
-
-  // Done on a product: save its count, show what was saved, open the next
-  // product of the list (in the order shown) that isn't counted yet
+  // Done on a product: save its count, show what was saved, close the card
   const handleCountDone = (product, parts) => {
     draftRef.current = null; // saved right here
     handleCount(product.id, parts);
     if (statusFilter === "pending") setKeepIds((prev) => new Set(prev).add(product.id));
     setToast({ name: product.name, qty: parts.reduce((s, n) => s + n, 0), at: Date.now() });
-
-    const idx = filteredProducts.findIndex((p) => p.id === product.id);
-    const next = filteredProducts.slice(idx + 1).find((p) => p.id !== product.id && !reviews[p.id]);
-    setOpenId(next ? next.id : null);
+    // counting goes shelf by shelf, not by the list: close the card and get the
+    // search ready for the next product
+    setOpenId(null);
+    setSearchQuery("");
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
   // Clear: the product's count (and the card closes)
@@ -561,6 +545,20 @@ export default function WarehouseAuditReview({ asTab = false }) {
     flushDraft();
     setOpenId(productId);
   };
+
+  // Android back swipe / browser Back while counting: closes the open card (it is
+  // saved); with no card open it asks before leaving the audit
+  useBackGuard(!!selectedAuditForReview && !submitted, () => {
+    if (openId) {
+      openProduct(null);
+      return false;
+    }
+    if (window.confirm(t("auditCount.leaveConfirm"))) {
+      setSelectedAuditForReview(null);
+      return true;
+    }
+    return false;
+  });
 
   // the saved message goes away by itself
   useEffect(() => {
@@ -966,6 +964,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
+                ref={searchRef}
                 type="text"
                 placeholder={t("warehouseAudit.search.placeholder")}
                 value={searchQuery}
@@ -983,7 +982,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
                 <button
                   key={v.key}
                   type="button"
-                  onClick={() => { setStockView(v.key); setCurrentPendingIndex(0); }}
+                  onClick={() => setStockView(v.key)}
                   aria-pressed={stockView === v.key}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     stockView === v.key
@@ -1114,6 +1113,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
                           savedTotal={total}
                           savedParts={{ count: r?.parts || (total != null ? [total] : []) }}
                           diff={status === "diff" ? total - systemQty : null}
+                          extra={systemQty === 0 && stockView === "existing" && <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-neutral-800 text-[11px] text-white font-medium">{t("auditCount.viewZero")}</span>}
                           isOpen={openId === product.id}
                           dimmed={openId != null && openId !== product.id}
                           onOpen={() => openProduct(product.id)}
@@ -1152,28 +1152,9 @@ export default function WarehouseAuditReview({ asTab = false }) {
                   )}
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={goToPrevPending}
-                    disabled={pendingProducts.length === 0}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3 px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    {t("warehouseAudit.nav.previous")}
-                  </button>
-                  <div className="flex-shrink-0 text-center px-4">
-                    <p className="text-sm font-bold text-neutral-900">{pendingProducts.length}</p>
-                    <p className="text-xs text-neutral-500">{t("warehouseAudit.nav.remaining")}</p>
-                  </div>
-                  <button
-                    onClick={goToNextPending}
-                    disabled={pendingProducts.length === 0}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3 px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-                  >
-                    {t("warehouseAudit.nav.next")}
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
+                <p className="text-center text-sm text-neutral-600">
+                  <b className="text-neutral-900 tabular-nums">{pendingProducts.length}</b> {t("warehouseAudit.nav.remaining")}
+                </p>
               )}
             </div>
           </div>
