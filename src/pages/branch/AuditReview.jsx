@@ -556,7 +556,8 @@ export default function BranchAuditReview({ asTab = false }) {
     if (statusFilter === "pending") {
       result = result.filter((p) => reviews[p.id]?.[qtyKey] == null || keepIds.has(p.id) || p.id === openId);
     } else if (statusFilter === "confirmed") {
-      result = result.filter((p) => reviews[p.id]?.[qtyKey] != null);
+      // counted here, or already covered by the other place (same as its count)
+      result = result.filter((p) => reviews[p.id]?.[qtyKey] != null || hasZeroRemaining(p.id));
     } else if (statusFilter === "rejected") {
       result = result.filter((p) => countResult(p.id) === "rejected");
     }
@@ -1212,7 +1213,7 @@ export default function BranchAuditReview({ asTab = false }) {
                 { key: "all", label: t("branchAudit.filters.all"), count: searchQuery.trim() ? filteredProducts.length : viewProducts.length },
                 { key: "pending", label: t("branchAudit.filters.pending"), count: pendingProducts.length },
                 { key: "confirmed", label: t("branchAudit.filters.confirmed"), count: viewProducts.length - pendingProducts.length },
-                { key: "rejected", label: t("branchAudit.filters.discrepancies"), count: rejectedCount },
+                { key: "rejected", label: t("branchAudit.filters.discrepancies"), count: viewProducts.filter((p) => countResult(p.id) === "rejected").length },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1270,7 +1271,12 @@ export default function BranchAuditReview({ asTab = false }) {
             <div className="flex items-center gap-3 px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
               <div className="w-1 shrink-0" />
               <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                {t("branchAudit.filters.all")} · {filteredProducts.length}
+                {t({
+                  all: "branchAudit.filters.all",
+                  pending: "branchAudit.filters.pending",
+                  confirmed: "branchAudit.filters.confirmed",
+                  rejected: "branchAudit.filters.discrepancies",
+                }[statusFilter] || "branchAudit.filters.all")} · {filteredProducts.length}
               </div>
               <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider max-md:hidden">
                 {t("branchAudit.product.systemQty")}

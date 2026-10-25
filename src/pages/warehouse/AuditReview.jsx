@@ -1069,7 +1069,12 @@ export default function WarehouseAuditReview({ asTab = false }) {
             <div className="flex items-center gap-3 px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
               <div className="w-1 shrink-0" />
               <div className="flex-1 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                {t("warehouseAudit.tabs.all")} · {filteredProducts.length}
+                {t({
+                  all: "warehouseAudit.tabs.all",
+                  pending: "warehouseAudit.tabs.pending",
+                  confirmed: "warehouseAudit.tabs.confirmed",
+                  rejected: "warehouseAudit.tabs.discrepancies",
+                }[statusFilter] || "warehouseAudit.tabs.all")} · {filteredProducts.length}
               </div>
               <div className="w-14 text-center text-[11px] font-semibold text-neutral-500 uppercase tracking-wider max-md:hidden">
                 {t("warehouseAudit.labels.systemQty")}
