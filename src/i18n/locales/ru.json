@@ -769,7 +769,7 @@
     "filters": {
       "all": "Все",
       "pending": "Ожидает",
-      "confirmed": "Подтверждено",
+      "confirmed": "Посчитано",
       "discrepancies": "Расхождения",
       "allCategories": "Все категории",
       "defaultOrder": "По умолчанию",

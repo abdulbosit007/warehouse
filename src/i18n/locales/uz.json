@@ -769,7 +769,7 @@
     "filters": {
       "all": "Barchasi",
       "pending": "Kutilmoqda",
-      "confirmed": "Tasdiqlangan",
+      "confirmed": "Sanalgan",
       "discrepancies": "Farqlar",
       "allCategories": "Barcha kategoriyalar",
       "defaultOrder": "Standart tartib",

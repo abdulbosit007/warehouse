@@ -769,7 +769,7 @@
     "filters": {
       "all": "Барчаси",
       "pending": "Кутилмоқда",
-      "confirmed": "Тасдиқланган",
+      "confirmed": "Саналган",
       "discrepancies": "Фарқлар",
       "allCategories": "Барча категориялар",
       "defaultOrder": "Стандарт тартиб",
