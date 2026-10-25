@@ -769,7 +769,7 @@
     "filters": {
       "all": "All",
       "pending": "Pending",
-      "confirmed": "Confirmed",
+      "confirmed": "Counted",
       "discrepancies": "Discrepancies",
       "allCategories": "All Categories",
       "defaultOrder": "Default Order",

@@ -546,8 +546,11 @@ export default function BranchAuditReview({ asTab = false }) {
       // When searching, show the whole chosen list (also the ones the other place covers)
       result = [...viewProducts];
     } else {
-      // Hide products where the other place already covers the full system qty
-      result = viewProducts.filter((p) => !hasZeroRemaining(p.id) || p.id === openId);
+      // Pending: hide products the other place already covers (nothing left to count
+      // here); the other lists show every product, finished ones included
+      result = statusFilter === "pending"
+        ? viewProducts.filter((p) => !hasZeroRemaining(p.id) || p.id === openId)
+        : [...viewProducts];
     }
 
     if (statusFilter === "pending") {
