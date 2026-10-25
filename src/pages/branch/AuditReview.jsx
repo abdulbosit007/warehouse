@@ -585,6 +585,11 @@ export default function BranchAuditReview({ asTab = false }) {
       result.sort(byName);
     }
 
+    // searching the in-stock list: in-stock products first, then the 0-in-system ones
+    if (isSearching && stockView === "existing") {
+      result = [...result.filter((p) => getQtyAt(p.id) > 0), ...result.filter((p) => getQtyAt(p.id) === 0)];
+    }
+
     return result;
   }, [viewProducts, nonZeroProducts, zeroProducts, stockView, reviews, statusFilter, categoryFilter, searchQuery, sortOrder, productList, qtyKey, activeLocationTab, keepIds, openId]);
 
