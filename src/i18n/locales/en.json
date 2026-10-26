@@ -2232,8 +2232,6 @@
     "qtyPlaceholder": "Qty",
     "add": "Add",
     "addHint": "Found more in another place? Type the number and press Add — it adds up.",
-    "clear": "Clear count",
-    "matchesSystem": "Matches system ({{qty}})",
     "done": "Done",
     "leaveConfirm": "Leave the audit? Your counts stay saved on this phone.",
     "notCounted": "Not counted",

@@ -451,14 +451,6 @@ export default function WarehouseAuditReview({ asTab = false }) {
   };
   const handleCount = (productId, parts) => setReviews((prev) => withCount(prev, productId, parts));
 
-  const handleUndo = (productId) => {
-    setReviews((prev) => {
-      const next = { ...prev };
-      delete next[productId];
-      return next;
-    });
-  };
-
   // Products with non-zero qty at this location (the main audit list)
   const nonZeroProducts = useMemo(() => {
     return products.filter((p) => getQtyAt(p.id) > 0).sort(byName);
@@ -511,14 +503,6 @@ export default function WarehouseAuditReview({ asTab = false }) {
     // stays on screen until the search box is tapped again
     setOpenId(null);
     if (searchQuery.trim()) setClearSearchOnTap(true);
-  };
-
-  // Clear: the product's count (and the card closes)
-  const handleCountClear = (productId) => {
-    draftRef.current = null;
-    setOpenId(null);
-    handleUndo(productId);
-    setKeepIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
   };
 
   // The open card's parts as the card reports them (onDraft). They are saved
@@ -1131,8 +1115,6 @@ export default function WarehouseAuditReview({ asTab = false }) {
                           onClose={() => openProduct(null)}
                           onDraft={(byPlace) => { draftRef.current = { productId: product.id, parts: byPlace.count }; }}
                           onDone={(byPlace) => handleCountDone(product, byPlace.count)}
-                          onClear={() => handleCountClear(product.id)}
-                          quickMatch
                         />
                       </div>
                     </div>

@@ -616,18 +616,6 @@ export default function BranchAuditReview({ asTab = false }) {
     if (searchQuery.trim()) setClearSearchOnTap(true);
   };
 
-  // Clear: the product's count in both places (and the card closes)
-  const handleCountClear = (productId) => {
-    draftRef.current = null;
-    setOpenId(null);
-    setReviews((prev) => {
-      const next = { ...prev };
-      delete next[productId];
-      return next;
-    });
-    setKeepIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
-  };
-
   // The open card's parts as the card reports them (onDraft). They are saved
   // whenever the card closes without Done — another product, ✕, Previous/Next,
   // a filter, Submit — so added parts are never lost. Returns the reviews with
@@ -1336,7 +1324,6 @@ export default function BranchAuditReview({ asTab = false }) {
                           onClose={() => openProduct(null)}
                           onDraft={(byPlace) => { draftRef.current = { productId: product.id, byPlace }; }}
                           onDone={(byPlace) => handleCountDone(product, byPlace)}
-                          onClear={() => handleCountClear(product.id)}
                         />
                       </div>
                     </div>
