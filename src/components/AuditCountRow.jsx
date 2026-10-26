@@ -47,11 +47,9 @@ export default function AuditCountRow({
   onOpen,
   onClose,
   onDone,
-  onClear,
   onDraft,
   places = SINGLE_PLACE,
   defaultPlace,
-  quickMatch = false,
 }) {
   const { t } = useTranslation();
   const [parts, setParts] = useState([]); // [{ place, n }]
@@ -299,32 +297,7 @@ export default function AuditCountRow({
           </div>
         </div>
 
-        {/* Footer: only when there is something to put here */}
-        {((savedTotal != null && onClear) || (quickMatch && parts.length === 0)) ? (
-          <div className="mt-3 flex items-center gap-2 flex-wrap border-t border-neutral-100 bg-neutral-50 px-4 py-3 max-md:px-3">
-            {savedTotal != null && onClear && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="text-sm font-medium text-neutral-500 hover:text-red-600 px-1"
-              >
-                {t("auditCount.clear")}
-              </button>
-            )}
-            {quickMatch && parts.length === 0 && (
-              <button
-                type="button"
-                onClick={() => finish([{ place: places[0].key, n: systemQty }])}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95 transition-all"
-              >
-                <Check className="w-4 h-4" />
-                {t("auditCount.matchesSystem", { qty: systemQty })}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="pb-4" />
-        )}
+        <div className="pb-4" />
       </div>
     </div>
   );
