@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import SkuBadge from "../../components/SkuBadge";
 
+// filter value for products that have no category
+const NO_CATEGORY = "__none__";
+
 /* ─────────────────────────────────────────────────────────────────────────────
    FILTER MODAL
 ───────────────────────────────────────────────────────────────────────────── */
@@ -85,6 +88,7 @@ function FilterModal({ categories, filters, onApply, onClose }) {
               placeholder={t("branch1.home.filters.category.all")}
               options={[
                 { value: "", label: t("branch1.home.filters.category.all") },
+                { value: NO_CATEGORY, label: t("ownerHome.editModal.noCategory") },
                 ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
               ]}
             />
@@ -327,7 +331,9 @@ export default function BranchHome() {
     }
 
     if (filters.category_id) {
-      result = result.filter((p) => p.category_id === filters.category_id);
+      result = filters.category_id === NO_CATEGORY
+        ? result.filter((p) => !p.category_id)
+        : result.filter((p) => p.category_id === filters.category_id);
     }
 
     if (filters.priceMin) result = result.filter((p) => (p.sale_price || 0) >= Number(filters.priceMin));
@@ -557,7 +563,9 @@ export default function BranchHome() {
         <div className="flex flex-wrap gap-2">
           {filters.category_id && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700">
-              {categories.find((c) => c.id === filters.category_id)?.name || t("branch1.home.filters.category.label")}
+              {filters.category_id === NO_CATEGORY
+                ? t("ownerHome.editModal.noCategory")
+                : categories.find((c) => c.id === filters.category_id)?.name || t("branch1.home.filters.category.label")}
               <button onClick={() => setFilters({ ...filters, category_id: "" })}>
                 <X className="w-3 h-3" />
               </button>
