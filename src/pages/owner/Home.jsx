@@ -23,6 +23,9 @@ import {
   Truck,
 } from "lucide-react";
 
+// filter value for products that have no category
+const NO_CATEGORY = "__none__";
+
 /* ─────────────────────────────────────────────────────────────────────────────
    EDIT PRODUCT MODAL
 ───────────────────────────────────────────────────────────────────────────── */
@@ -293,6 +296,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
                 className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">{t("ownerHome.filters.allCategories")}</option>
+                <option value={NO_CATEGORY}>{t("ownerHome.editModal.noCategory")}</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
@@ -646,7 +650,9 @@ export default function OwnerHome() {
 
     // Category filter
     if (filters.category_id) {
-      result = result.filter((p) => p.category_id === filters.category_id);
+      result = filters.category_id === NO_CATEGORY
+        ? result.filter((p) => !p.category_id)
+        : result.filter((p) => p.category_id === filters.category_id);
     }
 
     // Price filter
@@ -920,7 +926,9 @@ export default function OwnerHome() {
           {filters.category_id && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-medium text-indigo-700">
               {t("ownerHome.pills.category")}:{" "}
-              {categories.find((c) => c.id === filters.category_id)?.name || t("common.unknown")}
+              {filters.category_id === NO_CATEGORY
+                ? t("ownerHome.editModal.noCategory")
+                : categories.find((c) => c.id === filters.category_id)?.name || t("common.unknown")}
               <button
                 onClick={() => setFilters({ ...filters, category_id: "" })}
                 className="hover:text-indigo-900"

@@ -367,7 +367,7 @@ export default function WarehouseAuditReview({ asTab = false }) {
       setProducts(productsRes.data || []);
       setProductList(plRes.data || []);
 
-      const { data: cats } = await supabase.from("categories").select("id, name");
+      const { data: cats } = await supabase.from("categories").select("id, name").order("name");
       setCategories(cats || []);
 
       const key = getStorageKey(sessions[0].id, warehouseLocation.id);

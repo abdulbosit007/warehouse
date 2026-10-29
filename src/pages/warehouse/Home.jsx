@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import SkuBadge from "../../components/SkuBadge";
 
+// filter value for products that have no category
+const NO_CATEGORY = "__none__";
+
 /* ─────────────────────────────────────────────────────────────────────────────
    FILTER MODAL
 ───────────────────────────────────────────────────────────────────────────── */
@@ -93,6 +96,7 @@ function FilterModal({ t, categories, locations, filters, onApply, onClose }) {
               color="blue"
               options={[
                 { value: "", label: t("warehouseHome.filters.category.all") },
+                { value: NO_CATEGORY, label: t("ownerHome.editModal.noCategory") },
                 ...categories.map((cat) => ({
                   value: cat.id,
                   label: cat.name,
@@ -384,7 +388,9 @@ export default function WarehouseHome() {
     }
 
     if (filters.category_id) {
-      result = result.filter((p) => p.category_id === filters.category_id);
+      result = filters.category_id === NO_CATEGORY
+        ? result.filter((p) => !p.category_id)
+        : result.filter((p) => p.category_id === filters.category_id);
     }
 
     if (filters.stockStatus) {
@@ -648,8 +654,10 @@ export default function WarehouseHome() {
         <div className="flex flex-wrap gap-2">
           {filters.category_id && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
-              {categories.find((c) => c.id === filters.category_id)?.name ||
-                t("warehouseHome.filters.category.label")}
+              {filters.category_id === NO_CATEGORY
+                ? t("ownerHome.editModal.noCategory")
+                : categories.find((c) => c.id === filters.category_id)?.name ||
+                  t("warehouseHome.filters.category.label")}
               <button
                 onClick={() => setFilters({ ...filters, category_id: "" })}
               >
