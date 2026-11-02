@@ -9,23 +9,10 @@ import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { isItemDone, DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/saleRequestItems";
-import { allocate, buildPairLog, missingPairs, NEW_PAIR_ROWS, optionsByMain, overFree, pairPlan, pairRecords, syncPairs } from "../../lib/linkedCalc";
-import {
-  findLoanPairLines,
-  findSalePairLines,
-  flushPairLog,
-  linkedProductIds,
-  loadLinks,
-  loadNetStock,
-  loadPairNotes,
-  savePairLog,
-} from "../../lib/linkedProducts";
 
 // shared UI bits
 import Blocked from "../../components/Blocked";
 import ReturnDestModal from "../../components/ReturnDestModal";
-import PairPickerModal, { PairField, PairSkipBox } from "../../components/ops/PairPickerModal";
-import { PairWarningDialog, PairReturnDialog } from "../../components/ops/PairDialogs";
 
 // tab sections
 import SaleSection from "../../components/ops/SaleSection";
@@ -127,30 +114,6 @@ export default function BranchOperations() {
   }, [cart]);
   const [note, setNote] = useState("");
 
-  // linked products: the owner's lists, and what the seller answered for this cart
-  const [links, setLinks] = useState([]);
-  const [netStock, setNetStock] = useState(new Map());
-  const [pairs, setPairs] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("branch_ops_pairs") || "[]");
-    } catch {
-      return [];
-    }
-  }); // [{id,main_product_id,secondary_product_id (null = skipped),source_location_id,qty}]
-  const [pairPicker, setPairPicker] = useState(null); // {main, qty, checkout} | null
-  const [pairWarning, setPairWarning] = useState(null); // {kind, items} | null
-  const [pairReturnAsk, setPairReturnAsk] = useState(null); // {mainName, lines, qty, onAnswer} | null
-  const [checkoutNext, setCheckoutNext] = useState(null); // "sale" | "loan" | null
-  const [salePairNotes, setSalePairNotes] = useState(new Map());
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("branch_ops_pairs", JSON.stringify(pairs));
-    } catch (e) {
-      console.error("Failed to save pairs to localStorage", e);
-    }
-  }, [pairs]);
-
   // loan fields
   const [borrower, setBorrower] = useState({
     borrower_name: "",
@@ -209,44 +172,6 @@ export default function BranchOperations() {
     }
     return result;
   }, [catalog, q, selectedCategory]);
-
-  const linkOptions = useMemo(() => optionsByMain(links), [links]);
-  const linkedFree = useMemo(() => allocate(links, netStock).free, [links, netStock]);
-
-  // the free number next to a secondary item in the product table
-  const catalogRows = useMemo(
-    () =>
-      links.length === 0
-        ? filteredCatalog
-        : filteredCatalog.map((r) =>
-            linkedFree.has(r.product_id) ? { ...r, free_qty: linkedFree.get(r.product_id) } : r
-          ),
-    [filteredCatalog, linkedFree, links.length]
-  );
-
-  // cart lines say which main item they belong to
-  const cartView = useMemo(() => {
-    if (pairs.length === 0) return cart;
-    const nameOf = new Map(links.map((l) => [l.main_product_id, l.main?.name]));
-    return cart.map((line) => {
-      const forMain = [...new Set(
-        pairs
-          .filter((p) => p.secondary_product_id === line.product_id && p.source_location_id === line.source_location_id)
-          .map((p) => nameOf.get(p.main_product_id))
-          .filter(Boolean)
-      )];
-      const skipped = pairs
-        .filter((p) => p.main_product_id === line.product_id && !p.secondary_product_id)
-        .reduce((s, p) => s + p.qty, 0);
-      if (forMain.length === 0 && skipped === 0) return line;
-      return {
-        ...line,
-        pair_label: skipped > 0
-          ? t("linked.skippedLine", { count: skipped })
-          : t("linked.forMain", { name: forMain.join(", ") }),
-      };
-    });
-  }, [cart, pairs, links, t]);
 
   const cartValid = useMemo(
     () =>
@@ -375,11 +300,6 @@ export default function BranchOperations() {
         a.name.localeCompare(b.name)
       );
       setCatalog(rows);
-
-      const linkList = await loadLinks();
-      setLinks(linkList);
-      setNetStock(await loadNetStock(linkedProductIds(linkList)).catch(() => new Map()));
-      flushPairLog();
 
       // Sync cart with fresh source quantities
       const stockMap = new Map(rows.map((r) => [r.product_id, r]));
@@ -759,15 +679,9 @@ export default function BranchOperations() {
     setSourcePicker({ row, sources });
   }
 
-  function changeCart(nextCart) {
-    const synced = syncPairs(nextCart, pairs);
-    setCart(synced.cart);
-    setPairs(synced.pairs);
-  }
-
   function setCartQty(cartKey, qty) {
-    changeCart(
-      cart.map((l) =>
+    setCart((curr) =>
+      curr.map((l) =>
         l.cart_key === cartKey
           ? { ...l, qty: Math.max(0, Math.min(qty, l.maxQty ?? qty)) }
           : l
@@ -776,116 +690,7 @@ export default function BranchOperations() {
   }
 
   function removeFromCart(cartKey) {
-    changeCart(cart.filter((l) => l.cart_key !== cartKey));
-  }
-
-  /* ------------------------ LINKED PRODUCTS: the pair ----------------------- */
-
-  // The owner's list for a main item, with what can still go into the cart
-  function pairOptionsFor(mainId) {
-    return (linkOptions.get(mainId) || []).map((link) => {
-      const row = catalog.find((r) => r.product_id === link.secondary_product_id);
-      const sources = (row?.sources || [])
-        .map((s) => ({
-          ...s,
-          realQty: s.qty,
-          qty: s.qty - (cart.find((l) => l.cart_key === `${link.secondary_product_id}:${s.locationId}`)?.qty || 0),
-        }))
-        .filter((s) => s.qty > 0);
-      return {
-        product_id: link.secondary_product_id,
-        name: link.secondary?.name || "",
-        sku: link.secondary?.sku || "",
-        sources,
-      };
-    });
-  }
-
-  function addPairs(main, plan) {
-    for (const { option, source, qty } of plan.picks) {
-      addToCart(option, source.locationId, source.locationName, source.realQty, qty, source.needsApproval);
-    }
-    const added = pairRecords(main.product_id, plan, () => crypto.randomUUID());
-    setPairs((curr) => [...curr, ...added]);
-  }
-
-  // Checkout found a main item with no answer: go on once it has one
-  function handlePairConfirm(plan) {
-    addPairs(pairPicker.main, plan);
-    setCheckoutNext(pairPicker.checkout);
-    setPairPicker(null);
-  }
-
-  // Checkout button: every main item has an answer, a reserved item sold alone is
-  // warned about, then the normal sale / loan runs
-  async function startCheckout(kind) {
-    if (committing) return;
-    const commit = kind === "loan" ? commitLoan : commitSale;
-    const synced = syncPairs(cart, pairs);
-    if (JSON.stringify(synced) !== JSON.stringify({ cart, pairs })) {
-      // a line ran out of stock after a refresh: go on with the corrected cart
-      setCart(synced.cart);
-      setPairs(synced.pairs);
-      setCheckoutNext(kind);
-      return;
-    }
-    if (links.length === 0) return commit();
-
-    const missing = missingPairs(synced.cart, synced.pairs, linkOptions);
-    if (missing.length > 0) {
-      const { qty, ...main } = missing[0];
-      setPairPicker({ main, qty, checkout: kind });
-      return;
-    }
-
-    let over = [];
-    try {
-      const fresh = await loadNetStock(linkedProductIds(links));
-      setNetStock(fresh);
-      over = overFree(links, fresh, synced.cart, synced.pairs);
-    } catch (e) {
-      log("linked stock check skipped", e.message || String(e)); // never stops a sale
-    }
-    if (over.length > 0) {
-      setPairWarning({ kind, items: over });
-      return;
-    }
-    commit();
-  }
-
-  useEffect(() => {
-    if (!checkoutNext) return;
-    setCheckoutNext(null);
-    startCheckout(checkoutNext);
-    // runs once the picker's answer is in the cart
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkoutNext]);
-
-  // After a sale / loan: what was chosen for each main item
-  function recordPairs(kind, itemIds, loanGroupId = null) {
-    savePairLog(
-      buildPairLog(cart, pairs, {
-        kind,
-        locationId: branchLocationId,
-        itemIds,
-        loanGroupId,
-        now: new Date().toISOString(),
-        newId: () => crypto.randomUUID(),
-      })
-    );
-    setPairs([]);
-  }
-
-  // Same day's sale of this main item: the secondary items sold with it
-  function findSaleReturnPair(productId, sales) {
-    const days = sales.map((s) => s.created_at).sort();
-    return findSalePairLines({
-      locationId: branchLocationId,
-      mainProductId: productId,
-      startISO: startOfDayUTC(new Date(days[0])),
-      endISO: nextDayUTC(new Date(days[days.length - 1])),
-      fetchReturned: fetchReturnedSums,
-    });
+    setCart((curr) => curr.filter((l) => l.cart_key !== cartKey));
   }
 
   async function commitSale() {
@@ -896,7 +701,6 @@ export default function BranchOperations() {
 
       const ownItems      = cart.filter((l) => !l.needs_approval);
       const approvalItems = cart.filter((l) => l.needs_approval);
-      const requestItemIds = new Map(); // "product:location" → request item id, for the pair records
 
       // ── Pre-commit stock validation (own branch items only) ──
       if (ownItems.length > 0) {
@@ -954,7 +758,7 @@ export default function BranchOperations() {
             .single();
           if (reqErr) throw reqErr;
 
-          const { data: itemRows, error: itemErr } = await supabase
+          const { error: itemErr } = await supabase
             .from("branch_request_items")
             .insert(
               items.map((item) => ({
@@ -964,14 +768,10 @@ export default function BranchOperations() {
                 requested_qty: item.qty,
                 status: "requested",
               }))
-            )
-            .select("id, product_id");
+            );
           if (itemErr) throw itemErr;
-          for (const row of itemRows || []) requestItemIds.set(`${row.product_id}:${sourceId}`, row.id);
         }
       }
-
-      recordPairs("sale", requestItemIds);
 
       // ── Feedback ──
       if (ownItems.length > 0 && approvalItems.length > 0) {
@@ -1003,7 +803,6 @@ export default function BranchOperations() {
       // One loan for this borrower, however many locations it comes from: the part
       // from our shelf and every loan request share this id (one card in Active loans).
       const loanGroupId = crypto.randomUUID();
-      const requestItemIds = new Map(); // "product:location" → request item id, for the pair records
 
       // ── Commit own branch loan items immediately ──
       if (ownItems.length > 0) {
@@ -1074,7 +873,7 @@ export default function BranchOperations() {
             .single();
           if (reqErr) throw reqErr;
 
-          const { data: itemRows, error: itemErr } = await supabase
+          const { error: itemErr } = await supabase
             .from("branch_request_items")
             .insert(
               items.map((item) => ({
@@ -1084,14 +883,10 @@ export default function BranchOperations() {
                 requested_qty: item.qty,
                 status: "requested",
               }))
-            )
-            .select("id, product_id");
+            );
           if (itemErr) throw itemErr;
-          for (const row of itemRows || []) requestItemIds.set(`${row.product_id}:${sourceId}`, row.id);
         }
       }
-
-      recordPairs("loan", requestItemIds, loanGroupId);
 
       // ── Feedback ──
       if (ownItems.length > 0 && approvalItems.length > 0) {
@@ -1234,12 +1029,6 @@ export default function BranchOperations() {
           is_completed: !hasRemaining && !hasWaiting,
         };
       });
-
-      const rejected = loans.flatMap((l) => l.waiting.filter((w) => w.status === "rejected").map((w) => w.id));
-      const pairNotes = await loadPairNotes(rejected).catch(() => new Map());
-      for (const loan of loans) {
-        for (const w of loan.waiting) w.pair_name = pairNotes.get(w.id) || "";
-      }
 
       setActiveLoans(loans.filter((loan) => loan.items.length > 0 || loan.waiting.length > 0));
     } catch (e) {
@@ -1576,9 +1365,6 @@ export default function BranchOperations() {
       if (req !== saleHistoryReq.current) return; // a newer load (e.g. another day) is running
       setSaleHistory(history);
       setSalePendingRequests(reqs || []);
-      loadPairNotes(
-        (reqs || []).flatMap((r) => (r.items || []).filter((i) => i.status === "rejected").map((i) => i.id))
-      ).then(setSalePairNotes, () => {});
 
     } catch (e) {
       if (silent || req !== saleHistoryReq.current) return; // keep what is on screen
@@ -1706,7 +1492,7 @@ export default function BranchOperations() {
     }
   }
 
-  async function markLoanReturned(loan, item, qty) {
+  function markLoanReturned(loan, item, qty) {
     if (qty <= 0 || qty > item.remaining) return;
     const returnItem = {
       product_id: item.product_id,
@@ -1716,34 +1502,11 @@ export default function BranchOperations() {
       return_kind: "loan_return",
       parent_tx_id: item.tx_id || loan.id,
     };
-    const open = (returnItems) => openLoanReturn(returnItems);
-    const lines = await findLoanPairLines({ loan, mainProductId: item.product_id });
-    if (lines.length === 0) return open([returnItem]);
-    setPairReturnAsk({
-      mainName: returnItem.name,
-      lines,
-      qty,
-      onAnswer: (chosen) => {
-        setPairReturnAsk(null);
-        open([returnItem, ...chosen.map((l) => ({ ...l, return_kind: "loan_return" }))]);
-      },
-    });
-  }
-
-  function openLoanReturn(returnItems) {
-    const qty = returnItems.reduce((s, i) => s + i.qty, 0);
-    // the destination list shows each product once, however many loan parts it spans
-    const shown = new Map();
-    for (const i of returnItems) {
-      const entry = shown.get(i.product_id);
-      if (entry) entry.qty += i.qty;
-      else shown.set(i.product_id, { ...i });
-    }
     setRetDestModal({
-      items: [...shown.values()],
+      items: [returnItem],
       onConfirm: async (destinations, retNote) => {
         try {
-          await processReturnWithDestinations(returnItems, destinations, retNote);
+          await processReturnWithDestinations([returnItem], destinations, retNote);
           setRetDestModal(null);
           showOk(t("branchOperations.success.returnedItems", { qty }));
           loadActiveLoans();
@@ -2246,15 +2009,15 @@ return (
             q={q}
             setQ={setQ}
             loading={loading}
-            rows={catalogRows}
+            rows={filteredCatalog}
             onAdd={handleAddProduct}
-            cart={cartView}
+            cart={cart}
             note={note}
             onNoteChange={setNote}
             setCartQty={setCartQty}
             removeFromCart={removeFromCart}
             cartValid={cartValid}
-            onCommitSale={() => startCheckout("sale")}
+            onCommitSale={commitSale}
             committing={committing}
             nf={nf}
             // Category filter props
@@ -2270,8 +2033,6 @@ return (
             loadSaleHistory={loadSaleHistory}
             commitSaleReturn={commitSaleReturn}
             onBatchSaleReturn={commitSaleReturnBatch}
-            findReturnPair={findSaleReturnPair}
-            pairNotes={salePairNotes}
             salePendingRequests={salePendingRequests}
             onAcceptTransfer={acceptTransferRequest}
             onCancelTransferItem={cancelSaleTransferItem}
@@ -2299,9 +2060,9 @@ return (
             q={q}
             setQ={setQ}
             loading={loading}
-            rows={catalogRows}
+            rows={filteredCatalog}
             onAdd={handleAddProduct}
-            cart={cartView}
+            cart={cart}
             note={note}
             onNoteChange={setNote}
             setCartQty={setCartQty}
@@ -2310,7 +2071,7 @@ return (
             setBorrower={setBorrower}
             cartValid={cartValid}
             loanValid={loanValid}
-            onCommitLoan={() => startCheckout("loan")}
+            onCommitLoan={commitLoan}
             committing={committing}
             nf={nf}
             // Category filter props
@@ -2361,10 +2122,7 @@ return (
       <QuantityInputModal
         row={sourcePicker.row}
         sources={sourcePicker.sources}
-        pairOptions={!sourcePicker.resendItem && linkOptions.has(sourcePicker.row.product_id)
-          ? pairOptionsFor(sourcePicker.row.product_id)
-          : null}
-        onConfirm={(selections, pair) => {
+        onConfirm={(selections) => {
           if (sourcePicker.resendItem) {
             // Resend → create the request directly, dated to the original day.
             commitResend(selections, sourcePicker.resendItem);
@@ -2379,45 +2137,10 @@ return (
                 sel.needsApproval
               )
             );
-            if (pair) addPairs(sourcePicker.row, pair);
           }
           setSourcePicker(null);
         }}
         onClose={() => setSourcePicker(null)}
-      />
-    )}
-
-    {pairPicker && (
-      <PairPickerModal
-        key={`${pairPicker.main.product_id}:${pairPicker.qty}`}
-        main={pairPicker.main}
-        qty={pairPicker.qty}
-        options={pairOptionsFor(pairPicker.main.product_id)}
-        onConfirm={handlePairConfirm}
-        onClose={() => setPairPicker(null)}
-      />
-    )}
-
-    {pairWarning && (
-      <PairWarningDialog
-        items={pairWarning.items}
-        kind={pairWarning.kind}
-        onConfirm={() => {
-          const { kind } = pairWarning;
-          setPairWarning(null);
-          (kind === "loan" ? commitLoan : commitSale)();
-        }}
-        onClose={() => setPairWarning(null)}
-      />
-    )}
-
-    {pairReturnAsk && (
-      <PairReturnDialog
-        mainName={pairReturnAsk.mainName}
-        lines={pairReturnAsk.lines}
-        qty={pairReturnAsk.qty}
-        onAnswer={pairReturnAsk.onAnswer}
-        onClose={() => setPairReturnAsk(null)}
       />
     )}
   </div>
@@ -2430,10 +2153,8 @@ return (
    input. Confirm adds all filled locations to cart as separate line items.
    Locations other than own branch show an "Approval needed" badge.
 ───────────────────────────────────────────────────────────────────────────── */
-function QuantityInputModal({ row, sources, pairOptions, onConfirm, onClose }) {
+function QuantityInputModal({ row, sources, onConfirm, onClose }) {
   const { t } = useTranslation();
-  const [pairRows, setPairRows] = useState(NEW_PAIR_ROWS);
-  const [askSkip, setAskSkip] = useState(false);
   const [qtys, setQtys] = useState(
     () => Object.fromEntries(sources.map((s) => [s.locationId, ""]))
   );
@@ -2451,19 +2172,12 @@ function QuantityInputModal({ row, sources, pairOptions, onConfirm, onClose }) {
   const totalSelected = sources.reduce((sum, s) => sum + (parseInt(qtys[s.locationId]) || 0), 0);
   const canConfirm = totalSelected > 0;
 
-  const pair = pairOptions ? pairPlan(pairOptions, pairRows, totalSelected) : null;
-
-  const confirm = () => {
+  const handleConfirm = () => {
     const selections = sources
       .filter((s) => (parseInt(qtys[s.locationId]) || 0) > 0)
       .map((s) => ({ ...s, selectedQty: parseInt(qtys[s.locationId]) }));
     if (selections.length === 0) return;
-    onConfirm(selections, pair);
-  };
-
-  const handleConfirm = () => {
-    if (pair?.skipped > 0) setAskSkip(true);
-    else confirm();
+    onConfirm(selections);
   };
 
   return (
@@ -2484,10 +2198,6 @@ function QuantityInputModal({ row, sources, pairOptions, onConfirm, onClose }) {
           <p className="text-xs text-emerald-200 font-mono mt-0.5">{row.sku}</p>
         </div>
 
-        {askSkip ? (
-          <PairSkipBox name={row.name} count={pair.skipped} onBack={() => setAskSkip(false)} onConfirm={confirm} />
-        ) : (
-        <>
         {/* Location rows */}
         <div className="p-4 space-y-2">
           <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider mb-3">
@@ -2564,13 +2274,6 @@ function QuantityInputModal({ row, sources, pairOptions, onConfirm, onClose }) {
               )}
             </div>
           )}
-
-          {/* Linked products: the pair of a main item */}
-          {pairOptions && (
-            <div className="pt-2">
-              <PairField options={pairOptions} qty={totalSelected} rows={pairRows} onChange={setPairRows} />
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -2589,8 +2292,6 @@ function QuantityInputModal({ row, sources, pairOptions, onConfirm, onClose }) {
             {t("branchOperations.modal.addToCartBtn")}
           </button>
         </div>
-        </>
-        )}
       </div>
     </div>
   );

@@ -86,7 +86,6 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
                   >
                     <td className={`${colWidths.name} px-4 py-2.5 font-medium text-neutral-900 truncate`}>
                       {r.name}
-                      <FreeTag row={r} />
                     </td>
                     <td className={`${colWidths.sku} px-4 py-2.5`}>
                       <span className="font-mono text-xs text-neutral-500">{r.sku}</span>
@@ -131,7 +130,6 @@ export default function BranchProductsTable({ loading, rows, onAdd }) {
                 <li key={r.product_id} className="flex items-center gap-3 px-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium leading-snug text-neutral-900">{r.name}</p>
-                    <FreeTag row={r} />
                     <div className="mt-0.5 flex items-center gap-3 text-xs text-neutral-500">
                       <span className="min-w-0 truncate font-mono">{r.sku}</span>
                       <span className="shrink-0">
@@ -210,15 +208,4 @@ function QtyBadge({ qty, kind }) {
         : "text-blue-600"
       : "text-amber-600";
   return <span className={`font-semibold text-sm ${color}`}>{qty}</span>;
-}
-
-// Linked products: how many of a secondary item no main item needs (whole company)
-function FreeTag({ row }) {
-  const { t } = useTranslation();
-  if (row.free_qty == null) return null;
-  return (
-    <span className={`block text-xs font-normal ${row.free_qty > 0 ? "text-emerald-600" : "text-amber-600"}`}>
-      {t("linked.free", { count: row.free_qty })}
-    </span>
-  );
 }

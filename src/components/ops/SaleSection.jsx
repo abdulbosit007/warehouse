@@ -32,8 +32,6 @@ export default function SaleSection({
   saleHistoryLoading = false,
   loadSaleHistory,
   commitSaleReturn,
-  findReturnPair,
-  pairNotes,
   onBatchSaleReturn,
   salePendingRequests = [],
   onAcceptTransfer,
@@ -192,8 +190,6 @@ export default function SaleSection({
           loading={saleHistoryLoading}
           loadSaleHistory={loadSaleHistory}
           commitSaleReturn={commitSaleReturn}
-          findReturnPair={findReturnPair}
-          pairNotes={pairNotes}
           onBatchSaleReturn={onBatchSaleReturn}
           salePendingRequests={salePendingRequests}
           onAcceptTransfer={onAcceptTransfer}

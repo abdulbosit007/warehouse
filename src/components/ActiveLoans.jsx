@@ -758,9 +758,6 @@ function WaitingParts({ loan, settled, onAccept, onCancel, t }) {
                     <div className="min-w-0 flex-1 max-md:basis-full">
                       <div className="text-sm text-neutral-800 truncate max-md:whitespace-normal">{w.name}</div>
                       <div className="text-xs text-neutral-400">{w.sku || "—"}</div>
-                      {w.pair_name && (
-                        <div className="text-xs text-red-700">{t("linked.rejectedNote", { name: w.pair_name })}</div>
-                      )}
                     </div>
                     <span className="text-sm font-semibold tabular-nums text-neutral-600">× {w.qty}</span>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${st.style}`}>

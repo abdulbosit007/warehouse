@@ -4,7 +4,6 @@ import { DayPicker } from "react-day-picker";
 import { Calendar, Package, RotateCcw, X, Search, ArrowUpDown, Clock, CheckCircle2, Warehouse, RefreshCw, Store, ChevronDown } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 import ReturnDestModal from "./ReturnDestModal";
-import { PairReturnDialog } from "./ops/PairDialogs";
 import { isItemDone } from "../lib/saleRequestItems";
 
 export default function SaleHistory({
@@ -16,8 +15,6 @@ export default function SaleHistory({
   loadSaleHistory,
   commitSaleReturn,
   onBatchSaleReturn,
-  findReturnPair,
-  pairNotes,
   salePendingRequests = [],
   onAcceptTransfer,
   onCancelTransferItem,
@@ -39,7 +36,6 @@ export default function SaleHistory({
   const [returnModal, setReturnModal] = useState(null);
   const [returnQty, setReturnQty] = useState(1);
   const [retDestModal, setRetDestModal] = useState(null); // { items, onConfirm }
-  const [pairAsk, setPairAsk] = useState(null); // { mainName, lines, onAnswer }
   const [filterQuery, setFilterQuery] = useState("");
   const [displayMode, setDisplayMode] = useState(
     () => localStorage.getItem("saleHistoryMode") || "overall"
@@ -242,7 +238,7 @@ export default function SaleHistory({
     setReturnQty(1);
   };
 
-  const handleReturnSubmit = async () => {
+  const handleReturnSubmit = () => {
     if (!returnModal || returnQty <= 0 || returnQty > returnModal.grouped.remaining) return;
     if (!commitSaleReturn) return;
 
@@ -263,34 +259,6 @@ export default function SaleHistory({
     const productId = plan[0].item.product_id;
     const totalQty = plan.reduce((s, p) => s + p.qty, 0);
 
-    setReturnModal(null);
-
-    // Linked products: a main item returned alone asks about its pair
-    const pairLines = findReturnPair
-      ? await findReturnPair(productId, plan.map((p) => p.sale))
-      : [];
-    const openDest = (extra) => openReturnDest(plan, grouped, productId, totalQty, extra);
-    if (pairLines.length === 0) return openDest([]);
-    setPairAsk({
-      mainName: grouped.name,
-      lines: pairLines,
-      qty: totalQty,
-      onAnswer: (chosen) => {
-        setPairAsk(null);
-        openDest(chosen);
-      },
-    });
-  };
-
-  const openReturnDest = (plan, grouped, productId, totalQty, pairLines) => {
-    // the location list shows each product once
-    const pairShown = new Map();
-    for (const line of pairLines) {
-      const entry = pairShown.get(line.product_id);
-      if (entry) entry.qty += line.qty;
-      else pairShown.set(line.product_id, { ...line, return_kind: "sale_return" });
-    }
-
     setRetDestModal({
       items: [{
         product_id: productId,
@@ -299,9 +267,9 @@ export default function SaleHistory({
         qty: totalQty,
         return_kind: "sale_return",
         parent_tx_id: plan[0].sale.id,
-      }, ...pairShown.values()],
+      }],
       onConfirm: async (destinations, retNote) => {
-        if (plan.length === 1 && pairLines.length === 0) {
+        if (plan.length === 1) {
           // Single transaction — use regular commitSaleReturn
           const p = plan[0];
           await commitSaleReturn(p.sale, p.item, p.qty, destinations, retNote);
@@ -316,12 +284,13 @@ export default function SaleHistory({
             return_kind: "sale_return",
             parent_tx_id: p.sale.id,
           }));
-          batchItems.push(...pairLines.map((line) => ({ ...line, return_kind: "sale_return" })));
           await onBatchSaleReturn(batchItems, destinations, retNote);
         }
         setRetDestModal(null);
       },
     });
+
+    setReturnModal(null);
   };
 
   const handleSelectProduct = async (product, year) => {
@@ -744,11 +713,6 @@ export default function SaleHistory({
                                                 </span>
                                               )}
                                             </div>
-                                            {isRejected && pairNotes?.get(it.id) && (
-                                              <p className="mt-0.5 text-xs text-red-700">
-                                                {t("linked.rejectedNote", { name: pairNotes.get(it.id) })}
-                                              </p>
-                                            )}
                                           </div>
                                           <div className="flex items-center gap-2 shrink-0">
                                             <span className="text-sm font-semibold text-neutral-600">{nf.format(it.requested_qty)}</span>
@@ -971,11 +935,6 @@ export default function SaleHistory({
                                       {t("branchOperations.saleHistory.fromLocation", {
                                         name: it.source_location.location_name,
                                       })}
-                                    </div>
-                                  )}
-                                  {isRejected && pairNotes?.get(it.id) && (
-                                    <div className="mt-0.5 text-xs text-red-700">
-                                      {t("linked.rejectedNote", { name: pairNotes.get(it.id) })}
                                     </div>
                                   )}
                                 </td>
@@ -1370,16 +1329,6 @@ export default function SaleHistory({
       )}
 
       {/* Return Destination Modal — self-contained, no cross-component state */}
-      {pairAsk && (
-        <PairReturnDialog
-          mainName={pairAsk.mainName}
-          lines={pairAsk.lines}
-          qty={pairAsk.qty}
-          onAnswer={pairAsk.onAnswer}
-          onClose={() => setPairAsk(null)}
-        />
-      )}
-
       {retDestModal && (
         <ReturnDestModal
           items={retDestModal.items}
