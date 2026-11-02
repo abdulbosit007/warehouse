@@ -10,6 +10,54 @@
     "inventoryManagement": "Inventar",
     "catalog": "Katalog"
   },
+  "linked": {
+    "free": "bo‘sh {{count}}",
+    "pickTitle": "Juftini tanlang",
+    "noneAvailable": "Juftlarining birortasi ham mavjud emas.",
+    "skipTitle": "Juftsiz ketadimi?",
+    "skipText": "{{count}} × {{name}} juftsiz ketadi. Egasi buni ko‘radi.",
+    "skipYes": "Ha, juftsiz",
+    "back": "Orqaga",
+    "forMain": "{{name}} jufti",
+    "skippedLine": "{{count}} tasi juftsiz",
+    "warnTitle": "Bu mahsulotlar band",
+    "warnText": "Ular mavjud asosiy mahsulotlar uchun kerak.",
+    "warnLine": "{{name}}: sotilmoqda {{qty}}, bo‘sh {{free}}",
+    "sellAnyway": "Baribir sotish",
+    "loanAnyway": "Baribir berish",
+    "returnTitle": "Jufti ham qaytadimi?",
+    "returnText": "{{name}} quyidagi bilan ketgan:",
+    "returnBoth": "Ikkalasini qaytarish",
+    "returnOnly": "Yo‘q, faqat asosiysini",
+    "rejectedNote": "{{name}} jufti. Bu qator rad etildi, juft to‘liq emas.",
+    "owner": {
+      "title": "Bog‘langan mahsulotlar",
+      "summary": "Yetishmaydi: {{short}} · Ro‘yxatsiz: {{unlinked}} · Juftsiz sotilgan: {{skipped}}",
+      "tabShort": "Yetishmaydi",
+      "tabUnlinked": "Ro‘yxatsiz",
+      "tabSkipped": "Juftsiz sotilgan, {{days}} kun",
+      "shortLine": "omborda {{stock}}, juft bor {{covered}}, {{short}} ta yetishmaydi",
+      "emptyShort": "Barcha asosiy mahsulotlarga juft yetadi.",
+      "emptyUnlinked": "Bu toifalardagi barcha mahsulotlarda ro‘yxat bor.",
+      "emptySkipped": "Juftsiz sotilganlar yo‘q.",
+      "kindSale": "Sotuv",
+      "kindLoan": "Qarz"
+    },
+    "editor": {
+      "title": "Juftlar, tartib bilan",
+      "search": "Nomi yoki SKU bo‘yicha qo‘shish",
+      "hint": "Avval birinchisi taklif qilinadi. U tugasa keyingisi ishlatiladi.",
+      "isSecondary": "Bu mahsulot quyidagilarning jufti: {{names}}",
+      "up": "Yuqoriga",
+      "down": "Pastga",
+      "remove": "Olib tashlash"
+    },
+    "field": "Jufti",
+    "noPairOption": "Juftsiz",
+    "withoutNote": "{{count}} tasi juftsiz ketadi",
+    "addAnother": "Yana qo‘shish",
+    "overNote": "Asosiy mahsulotdan {{count}} ta ko‘p"
+  },
   "common": {
     "loading": "Yuklanmoqda...",
     "refresh": "Yangilash",
@@ -476,10 +524,19 @@
     }
   },
   "ownerSettings": {
+    "products": {
+      "addProduct": "Yangi mahsulot",
+      "modalTitle": "Yangi mahsulot",
+      "modalSubtitle": "Qoldiq 0 dan boshlanadi. Tovar «Kiruvchi mahsulotlar» orqali keladi.",
+      "newCategory": "Yangi kategoriya",
+      "added": "Mahsulot qo‘shildi: {{name}}",
+      "duplicateSku": "{{sku}} SKU allaqachon bor {{name}}",
+      "addFailed": "Mahsulot qo‘shilmadi"
+    },
     "title": "Sozlamalar",
     "subtitle": "Ilova sozlamalari va konfiguratsiya",
     "tabs": {
-      "categories": "Kategoriyalar",
+      "categories": "Mahsulot va kategoriyalar",
       "users": "Foydalanuvchilar",
       "locations": "Manzillar",
       "reports": "Hisobotlar"

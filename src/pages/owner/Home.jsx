@@ -1,9 +1,12 @@
 // src/pages/owner/Home.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
+import LinkedProductsPanel from "../../components/LinkedProductsPanel";
+import LinkedItemsEditor from "../../components/LinkedItemsEditor";
+import { loadLinks, saveLinks } from "../../lib/linkedProducts";
 import {
   Package,
   Search,
@@ -29,7 +32,7 @@ const NO_CATEGORY = "__none__";
 /* ─────────────────────────────────────────────────────────────────────────────
    EDIT PRODUCT MODAL
 ───────────────────────────────────────────────────────────────────────────── */
-function EditProductModal({ product, categories, onClose, onSave }) {
+function EditProductModal({ product, categories, products, onClose, onSave }) {
   const { t } = useTranslation();
 
   const [form, setForm] = useState({
@@ -41,6 +44,32 @@ function EditProductModal({ product, categories, onClose, onSave }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // linked products: the owner's ordered list of secondary items
+  const [links, setLinks] = useState(null); // null until loaded
+  const [secondaries, setSecondaries] = useState([]);
+  const savedList = useRef("");
+
+  useEffect(() => {
+    let live = true;
+    loadLinks().then((list) => {
+      if (!live) return;
+      const own = list
+        .filter((l) => l.main_product_id === product.id)
+        .sort((a, b) => a.position - b.position)
+        .map((l) => l.secondary);
+      savedList.current = own.map((p) => p.id).join();
+      setSecondaries(own);
+      setLinks(list);
+    });
+    return () => { live = false; };
+  }, [product.id]);
+
+  const mainIds = useMemo(() => new Set((links || []).map((l) => l.main_product_id)), [links]);
+  const parents = useMemo(
+    () => (links || []).filter((l) => l.secondary_product_id === product.id).map((l) => l.main?.name),
+    [links, product.id]
+  );
 
   const handleSave = async () => {
     setError(null);
@@ -68,6 +97,10 @@ function EditProductModal({ product, categories, onClose, onSave }) {
         .eq("id", product.id);
 
       if (updateError) throw updateError;
+
+      if (links && secondaries.map((p) => p.id).join() !== savedList.current) {
+        await saveLinks(product.id, secondaries.map((p) => p.id));
+      }
 
       onSave();
       onClose();
@@ -177,6 +210,22 @@ function EditProductModal({ product, categories, onClose, onSave }) {
               />
             </div>
           </div>
+
+          {links && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("linked.editor.title")}
+              </label>
+              <LinkedItemsEditor
+                productId={product.id}
+                products={products}
+                value={secondaries}
+                onChange={setSecondaries}
+                mainIds={mainIds}
+                parents={parents}
+              />
+            </div>
+          )}
         </div>
 
         <div className="border-t border-neutral-100 px-6 py-4 max-md:px-4 bg-neutral-50 flex items-center justify-end gap-3">
@@ -798,6 +847,8 @@ export default function OwnerHome() {
         </button>
       </div>
 
+      <LinkedProductsPanel products={products} getTotalQty={getTotalQty} refreshKey={productList} />
+
       {/* Stats Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-2xl p-4 text-left" style={{ background: "linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)" }}>
@@ -1288,6 +1339,7 @@ export default function OwnerHome() {
         <EditProductModal
           product={editingProduct}
           categories={categories}
+          products={products}
           onClose={() => setEditingProduct(null)}
           onSave={loadData}
         />

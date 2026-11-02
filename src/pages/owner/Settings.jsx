@@ -23,6 +23,7 @@ import {
 import UsersTab from "../../components/settings/UsersTab";
 import LocationsTab from "../../components/settings/LocationsTab";
 import ReportsTab from "../../components/settings/ReportsTab";
+import NewProductModal from "../../components/settings/NewProductModal";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    STAT CARD COMPONENT (matching UsersTab)
@@ -65,6 +66,10 @@ function CategoriesTab() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+
+  // New product window (its category can be made on the way)
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [productCategory, setProductCategory] = useState("");
 
   // Filter state
   const [filter, setFilter] = useState("all"); // 'all' | 'withProducts' | 'empty'
@@ -172,6 +177,7 @@ function CategoriesTab() {
 
       if (insertErr) throw insertErr;
 
+      if (showProductForm) setProductCategory(newId);
       setSuccess(t("ownerSettings.success.categoryAdded"));
       setTimeout(() => setSuccess(""), 3000);
       setShowForm(false);
@@ -293,10 +299,21 @@ function CategoriesTab() {
               resetForm();
               setShowForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
           >
             <Plus className="w-4 h-4" />
             {t("ownerSettings.categories.addCategory")}
+          </button>
+          <button
+            onClick={() => {
+              setError("");
+              setProductCategory("");
+              setShowProductForm(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-4 h-4" />
+            {t("ownerSettings.products.addProduct")}
           </button>
         </div>
       </div>
@@ -457,6 +474,25 @@ function CategoriesTab() {
           </div>
         )}
       </div>
+
+      {showProductForm && (
+        <NewProductModal
+          categories={categories}
+          categoryId={productCategory}
+          onCategoryChange={setProductCategory}
+          onNewCategory={() => {
+            resetForm();
+            setShowForm(true);
+          }}
+          onAdded={(name) => {
+            setShowProductForm(false);
+            setSuccess(t("ownerSettings.products.added", { name }));
+            setTimeout(() => setSuccess(""), 3000);
+            loadData();
+          }}
+          onClose={() => setShowProductForm(false)}
+        />
+      )}
 
       {/* Add Category Modal - matching UsersTab modal */}
       {showForm && (

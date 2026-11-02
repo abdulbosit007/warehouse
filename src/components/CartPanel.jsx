@@ -79,6 +79,12 @@ export default function CartPanel({
                           {t("branchOperations.cartPanel.viaRequest")}
                         </span>
                       )}
+                      {/* Linked products: what this line is paired with */}
+                      {l.pair_label && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                          {l.pair_label}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

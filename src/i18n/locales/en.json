@@ -10,6 +10,54 @@
     "inventoryManagement": "Inventory",
     "catalog": "Catalog"
   },
+  "linked": {
+    "free": "{{count}} free",
+    "pickTitle": "Choose its pair",
+    "noneAvailable": "None of its pair items are in stock.",
+    "skipTitle": "Go without a pair?",
+    "skipText": "{{count}} × {{name}} will go without its pair. The owner will see this.",
+    "skipYes": "Yes, without a pair",
+    "back": "Back",
+    "forMain": "Pair of {{name}}",
+    "skippedLine": "{{count}} without a pair",
+    "warnTitle": "These items are reserved",
+    "warnText": "They are needed for main items in stock.",
+    "warnLine": "{{name}}: selling {{qty}}, free {{free}}",
+    "sellAnyway": "Sell anyway",
+    "loanAnyway": "Loan anyway",
+    "returnTitle": "Is its pair coming back too?",
+    "returnText": "{{name}} went out with:",
+    "returnBoth": "Return both",
+    "returnOnly": "No, main item only",
+    "rejectedNote": "Pair of {{name}}. This line was rejected, so the pair is not complete.",
+    "owner": {
+      "title": "Linked products",
+      "summary": "Short: {{short}} · No list: {{unlinked}} · Without a pair: {{skipped}}",
+      "tabShort": "Short",
+      "tabUnlinked": "No list",
+      "tabSkipped": "Sold without a pair, {{days}} days",
+      "shortLine": "{{stock}} in stock, pairs available {{covered}}, short by {{short}}",
+      "emptyShort": "Every main item has enough pairs.",
+      "emptyUnlinked": "Every item in these categories has a list.",
+      "emptySkipped": "Nothing was sold without a pair.",
+      "kindSale": "Sale",
+      "kindLoan": "Loan"
+    },
+    "editor": {
+      "title": "Pair items, in order",
+      "search": "Add by name or SKU",
+      "hint": "The first one is offered first. The next is used when it runs out.",
+      "isSecondary": "This item is a pair of: {{names}}",
+      "up": "Move up",
+      "down": "Move down",
+      "remove": "Remove"
+    },
+    "field": "Its pair",
+    "noPairOption": "Without a pair",
+    "withoutNote": "{{count}} will go without a pair",
+    "addAnother": "Add another",
+    "overNote": "{{count}} more than main items"
+  },
   "common": {
     "loading": "Loading...",
     "refresh": "Refresh",
@@ -476,10 +524,19 @@
     }
   },
   "ownerSettings": {
+    "products": {
+      "addProduct": "New product",
+      "modalTitle": "New product",
+      "modalSubtitle": "Stock starts at 0. Goods come in through Incoming products.",
+      "newCategory": "New category",
+      "added": "Product added: {{name}}",
+      "duplicateSku": "SKU {{sku}} already exists {{name}}",
+      "addFailed": "Failed to add product"
+    },
     "title": "Settings",
     "subtitle": "Manage application settings and configuration",
     "tabs": {
-      "categories": "Categories",
+      "categories": "Products & categories",
       "users": "Users",
       "locations": "Locations",
       "reports": "Reports"
