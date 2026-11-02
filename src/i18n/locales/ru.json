@@ -476,10 +476,19 @@
     }
   },
   "ownerSettings": {
+    "products": {
+      "addProduct": "Новый товар",
+      "modalTitle": "Новый товар",
+      "modalSubtitle": "Остаток начинается с 0. Товар приходит через «Входящие товары».",
+      "newCategory": "Новая категория",
+      "added": "Товар добавлен: {{name}}",
+      "duplicateSku": "SKU {{sku}} уже есть {{name}}",
+      "addFailed": "Не удалось добавить товар"
+    },
     "title": "Настройки",
     "subtitle": "Управление настройками приложения",
     "tabs": {
-      "categories": "Категории",
+      "categories": "Товары и категории",
       "users": "Пользователи",
       "locations": "Локации",
       "reports": "Отчёты"

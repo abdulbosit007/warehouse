@@ -476,10 +476,19 @@
     }
   },
   "ownerSettings": {
+    "products": {
+      "addProduct": "Yangi mahsulot",
+      "modalTitle": "Yangi mahsulot",
+      "modalSubtitle": "Qoldiq 0 dan boshlanadi. Tovar «Kiruvchi mahsulotlar» orqali keladi.",
+      "newCategory": "Yangi kategoriya",
+      "added": "Mahsulot qo‘shildi: {{name}}",
+      "duplicateSku": "{{sku}} SKU allaqachon bor {{name}}",
+      "addFailed": "Mahsulot qo‘shilmadi"
+    },
     "title": "Sozlamalar",
     "subtitle": "Ilova sozlamalari va konfiguratsiya",
     "tabs": {
-      "categories": "Kategoriyalar",
+      "categories": "Mahsulot va kategoriyalar",
       "users": "Foydalanuvchilar",
       "locations": "Manzillar",
       "reports": "Hisobotlar"

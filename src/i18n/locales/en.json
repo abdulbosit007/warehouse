@@ -476,10 +476,19 @@
     }
   },
   "ownerSettings": {
+    "products": {
+      "addProduct": "New product",
+      "modalTitle": "New product",
+      "modalSubtitle": "Stock starts at 0. Goods come in through Incoming products.",
+      "newCategory": "New category",
+      "added": "Product added: {{name}}",
+      "duplicateSku": "SKU {{sku}} already exists {{name}}",
+      "addFailed": "Failed to add product"
+    },
     "title": "Settings",
     "subtitle": "Manage application settings and configuration",
     "tabs": {
-      "categories": "Categories",
+      "categories": "Products & categories",
       "users": "Users",
       "locations": "Locations",
       "reports": "Reports"
