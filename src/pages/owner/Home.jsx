@@ -4,6 +4,8 @@ import { supabase, fetchAll } from "../../lib/supabaseClient";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
+import SetSecondaryField from "../../components/SetSecondaryField";
+import { freeSecondaries, loadSets, saveProductSet } from "../../lib/productSets";
 import {
   Package,
   Search,
@@ -29,8 +31,15 @@ const NO_CATEGORY = "__none__";
 /* ─────────────────────────────────────────────────────────────────────────────
    EDIT PRODUCT MODAL
 ───────────────────────────────────────────────────────────────────────────── */
-function EditProductModal({ product, categories, onClose, onSave }) {
+function EditProductModal({ product, categories, products, sets, onClose, onSave }) {
   const { t } = useTranslation();
+
+  // tumba set: the one rakovina that goes with this product
+  const savedSet = sets.find((s) => s.main_product_id === product.id);
+  const [secondary, setSecondary] = useState(() => {
+    const p = savedSet && products.find((x) => x.id === savedSet.secondary_product_id);
+    return p ? { id: p.id, name: p.name, sku: p.sku } : null;
+  });
 
   const [form, setForm] = useState({
     name: product.name || "",
@@ -68,6 +77,10 @@ function EditProductModal({ product, categories, onClose, onSave }) {
         .eq("id", product.id);
 
       if (updateError) throw updateError;
+
+      if ((secondary?.id || null) !== (savedSet?.secondary_product_id || null)) {
+        await saveProductSet(product.id, secondary?.id || null);
+      }
 
       onSave();
       onClose();
@@ -176,6 +189,19 @@ function EditProductModal({ product, categories, onClose, onSave }) {
                 className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+              {t("productSet.field")}
+            </label>
+            <SetSecondaryField
+              productId={product.id}
+              products={products}
+              sets={sets}
+              value={secondary}
+              onChange={setSecondary}
+            />
           </div>
         </div>
 
@@ -459,6 +485,7 @@ export default function OwnerHome() {
   const [stockScope, setStockScope] = useState("in_stock"); // "in_stock" = stocked in any location | "all" = whole catalog
   const [productList, setProductList] = useState([]);
   const [inDeliveryList, setInDeliveryList] = useState([]); // Items currently in delivery
+  const [sets, setSets] = useState([]); // tumba -> its rakovina
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -504,7 +531,7 @@ export default function OwnerHome() {
     }
 
     try {
-      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes] = await Promise.all([
+      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes, setsList] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -543,6 +570,8 @@ export default function OwnerHome() {
         supabase
           .from("stock_transfer_items")
           .select("product_id, qty, status"),
+
+        loadSets(),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -554,6 +583,7 @@ export default function OwnerHome() {
 
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
+      setSets(setsList);
       // Combine branch-request approved items + pending stock transfer items
       const branchInDelivery = (inDeliveryRes.data || []).map((r) => ({
         product_id: r.product_id,
@@ -618,6 +648,12 @@ export default function OwnerHome() {
   const getInDeliveryQty = (productId) => {
     return inDeliveryMap.get(productId) || 0;
   };
+
+  // tumba set: rakovinas the warehouses' tumbas don't need
+  const freeMap = useMemo(
+    () => freeSecondaries(sets, productList, new Set(locations.filter((l) => l.kind === "warehouse").map((l) => l.id))),
+    [sets, productList, locations]
+  );
 
   // Table base set — depends on the scope toggle. "in_stock" = products with
   // stock in any location; "all" = whole catalog. Stocked rows sort first.
@@ -1143,6 +1179,11 @@ export default function OwnerHome() {
                         >
                           {grandTotal}
                         </span>
+                        {freeMap.has(product.id) && (
+                          <div className="mt-0.5 text-[11px] font-medium text-emerald-700 whitespace-nowrap">
+                            {t("productSet.free", { count: Math.max(0, freeMap.get(product.id)) })}
+                          </div>
+                        )}
                       </td>
 
                       {warehouses.map((wh) => {
@@ -1288,6 +1329,8 @@ export default function OwnerHome() {
         <EditProductModal
           product={editingProduct}
           categories={categories}
+          products={products}
+          sets={sets}
           onClose={() => setEditingProduct(null)}
           onSave={loadData}
         />

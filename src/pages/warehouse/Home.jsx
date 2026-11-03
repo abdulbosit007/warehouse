@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import SkuBadge from "../../components/SkuBadge";
+import { loadFreeSecondaries } from "../../lib/productSets";
 
 // filter value for products that have no category
 const NO_CATEGORY = "__none__";
@@ -198,6 +199,7 @@ export default function WarehouseHome() {
   const [stockScope, setStockScope] = useState("in_stock"); // "in_stock" = stocked in any location | "all" = whole catalog
   const [allStocked, setAllStocked] = useState([]); // product ids with stock in ANY location
   const [productList, setProductList] = useState([]);
+  const [freeMap, setFreeMap] = useState(new Map()); // tumba set: free rakovinas, all warehouses
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -273,7 +275,7 @@ export default function WarehouseHome() {
         return;
       }
 
-      const [productsRes, listRes, allStockedRes, categoriesRes] = await Promise.all([
+      const [productsRes, listRes, allStockedRes, categoriesRes, free] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -299,6 +301,7 @@ export default function WarehouseHome() {
           .from("categories")
           .select("id, name")
           .order("name", { ascending: true }),
+        loadFreeSecondaries(),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -309,6 +312,7 @@ export default function WarehouseHome() {
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
       setAllStocked(allStockedRes.data || []);
+      setFreeMap(free);
       setCategories(categoriesRes.data || []);
       setError(null);
     } catch (err) {
@@ -782,6 +786,11 @@ export default function WarehouseHome() {
                     >
                       <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900 max-md:px-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                         {product.name || "—"}
+                        {freeMap.has(product.id) && (
+                          <div className="text-xs font-medium text-emerald-700">
+                            {t("productSet.freeLong", { count: Math.max(0, freeMap.get(product.id)) })}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <SkuBadge sku={product.sku} />

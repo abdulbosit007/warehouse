@@ -10,6 +10,24 @@
     "inventoryManagement": "Inventar",
     "catalog": "Katalog"
   },
+  "productSet": {
+    "field": "Rakovinasi (jufti)",
+    "search": "Nomi yoki SKU bo‘yicha toping",
+    "remove": "Olib tashlash",
+    "hint": "Filialda bu mahsulot doim u bilan bo‘ladi. Ombordan filialga ketganda ikkalasi ham ayriladi.",
+    "isSecondary": "Bu quyidagilarning rakovinasi: {{names}}",
+    "free": "{{count}} bo‘sh",
+    "freeLong": "Bo‘sh: {{count}} (barcha omborlar)",
+    "withoutTitle": "Bu tumbalar uchun rakovina yo‘q",
+    "withoutText": "Hech bir omborda ularning rakovinasi yo‘q. Ular «(без раковины)» bo‘lib keladi.",
+    "withoutLine": "{{name}}: {{qty}} ta rakovinasiz",
+    "blockedTitle": "Bo‘sh rakovina yetarli emas",
+    "blockedText": "Qolganlari omborlardagi tumbalar uchun kerak.",
+    "blockedLine": "{{name}}: so‘raldi {{qty}}, bo‘sh {{free}}",
+    "back": "Orqaga",
+    "goOn": "Rakovinasiz davom etish",
+    "ok": "Tushunarli"
+  },
   "common": {
     "loading": "Yuklanmoqda...",
     "refresh": "Yangilash",

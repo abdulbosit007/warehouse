@@ -35,6 +35,7 @@ import TransfersSection from "../../components/TransfersSection";
 import { Link } from "react-router-dom";
 import { DONE_ITEM_FILTER, closedRequestStatus, requestHasOpenLines, closeIfFinished } from "../../lib/saleRequestItems";
 import RequestTypeBadge from "../../components/RequestTypeBadge";
+import useSetCheck from "../../hooks/useSetCheck";
 import { requestHeaderClass } from "../../lib/requestType";
 
 // "YYYY-MM-DD" of a timestamp in local time (the Sale page's day)
@@ -452,6 +453,7 @@ export default function BranchRequests() {
 /*                          NEW REQUEST TAB                                    */
 /* -------------------------------------------------------------------------- */
 function NewRequestTab({ location, showToast }) {
+  const { setCheckDialog, confirmSetLines } = useSetCheck();
   const { t } = useTranslation();
 
   // Mode toggle: "search" (old flow) vs "incoming" (new flow)
@@ -781,6 +783,15 @@ function NewRequestTab({ location, showToast }) {
         }
       }
 
+      // Tumba set: a tumba with no rakovina in the warehouses comes without it
+      const setLines = allAllocated.map((a) => ({
+        productId: a.productId,
+        name: itemsToSubmit.find((ci) => ci.productId === a.productId)?.productName,
+        sourceLocationId: a.sourceLocationId,
+        qty: a.qty,
+      }));
+      if (!(await confirmSetLines(setLines, location.id))) return;
+
       // Group by source location and create requests
       const bySource = {};
       allAllocated.forEach((item) => {
@@ -830,6 +841,15 @@ function NewRequestTab({ location, showToast }) {
     if (cart.length === 0) return;
     setSubmitting(true);
     try {
+      // Tumba set: a tumba with no rakovina in the warehouses comes without it
+      const setLines = cart.map((item) => ({
+        productId: item.productId,
+        name: item.productName,
+        sourceLocationId: item.sourceLocationId,
+        qty: item.qty,
+      }));
+      if (!(await confirmSetLines(setLines, location.id))) return;
+
       const bySource = {};
       cart.forEach((item) => {
         if (!bySource[item.sourceLocationId]) {
@@ -881,6 +901,7 @@ function NewRequestTab({ location, showToast }) {
   if (mode === "incoming") {
     return (
       <div className="space-y-4">
+        {setCheckDialog}
         {/* Mode Toggle */}
         <div className="flex items-center justify-between">
           <div className="bg-neutral-100 rounded-xl p-1 inline-flex gap-1 max-md:max-w-full max-md:overflow-x-auto">
@@ -1055,6 +1076,7 @@ function NewRequestTab({ location, showToast }) {
   // ── SEARCH MODE: 2-column grid with cart ──
   return (
     <>
+    {setCheckDialog}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Product Search */}
       <div className="space-y-4">
