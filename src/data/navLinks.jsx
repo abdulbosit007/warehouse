@@ -60,7 +60,7 @@ export const ownerLinks = [
   },
   {
     to: "/owner/history",
-    label: "Analytics & Logs",
+    label: "nav.analytics",
     icon: <Activity className="w-4 h-4" />,
   },
   {

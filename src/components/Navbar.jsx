@@ -84,6 +84,10 @@ export default function Navbar({
     [resolved, branchId]
   );
 
+  // A long menu (the owner's) doesn't fit next to the logo below xl in longer
+  // languages: it uses the side menu until xl and a more compact row after that.
+  const many = computedLinks.length > 6;
+
   // ✅ change language
   const changeLang = (lng) => {
     i18n.changeLanguage(lng);
@@ -105,12 +109,12 @@ export default function Navbar({
     <Fragment>
       {/* HEADER */}
       <header className="sticky top-0 z-40 text-black bg-white border-b border-neutral-200">
-        <div className="flex items-center justify-between px-3 mx-auto h-14 max-w-7xl md:px-6">
+        <div className={`flex items-center justify-between px-3 mx-auto h-14 md:px-6 ${many ? "max-w-screen-2xl" : "max-w-7xl"}`}>
           {/* Left: hamburger (mobile+tablet) + logo */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setOpen(true)}
-              className="relative p-2 rounded-lg hover:bg-neutral-100 lg:hidden"
+              className={`relative p-2 rounded-lg hover:bg-neutral-100 ${many ? "xl:hidden" : "lg:hidden"}`}
               aria-label="Open menu"
             >
               <svg className="w-6 h-6" viewBox="0 0 24 24" stroke="currentColor" fill="none">
@@ -127,15 +131,15 @@ export default function Navbar({
               aria-label="Go to home"
             >
               <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-xl shadow-sm object-contain" />
-              <span className="hidden text-[15px] font-semibold md:inline">
+              <span className={`hidden text-[15px] font-semibold ${many ? "md:inline xl:hidden 2xl:inline" : "md:inline"}`}>
                 {brand.title}
               </span>
             </button>
           </div>
 
           {/* Right: desktop nav + language */}
-          <div className="items-center hidden gap-3 lg:flex">
-            <nav className="flex items-center gap-1">
+          <div className={`items-center hidden gap-3 ${many ? "xl:flex" : "lg:flex"}`}>
+            <nav className={`flex items-center ${many ? "gap-0.5" : "gap-1"}`}>
               {computedLinks.map((l) => {
                 const badgeCount = l.badgeKey ? (badges[l.badgeKey] || 0) : 0;
                 return (
@@ -144,7 +148,8 @@ export default function Navbar({
                     to={l.to}
                     className={({ isActive }) =>
                       [
-                        "relative flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
+                        "relative flex items-center whitespace-nowrap rounded-lg py-2 transition-colors",
+                        many ? "gap-1.5 px-2.5 text-sm" : "gap-2 px-3 text-[15px]",
                         isActive ? `${themeConfig.bg} text-white font-semibold` : "text-black hover:bg-neutral-100",
                       ].join(" ")
                     }
@@ -214,7 +219,7 @@ export default function Navbar({
 
       {/* MOBILE+TABLET: overlay */}
       <div
-        className={`fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] transition-opacity lg:hidden ${
+        className={`fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px] transition-opacity ${many ? "xl:hidden" : "lg:hidden"} ${
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpen(false)}
@@ -223,7 +228,7 @@ export default function Navbar({
 
       {/* MOBILE+TABLET: drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white ${themeConfig.text} shadow-2xl rounded-r-2xl transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-[65] h-full w-[88%] max-w-[360px] bg-white ${themeConfig.text} shadow-2xl rounded-r-2xl transition-transform duration-200 ${many ? "xl:hidden" : "lg:hidden"} ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         role="dialog"
