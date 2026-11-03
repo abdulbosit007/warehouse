@@ -82,9 +82,9 @@ BEGIN
   IF pg_temp.tq(v_t, v_ombor) <> 0 OR pg_temp.tq(v_r, v_ombor) <> 0 OR pg_temp.tq(v_r, v_su) <> 0
      OR pg_temp.tq(v_t, v_branch, 'in_transit') <> 2 OR pg_temp.tq(v_bare, v_branch, 'in_transit') <> 1
      OR v_helper IS NULL
-     OR (SELECT name FROM products WHERE id = v_bare) <> 'TEST tumba (без раковины)'
+     OR (SELECT name FROM products WHERE id = v_bare) NOT IN ('TEST tumba (без раковины)', 'TEST tumba (без пары)')
   THEN RAISE EXCEPTION 'FAILED 2'; END IF;
-  v_out := v_out || E'\n2 approve: 1 rakovina from Ombor, 1 from SU (SU got a task), 1 tumba "(без раковины)": ok';
+  v_out := v_out || E'\n2 approve: 1 rakovina from Ombor, 1 from SU (SU got a task), 1 tumba without its pair: ok';
 
   -- 3. Pavilion receives
   PERFORM set_config('request.jwt.claim.sub', u_branch::text, true);

@@ -23,10 +23,32 @@ import {
   SlidersHorizontal,
   Check,
   Truck,
+  Link2,
 } from "lucide-react";
 
 // filter value for products that have no category
 const NO_CATEGORY = "__none__";
+
+// Product set tag under a product's name: its pair, whose pair it is, or a
+// product that came without its pair. No tag = not linked yet.
+function PairTag({ pair, mains, without }) {
+  const { t } = useTranslation();
+  if (!pair && !mains && !without) return null;
+  const [style, text] = pair
+    ? ["bg-indigo-50 text-indigo-700 border-indigo-200", `+ ${pair.name}`]
+    : mains
+    ? ["bg-sky-50 text-sky-700 border-sky-200", t("productSet.tagPairOf", { names: mains.join(", ") })]
+    : ["bg-amber-50 text-amber-700 border-amber-200", t("productSet.tagWithout")];
+  return (
+    <span
+      className={`mt-1 flex w-fit max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${style}`}
+      title={text}
+    >
+      <Link2 className="h-3 w-3 shrink-0" />
+      <span className="truncate">{text}</span>
+    </span>
+  );
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    EDIT PRODUCT MODAL
@@ -96,7 +118,7 @@ function EditProductModal({ product, categories, products, sets, onClose, onSave
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 max-sm:px-0">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="max-md:max-h-[90vh] max-md:overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="max-h-[90vh] overflow-y-auto w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl"
       >
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 max-md:px-4 py-4 flex items-center justify-between">
           <div>
@@ -259,6 +281,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
       stockStatus: "",
       location_id: "",
       noPrice: false,
+      pairs: "",
     };
     setLocalFilters(cleared);
     onApply(cleared);
@@ -271,6 +294,7 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
     localFilters.stockStatus,
     localFilters.location_id,
     localFilters.noPrice,
+    localFilters.pairs,
   ].filter(Boolean).length;
 
   const stockOptions = [
@@ -330,6 +354,33 @@ function FilterModal({ categories, locations, filters, onApply, onClose }) {
                 ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Pairs: linked / not linked yet */}
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+              {t("productSet.filterTitle")}
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ["", t("productSet.filterAll")],
+                ["linked", t("productSet.filterLinked")],
+                ["unlinked", t("productSet.filterUnlinked")],
+              ].map(([value, label]) => (
+                <button
+                  key={value || "all"}
+                  type="button"
+                  onClick={() => setLocalFilters({ ...localFilters, pairs: value })}
+                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                    (localFilters.pairs || "") === value
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -504,6 +555,7 @@ export default function OwnerHome() {
     stockStatus: "",
     location_id: "",
     noPrice: false,
+    pairs: "",
   });
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -649,7 +701,25 @@ export default function OwnerHome() {
     return inDeliveryMap.get(productId) || 0;
   };
 
-  // tumba set: rakovinas the warehouses' tumbas don't need
+  // product set: each main item's pair product
+  const pairOf = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return new Map(sets.map((s) => [s.main_product_id, byId.get(s.secondary_product_id)]).filter(([, p]) => p));
+  }, [sets, products]);
+  // pair item -> names of the main items it goes with; products made "without pair"
+  const pairFor = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const map = new Map();
+    for (const s of sets) {
+      const name = byId.get(s.main_product_id)?.name;
+      if (name) map.set(s.secondary_product_id, [...(map.get(s.secondary_product_id) || []), name]);
+    }
+    return map;
+  }, [sets, products]);
+  const withoutPair = useMemo(() => new Set(sets.map((s) => s.bare_product_id).filter(Boolean)), [sets]);
+  const isLinked = (id) => pairOf.has(id) || pairFor.has(id) || withoutPair.has(id);
+
+  // product set: pair items the warehouses' main items don't need
   const freeMap = useMemo(
     () => freeSecondaries(sets, productList, new Set(locations.filter((l) => l.kind === "warehouse").map((l) => l.id))),
     [sets, productList, locations]
@@ -659,7 +729,7 @@ export default function OwnerHome() {
   // stock in any location; "all" = whole catalog. Stocked rows sort first.
   const tableProducts = useMemo(() => {
     const base =
-      stockScope === "all"
+      stockScope === "all" || filters.pairs === "linked" // every pair, stocked or not
         ? products
         : products.filter((p) => getTotalQty(p.id) > 0);
     return [...base].sort((a, b) => {
@@ -668,7 +738,7 @@ export default function OwnerHome() {
       if (ha !== hb) return hb - ha; // stocked first
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [products, stockScope, quantityMap]);
+  }, [products, stockScope, filters.pairs, quantityMap]);
 
   // Apply all filters
   const filteredProducts = useMemo(() => {
@@ -682,6 +752,11 @@ export default function OwnerHome() {
           (p.name || "").toLowerCase().includes(q) ||
           (p.sku || "").toLowerCase().includes(q)
       );
+    }
+
+    // Pairs: linked / not linked yet
+    if (filters.pairs) {
+      result = result.filter((p) => isLinked(p.id) === (filters.pairs === "linked"));
     }
 
     // Category filter
@@ -731,7 +806,7 @@ export default function OwnerHome() {
     }
 
     return result;
-  }, [tableProducts, search, filters, quantityMap]);
+  }, [tableProducts, search, filters, quantityMap, pairOf, pairFor, withoutPair]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = useMemo(() => {
@@ -756,6 +831,7 @@ export default function OwnerHome() {
       filters.stockStatus,
       filters.location_id,
       filters.noPrice,
+      filters.pairs,
     ].filter(Boolean).length;
   }, [filters]);
 
@@ -1154,6 +1230,11 @@ export default function OwnerHome() {
                     <tr key={product.id} className="bg-white">
                       <td className="px-4 py-3 text-sm font-medium text-neutral-900 sticky left-0 bg-white z-10 max-md:px-3 max-md:whitespace-normal max-md:min-w-[9.5rem] max-md:max-w-[9.5rem]">
                         {product.name || "—"}
+                        <PairTag
+                          pair={pairOf.get(product.id)}
+                          mains={pairFor.get(product.id)}
+                          without={withoutPair.has(product.id)}
+                        />
                       </td>
                       <td className="px-4 py-3 text-xs font-mono text-neutral-500">
                         {product.sku || "—"}

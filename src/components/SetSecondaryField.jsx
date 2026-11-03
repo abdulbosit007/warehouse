@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 
-const RESULTS = 6;
+const RESULTS = 30;
 
-// Tumba set: the one rakovina that goes with this tumba, in the owner's edit window
+// Product set: the one pair item that goes with this product, in the owner's edit window
 export default function SetSecondaryField({ productId, products, sets, value, onChange }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -23,10 +23,10 @@ export default function SetSecondaryField({ productId, products, sets, value, on
       .slice(0, RESULTS);
   }, [query, products, productId, mains, bare]);
 
-  // a "(без раковины)" product has no rakovina of its own
+  // a product that came without its pair has no pair of its own
   if (bare.has(productId)) return null;
 
-  // it is a rakovina: a product is either a tumba or a rakovina
+  // it is someone's pair: a product is either a main item or a pair item
   if (tumbasOfThis.length > 0) {
     return (
       <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
@@ -51,7 +51,7 @@ export default function SetSecondaryField({ productId, products, sets, value, on
           </button>
         </div>
       ) : (
-        <div className="relative">
+        <div>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -59,7 +59,7 @@ export default function SetSecondaryField({ productId, products, sets, value, on
             className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           {results.length > 0 && (
-            <ul className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+            <ul className="mt-1 max-h-60 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
               {results.map((p) => (
                 <li key={p.id}>
                   <button
