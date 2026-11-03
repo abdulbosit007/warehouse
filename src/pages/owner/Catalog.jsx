@@ -1,13 +1,14 @@
 // Owner "Catalog" page: prepares the products shown on the catalog website.
-// Suggestions (group products into models), Singles (one model per product) and
-// Models (edit, switch on the site).
+// Suggestions (group products into models), Singles (one model per product),
+// Models (edit, switch on the site) and Colours (saved colours to pick from).
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Sparkles, LayoutGrid, AlertCircle, Box } from "lucide-react";
+import { Sparkles, LayoutGrid, AlertCircle, Box, Palette } from "lucide-react";
 import useCurrentUser from "../../hooks/useCurrentUser";
 import SuggestionsTab from "../../components/catalog/SuggestionsTab";
 import ModelsTab from "../../components/catalog/ModelsTab";
 import SinglesTab from "../../components/catalog/SinglesTab";
+import ColoursTab from "../../components/catalog/ColoursTab";
 
 export default function Catalog() {
   const { t } = useTranslation();
@@ -34,6 +35,7 @@ export default function Catalog() {
     { id: "suggestions", label: t("ownerCatalog.tabs.suggestions"), icon: Sparkles },
     { id: "singles", label: t("ownerCatalog.tabs.singles"), icon: Box },
     { id: "models", label: t("ownerCatalog.tabs.models"), icon: LayoutGrid },
+    { id: "colours", label: t("ownerCatalog.tabs.colours"), icon: Palette },
   ];
 
   return (
@@ -61,6 +63,7 @@ export default function Catalog() {
       {tab === "suggestions" && <SuggestionsTab />}
       {tab === "singles" && <SinglesTab />}
       {tab === "models" && <ModelsTab />}
+      {tab === "colours" && <ColoursTab />}
     </div>
   );
 }

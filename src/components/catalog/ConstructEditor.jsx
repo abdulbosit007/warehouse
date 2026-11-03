@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { X, Layers, AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import SkuBadge from "../SkuBadge";
 import ColourInput from "./ColourInput";
+import ColourLabel from "./ColourLabel";
+import useSavedColours from "../../hooks/useSavedColours";
 import { createGroup } from "../../lib/catalog";
 import { constructDraft, constructModels, constructPayload, slugify } from "../../lib/catalogRules";
 
@@ -13,6 +15,7 @@ const sizeKey = (s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase()
 
 export default function ConstructEditor({ products, onClose, onCreated }) {
   const { t } = useTranslation();
+  const { find: findColour } = useSavedColours();
   const [draft, setDraft] = useState(() => constructDraft(products));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,10 +101,12 @@ export default function ConstructEditor({ products, onClose, onCreated }) {
                     <td className="px-3 py-2"><SkuBadge sku={r.sku} /><div className="mt-1 text-xs text-neutral-500">{r.name}</div></td>
                     <td className="px-3 py-2 text-center font-semibold tabular-nums">{r.stock}</td>
                     <td className="px-3 py-2">
-                      <input value={r.label} onChange={(e) => setRow(i, { label: e.target.value })}
-                             className="w-40 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm" />
+                      <ColourLabel value={r.label} onChange={(patch) => setRow(i, patch)} />
                     </td>
-                    <td className="px-3 py-2"><ColourInput value={r.color_hex} onChange={(v) => setRow(i, { color_hex: v })} /></td>
+                    <td className="px-3 py-2">
+                      <ColourInput value={r.color_hex} onChange={(v) => setRow(i, { color_hex: v })}
+                                   locked={!!findColour(r.label)} lockedTitle={t("ownerCatalog.colours.linked")} />
+                    </td>
                     <td className="px-3 py-2 text-center">
                       <input type="radio" name={`first-${sizeKey(r.size)}`} checked={!!r.first}
                              onChange={() => setRow(i, { first: true })} className="text-indigo-600" />

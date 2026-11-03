@@ -9,9 +9,13 @@ import SkuBadge from "../SkuBadge";
 import { updateModel, searchProducts } from "../../lib/catalog";
 import { modelDraft, modelPayload, slugify, findModels } from "../../lib/catalogRules";
 import ModelHit from "./ModelHit";
+import ColourLabel from "./ColourLabel";
+import ColourInput from "./ColourInput";
+import useSavedColours from "../../hooks/useSavedColours";
 
 export default function ModelEditor({ model, models, categories, stock, onClose, onSaved }) {
   const { t } = useTranslation();
+  const { find: findColour } = useSavedColours();
   const [draft, setDraft] = useState(() => modelDraft(model));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -144,17 +148,11 @@ export default function ModelEditor({ model, models, categories, stock, onClose,
                       </td>
                       <td className="px-3 py-2 text-center font-semibold tabular-nums">{v.stock}</td>
                       <td className="px-3 py-2">
-                        <input value={v.label} onChange={(e) => setVariant(i, { label: e.target.value })}
-                               className="w-40 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm" />
+                        <ColourLabel value={v.label} onChange={(patch) => setVariant(i, patch)} />
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={/^#[0-9a-f]{6}$/i.test(v.color_hex) ? v.color_hex : "#ffffff"}
-                                 onChange={(e) => setVariant(i, { color_hex: e.target.value })}
-                                 className="h-8 w-10 cursor-pointer rounded border border-neutral-200 bg-white p-0.5" />
-                          <input value={v.color_hex} placeholder="#" onChange={(e) => setVariant(i, { color_hex: e.target.value.trim() })}
-                                 className="w-24 rounded-lg border border-neutral-200 px-2 py-1.5 font-mono text-xs" />
-                        </div>
+                        <ColourInput value={v.color_hex} onChange={(hex) => setVariant(i, { color_hex: hex })}
+                                     locked={!!findColour(v.label)} lockedTitle={t("ownerCatalog.colours.linked")} />
                       </td>
                       <td className="px-3 py-2 text-center">
                         <input type="radio" name="first" checked={!!v.is_default} disabled={v.is_hidden}

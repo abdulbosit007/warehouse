@@ -75,6 +75,64 @@ export async function searchProducts(query) {
     .or(`sku.ilike.%${q}%,name.ilike.%${q}%`).order("sku").limit(15));
 }
 
+/* ── saved colours (CATALOG_COLOURS.sql) ─────────────────────────────────────── */
+// A variant whose button text is a saved colour's name is linked to it in the
+// database (spelling + circle from the saved colour), so the screens only offer the
+// list and show the link; they never write color_id themselves.
+
+let colourCache = null;
+const colourListeners = new Set();
+
+// { colours, missing }: missing = the SQL is not installed yet (no table)
+export async function loadColours({ force = false } = {}) {
+  if (colourCache && !force) return colourCache;
+  const { data, error } = await supabase.from("catalog_colors")
+    .select("id, name, hex, code, sort_order").order("sort_order").order("name");
+  colourCache = error ? { colours: [], missing: true } : { colours: data || [], missing: false };
+  colourListeners.forEach((fn) => fn(colourCache));
+  return colourCache;
+}
+
+export function onColoursChange(fn) {
+  colourListeners.add(fn);
+  return () => colourListeners.delete(fn);
+}
+
+// colour id -> number of variants linked to it
+export async function colourUsage() {
+  const rows = must(await fetchAll(() => supabase.from("catalog_variants").select("id, color_id").not("color_id", "is", null)));
+  const usage = new Map();
+  for (const r of rows) usage.set(r.color_id, (usage.get(r.color_id) || 0) + 1);
+  return usage;
+}
+
+export async function saveColour({ id, name, hex, code, sort_order }) {
+  const row = { name: name.trim(), hex: /^#[0-9a-f]{6}$/i.test(hex || "") ? hex.toUpperCase() : null,
+                code: (code || "").trim() || null, sort_order: sort_order ?? 0 };
+  const { error } = id
+    ? await supabase.from("catalog_colors").update(row).eq("id", id)
+    : await supabase.from("catalog_colors").insert(row);
+  if (error) throw error;
+  await loadColours({ force: true });
+}
+
+export async function deleteColour(id) {
+  const { error } = await supabase.from("catalog_colors").delete().eq("id", id);
+  if (error) throw error;
+  await loadColours({ force: true });
+}
+
+// save the list order (10, 20, 30 …); only colours whose place changed are written
+export async function reorderColours(list) {
+  for (const [i, c] of list.entries()) {
+    const sort_order = (i + 1) * 10;
+    if (c.sort_order === sort_order) continue;
+    const { error } = await supabase.from("catalog_colors").update({ sort_order }).eq("id", c.id);
+    if (error) throw error;
+  }
+  await loadColours({ force: true });
+}
+
 /* ── singles tab ─────────────────────────────────────────────────────────────── */
 
 // WMS products not in the catalog yet, with stock, category and whether they are
