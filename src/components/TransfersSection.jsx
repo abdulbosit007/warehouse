@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
 import useLiveRefresh from "../hooks/useLiveRefresh";
+import useSetCheck from "../hooks/useSetCheck";
 import {
   Send, Inbox, History, Search, Package,
   CheckCircle2, XCircle, Clock, X, Truck,
@@ -136,6 +137,7 @@ export default function TransfersSection({ location }) {
    SEND TAB
 ───────────────────────────────────────────────────────────────────────────── */
 function SendTab({ location, onSent }) {
+  const { setCheckDialog, confirmSetLines } = useSetCheck();
   const { t } = useTranslation();
   const [destinations, setDestinations] = useState([]);
   const [destination, setDestination] = useState("");
@@ -233,6 +235,15 @@ function SendTab({ location, onSent }) {
 
     setSubmitting(true);
     try {
+      // Tumba set: a tumba with no rakovina in the warehouses goes without it
+      const setLines = cart.map((c) => ({
+        productId: c.product_id,
+        name: c.name,
+        sourceLocationId: location.id,
+        qty: c.qty,
+      }));
+      if (!(await confirmSetLines(setLines, destination))) return;
+
       const { error } = await supabase.rpc("fn_initiate_transfer", {
         p: {
           from_location_id: location.id,
@@ -259,6 +270,7 @@ function SendTab({ location, onSent }) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {setCheckDialog}
       {/* Left — product picker */}
       <div className="lg:col-span-2 space-y-4">
         {/* Destination */}

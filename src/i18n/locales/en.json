@@ -10,6 +10,24 @@
     "inventoryManagement": "Inventory",
     "catalog": "Catalog"
   },
+  "productSet": {
+    "field": "Its rakovina (pair)",
+    "search": "Find by name or SKU",
+    "remove": "Remove",
+    "hint": "In a branch this product always comes with it. Leaving a warehouse for a branch, both are taken.",
+    "isSecondary": "This is the rakovina of: {{names}}",
+    "free": "{{count}} free",
+    "freeLong": "Free: {{count}} (all warehouses)",
+    "withoutTitle": "No rakovina for these tumbas",
+    "withoutText": "No warehouse has their rakovina. They will come \"(без раковины)\".",
+    "withoutLine": "{{name}}: {{qty}} without rakovina",
+    "blockedTitle": "Not enough free rakovinas",
+    "blockedText": "The rest are needed for tumbas in the warehouses.",
+    "blockedLine": "{{name}}: asked {{qty}}, free {{free}}",
+    "back": "Back",
+    "goOn": "Go on without",
+    "ok": "OK"
+  },
   "common": {
     "loading": "Loading...",
     "refresh": "Refresh",

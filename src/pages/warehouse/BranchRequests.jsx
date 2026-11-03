@@ -33,6 +33,7 @@ import TransfersSection from "../../components/TransfersSection";
 import { closedRequestStatus, requestHasOpenLines, closeIfFinished } from "../../lib/saleRequestItems";
 import RequestTypeBadge from "../../components/RequestTypeBadge";
 import { requestHeaderClass } from "../../lib/requestType";
+import useSetCheck from "../../hooks/useSetCheck";
 
 /* -------------------------------------------------------------------------- */
 /*                              STATUS CONFIG                                  */
@@ -1377,6 +1378,7 @@ function OutgoingTab({ t, location, showToast }) {
 /*                          INCOMING TAB                                       */
 /* -------------------------------------------------------------------------- */
 function IncomingTab({ t, location, showToast }) {
+  const { setCheckDialog, confirmSetLines } = useSetCheck();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState(new Set());
@@ -1492,6 +1494,15 @@ function IncomingTab({ t, location, showToast }) {
     if (processingIds.has(item.id)) return;
     setProcessingIds((prev) => new Set(prev).add(item.id));
     try {
+      // Tumba set: a tumba with no rakovina in the warehouses goes without it
+      const setLine = {
+        productId: item.product?.id,
+        name: item.product?.name,
+        sourceLocationId: item.source_location?.id,
+        qty: item.requested_qty,
+      };
+      if (!(await confirmSetLines([setLine], request.to_location?.id))) return;
+
       // Atomic in DB: source.available -> destination.in_transit + mark approved
       const { error: apprErr } = await supabase.rpc("fn_branch_request_approve_item", {
         p_item_id: item.id,
@@ -1521,6 +1532,8 @@ function IncomingTab({ t, location, showToast }) {
       if (await itemStatusChanged(item.id, "requested")) {
         showToast(t("warehouseRequests.toast.alreadyProcessed"), "info");
         await loadRequests();
+      } else if (/free/.test(err?.message || "")) {
+        showToast(err.message, "error"); // a rakovina alone beyond the free part
       } else {
         showToast(t("warehouseRequests.toast.approvedFail"), "error");
       }
@@ -1663,6 +1676,7 @@ function IncomingTab({ t, location, showToast }) {
 
   return (
     <div className="space-y-4">
+      {setCheckDialog}
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm text-neutral-600">

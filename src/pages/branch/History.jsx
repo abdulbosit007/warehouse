@@ -13,6 +13,7 @@ import { isItemDone, DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/sal
 // shared UI bits
 import Blocked from "../../components/Blocked";
 import ReturnDestModal from "../../components/ReturnDestModal";
+import useSetCheck from "../../hooks/useSetCheck";
 
 // tab sections
 import SaleSection from "../../components/ops/SaleSection";
@@ -77,6 +78,7 @@ export default function BranchOperations() {
   // catalog
   const [catalog, setCatalog] = useState([]); // [{product_id,name,sku,category,display_price,sources,branchQty,overallQty}]
   const [branchLocationId, setBranchLocationId] = useState(null);
+  const { setCheckDialog, confirmSetLines } = useSetCheck();
   const [loading, setLoading] = useState(true);
   const [committing, setCommitting] = useState(false);
   const [err, setErr] = useState("");
@@ -693,6 +695,13 @@ export default function BranchOperations() {
     setCart((curr) => curr.filter((l) => l.cart_key !== cartKey));
   }
 
+  // Tumba set: lines asked from a warehouse; a tumba with no rakovina there comes without it
+  const confirmRequestLines = (lines) =>
+    confirmSetLines(
+      lines.map((l) => ({ productId: l.product_id, name: l.name, sourceLocationId: l.source_location_id, qty: l.qty })),
+      branchLocationId
+    );
+
   async function commitSale() {
     if (committing) return;
     setCommitting(true);
@@ -701,6 +710,7 @@ export default function BranchOperations() {
 
       const ownItems      = cart.filter((l) => !l.needs_approval);
       const approvalItems = cart.filter((l) => l.needs_approval);
+      if (approvalItems.length > 0 && !(await confirmRequestLines(approvalItems))) return;
 
       // ── Pre-commit stock validation (own branch items only) ──
       if (ownItems.length > 0) {
@@ -800,6 +810,7 @@ export default function BranchOperations() {
 
       const ownItems      = cart.filter((l) => !l.needs_approval);
       const approvalItems = cart.filter((l) => l.needs_approval);
+      if (approvalItems.length > 0 && !(await confirmRequestLines(approvalItems))) return;
       // One loan for this borrower, however many locations it comes from: the part
       // from our shelf and every loan request share this id (one card in Active loans).
       const loanGroupId = crypto.randomUUID();
@@ -2002,6 +2013,7 @@ return (
 
     {/* Content */}
     <div className="space-y-6">
+      {setCheckDialog}
       {tab === "sale" && (
         <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm p-4 md:p-6">
           <SaleSection
