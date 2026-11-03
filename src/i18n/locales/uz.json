@@ -1,5 +1,6 @@
 {
   "nav": {
+    "analytics": "Analitika",
     "home": "Bosh sahifa",
     "branchRequests": "O’tkazmalar",
     "incomingBatches": "Kiruvchi partiyalar",
@@ -2126,7 +2127,8 @@
     "tabs": {
       "suggestions": "Takliflar",
       "singles": "Yakkalar",
-      "models": "Modellar"
+      "models": "Modellar",
+      "colours": "Ranglar"
     },
     "models": {
       "searchPlaceholder": "Model, oila, manzil yoki SKU bo‘yicha qidirish…",
@@ -2226,6 +2228,31 @@
       "nothingSelected": "Kamida bitta mahsulotni belgilang.",
       "needName": "Har bir modelning nomi bo‘lishi kerak.",
       "offSiteNote": "Yangi modellar saytda o‘chirilgan holda yaratiladi."
+    },
+    "colours": {
+      "intro": "Rangni bir marta saqlang, keyin katalog oynalarida istalgan mahsulot uchun tanlang. Rang nomini yoki doirachasini o‘zgartirsangiz, shu rangdagi barcha mahsulotlar yangilanadi.",
+      "name": "Nomi",
+      "namePlaceholder": "Yangi rang, masalan Matt black",
+      "shade": "Rang",
+      "code": "SKU kodi",
+      "used": "Ishlatilgan",
+      "add": "Rang qo‘shish",
+      "added": "«{{name}}» qo‘shildi.",
+      "save": "Saqlash",
+      "saved": "«{{name}}» saqlandi — {{count}} ta mahsulot yangilandi.",
+      "delete": "O‘chirish",
+      "deleteConfirm": "«{{name}}» o‘chirilsinmi? Uni ishlatayotgan {{count}} ta mahsulot nomi va rangini saqlab qoladi, faqat bog‘lanish uziladi.",
+      "deleted": "«{{name}}» o‘chirildi.",
+      "needName": "Rang nomini kiriting.",
+      "duplicate": "Bunday nomli rang allaqachon bor.",
+      "codeTaken": "Bu SKU kodi boshqa rangda bor.",
+      "badHex": "Rang #C0C0C0 ko‘rinishida bo‘lishi kerak.",
+      "missing": "Saqlangan ranglar hali o‘rnatilmagan: avval Supabase’da CATALOG_COLOURS.sql ni ishga tushiring.",
+      "search": "Rang yoki kodni qidirish…",
+      "count": "{{count}} ta rang",
+      "empty": "Hali saqlangan rang yo‘q — yuqorida birinchisini qo‘shing.",
+      "linked": "Saqlangan rang: doirachasi «Ranglar» bo‘limidan olinadi",
+      "suggestions": "Saqlangan ranglar"
     },
     "modelEditor": {
       "title": "Modelni tahrirlash",

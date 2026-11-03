@@ -96,6 +96,10 @@ itself has no admin and no sign-in.
       catalog (hides those still in a suggested group), tick some or all shown → one model each,
       off the site.
 - [ ] **2.4 Photos** — attach photos to a colour or to the whole model, reorder, remove.
+- [ ] **2.5 Saved colours** (built 2026-11-03; `CATALOG_COLOURS.sql` run 2026-11-03, test passed) — "Colours" tab: a colour is
+      saved once (name + circle + optional SKU code) and picked in every colour field. A variant whose
+      text is a saved colour's name is linked (database trigger): renaming / a new circle updates all
+      its variants, deleting only unlinks. 29 starting colours (the suggestion names, SKU codes 1–6).
 
 Done when: a few real models are made from suggestions, edited and switched on.
 
@@ -157,4 +161,6 @@ Done when: the site shows the published models correctly on a phone and a comput
 | `CATALOG_CHECK.sql` | read-only: the real structure of products, categories, stock, locations |
 | `CATALOG_GROUP_SUGGESTIONS.sql` | read-only: suggested models and size families |
 | `PRODUCT_DUPLICATES_CHECK.sql` | read-only: products probably entered twice |
+| `CATALOG_COLOURS_CHECK.sql` | read-only: before saved colours (variant columns, triggers, colours in use) |
+| `CATALOG_COLOURS.sql` / `_UNDO.sql` | saved colours: table, linking triggers, starting list, rolled-back test |
 | `CATALOG_PLAN.md` | this plan |

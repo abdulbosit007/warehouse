@@ -1,5 +1,6 @@
 {
   "nav": {
+    "analytics": "Analytics & Logs",
     "home": "Home",
     "branchRequests": "Transfers",
     "incomingBatches": "Incoming Batches",
@@ -2126,7 +2127,8 @@
     "tabs": {
       "suggestions": "Suggestions",
       "singles": "Singles",
-      "models": "Models"
+      "models": "Models",
+      "colours": "Colours"
     },
     "models": {
       "searchPlaceholder": "Search model, family, web address or SKU…",
@@ -2226,6 +2228,31 @@
       "nothingSelected": "Tick at least one product.",
       "needName": "Every model needs a name.",
       "offSiteNote": "New models start OFF the site."
+    },
+    "colours": {
+      "intro": "Save a colour once, then pick it for any product in the catalog windows. Renaming a colour or changing its circle updates every product that uses it.",
+      "name": "Name",
+      "namePlaceholder": "New colour, e.g. Matt black",
+      "shade": "Colour",
+      "code": "SKU code",
+      "used": "Used by",
+      "add": "Add colour",
+      "added": "Added “{{name}}”.",
+      "save": "Save",
+      "saved": "Saved “{{name}}” — {{count}} product(s) updated.",
+      "delete": "Delete",
+      "deleteConfirm": "Delete “{{name}}”? The {{count}} product(s) using it keep their name and colour; they are only no longer linked.",
+      "deleted": "Deleted “{{name}}”.",
+      "needName": "Enter a colour name.",
+      "duplicate": "A colour with this name already exists.",
+      "codeTaken": "Another colour already has this SKU code.",
+      "badHex": "The colour must look like #C0C0C0.",
+      "missing": "Saved colours are not installed yet: run CATALOG_COLOURS.sql in Supabase first.",
+      "search": "Search colour or code…",
+      "count": "{{count}} colours",
+      "empty": "No saved colours yet — add the first one above.",
+      "linked": "Saved colour: its circle comes from the Colours tab",
+      "suggestions": "Saved colours"
     },
     "modelEditor": {
       "title": "Edit model",

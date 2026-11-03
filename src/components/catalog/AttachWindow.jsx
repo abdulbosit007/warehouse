@@ -8,11 +8,14 @@ import { loadModels, updateModel } from "../../lib/catalog";
 import { findModels, modelDraft, modelPayload } from "../../lib/catalogRules";
 import ModelHit from "./ModelHit";
 import ColourInput from "./ColourInput";
+import ColourLabel from "./ColourLabel";
+import useSavedColours from "../../hooks/useSavedColours";
 
 const squash = (s) => String(s || "").replace(/\s+/g, " ").trim();
 
 export default function AttachWindow({ products, onClose, onDone }) {
   const { t } = useTranslation();
+  const { find: findColour } = useSavedColours();
   const [models, setModels] = useState(null);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState(null);
@@ -115,11 +118,11 @@ export default function AttachWindow({ products, onClose, onDone }) {
                         <td className="px-3 py-2"><SkuBadge sku={r.sku} /><div className="mt-1 text-xs text-neutral-500">{r.name}</div></td>
                         <td className="px-3 py-2 text-center font-semibold tabular-nums">{r.stock}</td>
                         <td className="px-3 py-2">
-                          <input value={r.label} onChange={(e) => setRow(i, { label: e.target.value })}
-                                 className="w-40 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm" />
+                          <ColourLabel value={r.label} onChange={(patch) => setRow(i, patch)} />
                         </td>
                         <td className="px-3 py-2">
-                          <ColourInput value={r.color_hex} onChange={(v) => setRow(i, { color_hex: v })} />
+                          <ColourInput value={r.color_hex} onChange={(v) => setRow(i, { color_hex: v })}
+                                       locked={!!findColour(r.label)} lockedTitle={t("ownerCatalog.colours.linked")} />
                         </td>
                       </tr>
                     ))}

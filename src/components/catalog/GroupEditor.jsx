@@ -6,9 +6,13 @@ import { X, Layers, AlertTriangle, Loader2 } from "lucide-react";
 import SkuBadge from "../SkuBadge";
 import { createGroup } from "../../lib/catalog";
 import { draftFromGroup, draftToPayload, slugify } from "../../lib/catalogRules";
+import ColourLabel from "./ColourLabel";
+import ColourInput from "./ColourInput";
+import useSavedColours from "../../hooks/useSavedColours";
 
 export default function GroupEditor({ group, onClose, onCreated }) {
   const { t } = useTranslation();
+  const { find: findColour } = useSavedColours();
   const [draft, setDraft] = useState(() => draftFromGroup(group));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -134,20 +138,13 @@ export default function GroupEditor({ group, onClose, onCreated }) {
                           </td>
                           <td className="px-3 py-2 text-center font-semibold tabular-nums">{v.stock}</td>
                           <td className="px-3 py-2">
-                            <input value={v.label} disabled={!v.include}
-                                   onChange={(e) => setVariant(mi, vi, { label: e.target.value })}
-                                   className="w-40 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm disabled:bg-transparent" />
+                            <ColourLabel value={v.label} disabled={!v.include}
+                                         onChange={(patch) => setVariant(mi, vi, patch)} />
                           </td>
                           <td className="px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <input type="color" disabled={!v.include}
-                                     value={/^#[0-9a-f]{6}$/i.test(v.color_hex) ? v.color_hex : "#ffffff"}
-                                     onChange={(e) => setVariant(mi, vi, { color_hex: e.target.value })}
-                                     className="h-8 w-10 cursor-pointer rounded border border-neutral-200 bg-white p-0.5 disabled:opacity-40" />
-                              <input value={v.color_hex} disabled={!v.include} placeholder="#"
-                                     onChange={(e) => setVariant(mi, vi, { color_hex: e.target.value.trim() })}
-                                     className="w-24 rounded-lg border border-neutral-200 px-2 py-1.5 font-mono text-xs disabled:bg-transparent" />
-                            </div>
+                            <ColourInput value={v.color_hex} disabled={!v.include}
+                                         onChange={(hex) => setVariant(mi, vi, { color_hex: hex })}
+                                         locked={!!findColour(v.label)} lockedTitle={t("ownerCatalog.colours.linked")} />
                           </td>
                           <td className="px-3 py-2 text-center">
                             <input type="radio" name={`first-${m.key}`} checked={v.is_default} disabled={!v.include}
