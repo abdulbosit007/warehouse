@@ -31,6 +31,19 @@ import "react-day-picker/dist/style.css";
 
 const nf = new Intl.NumberFormat();
 
+const CART_KEY = "branch_ops_cart";
+
+// The cart saved in this browser. Every tab of the app shares it.
+function readSavedCart() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    // Drop old cart items without source tracking (backward compat)
+    return parsed.filter((item) => item.cart_key && item.source_location_id);
+  } catch {
+    return [];
+  }
+}
+
 export default function BranchOperations() {
   const { t } = useTranslation();
 
@@ -96,24 +109,38 @@ export default function BranchOperations() {
   // search + cart
   const [q, setQ] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(""); // "" = all
-  const [cart, setCart] = useState(() => {
-    try {
-      const saved = localStorage.getItem("branch_ops_cart");
-      const parsed = saved ? JSON.parse(saved) : [];
-      // Drop old cart items without source tracking (backward compat)
-      return parsed.filter(item => item.cart_key && item.source_location_id);
-    } catch {
-      return [];
-    }
-  }); // [{cart_key,product_id,source_location_id,source_label,name,sku,maxQty,qty}]
+  const [cart, setCart] = useState(readSavedCart); // [{cart_key,product_id,source_location_id,source_label,name,sku,maxQty,qty}]
+
+  // The cart as a stock reload left it. Such a change is not saved: a tab left open
+  // in the background still holds an old cart, and a sale made in another tab
+  // reloads its stock. Saving then would bring a submitted cart back.
+  const reloadedCart = useRef(null);
 
   useEffect(() => {
+    if (cart === reloadedCart.current) return;
     try {
-      localStorage.setItem("branch_ops_cart", JSON.stringify(cart));
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
     } catch (e) {
       console.error("Failed to save ops cart to localStorage", e);
     }
   }, [cart]);
+
+  // Another tab changed the cart (or submitted it): take its cart. A tab coming
+  // back to the front reads it again, in case it missed that while asleep.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === CART_KEY) setCart(readSavedCart());
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setCart(readSavedCart());
+    };
+    window.addEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
   const [note, setNote] = useState("");
 
   // loan fields
@@ -307,7 +334,7 @@ export default function BranchOperations() {
       const stockMap = new Map(rows.map((r) => [r.product_id, r]));
       setCart((prev) => {
         if (prev.length === 0) return prev;
-        return prev
+        const next = prev
           .map((item) => {
             if (!item.cart_key || !item.source_location_id) return null;
             const row = stockMap.get(item.product_id);
@@ -317,6 +344,8 @@ export default function BranchOperations() {
             return { ...item, maxQty: src.qty, qty: Math.min(item.qty, src.qty) };
           })
           .filter(Boolean);
+        reloadedCart.current = next;
+        return next;
       });
     } catch (e) {
       log("catalog error", e.message || String(e));
@@ -702,9 +731,48 @@ export default function BranchOperations() {
       branchLocationId
     );
 
+  // A failed call. No answer at all (connection lost): the server may have saved it,
+  // so the seller must look before pressing again, or it is sold twice.
+  const callError = (res) =>
+    res.status === 0 ? new Error(t("branchOperations.errors.noAnswer")) : res.error;
+
+  // What went through leaves the cart at once; only what failed stays in it
+  const dropFromCart = (lines) => {
+    const keys = new Set(lines.map((l) => l.cart_key));
+    setCart((curr) => curr.filter((l) => !keys.has(l.cart_key)));
+  };
+
+  // One request (sale / loan from another location) with its lines
+  async function sendRequest(fields, sourceId, items) {
+    const res = await supabase.from("branch_requests").insert(fields).select("id").single();
+    if (res.error) throw callError(res);
+    const lines = await supabase.from("branch_request_items").insert(
+      items.map((item) => ({
+        request_id: res.data.id,
+        product_id: item.product_id,
+        source_location_id: sourceId,
+        requested_qty: item.qty,
+        status: "requested",
+      }))
+    );
+    if (lines.error) {
+      // an empty request must not wait at the warehouse (best effort)
+      if (lines.status !== 0) await supabase.from("branch_requests").delete().eq("id", res.data.id);
+      throw callError(lines);
+    }
+    dropFromCart(items);
+  }
+
+  function showCommitError(e, someDone) {
+    const msg = e.message || String(e);
+    setErr(someDone ? `${t("branchOperations.errors.partSaved")}\n${msg}` : msg);
+    if (someDone) refreshCatalog({ silent: true });
+  }
+
   async function commitSale() {
     if (committing) return;
     setCommitting(true);
+    let someDone = false;
     try {
       if (!cartValid) throw new Error(t("branchOperations.errors.checkQuantities"));
 
@@ -740,8 +808,10 @@ export default function BranchOperations() {
             source_location_id: l.source_location_id,
           })),
         };
-        const { error } = await supabase.rpc("fn_branch_commit_sale", { p: payload });
-        if (error) throw error;
+        const res = await supabase.rpc("fn_branch_commit_sale", { p: payload });
+        if (res.error) throw callError(res);
+        dropFromCart(ownItems);
+        someDone = true;
       }
 
       // ── Create branch requests for approval-needed items ──
@@ -756,30 +826,17 @@ export default function BranchOperations() {
         }
 
         for (const [sourceId, items] of bySource.entries()) {
-          const { data: request, error: reqErr } = await supabase
-            .from("branch_requests")
-            .insert({
+          await sendRequest(
+            {
               to_location_id: branchLocationId,
               status: "sent",
               purpose: "sale",
               created_by: user?.id,
-            })
-            .select("id")
-            .single();
-          if (reqErr) throw reqErr;
-
-          const { error: itemErr } = await supabase
-            .from("branch_request_items")
-            .insert(
-              items.map((item) => ({
-                request_id: request.id,
-                product_id: item.product_id,
-                source_location_id: sourceId,
-                requested_qty: item.qty,
-                status: "requested",
-              }))
-            );
-          if (itemErr) throw itemErr;
+            },
+            sourceId,
+            items
+          );
+          someDone = true;
         }
       }
 
@@ -796,15 +853,24 @@ export default function BranchOperations() {
       setNote("");
       await refreshCatalog({ silent: true });
     } catch (e) {
-      setErr(e.message || String(e));
+      showCommitError(e, someDone);
     } finally {
       setCommitting(false);
     }
   }
 
+  // A loan that went through only partly. Sending the rest again for the same
+  // borrower joins that loan (one card in Active loans) instead of starting a new one.
+  const unfinishedLoan = useRef(null); // { groupId, borrowerName } | null
+  useEffect(() => {
+    if (cart.length === 0) unfinishedLoan.current = null;
+  }, [cart.length]);
+
   async function commitLoan() {
     if (committing) return;
     setCommitting(true);
+    let someDone = false;
+    let loanGroupId = null;
     try {
       if (!loanValid) throw new Error(t("branchOperations.errors.borrowerAndQtyRequired"));
 
@@ -813,7 +879,10 @@ export default function BranchOperations() {
       if (approvalItems.length > 0 && !(await confirmRequestLines(approvalItems))) return;
       // One loan for this borrower, however many locations it comes from: the part
       // from our shelf and every loan request share this id (one card in Active loans).
-      const loanGroupId = crypto.randomUUID();
+      const unfinished = unfinishedLoan.current;
+      loanGroupId = unfinished && unfinished.borrowerName === borrower.borrower_name
+        ? unfinished.groupId
+        : crypto.randomUUID();
 
       // ── Commit own branch loan items immediately ──
       if (ownItems.length > 0) {
@@ -848,8 +917,10 @@ export default function BranchOperations() {
             source_location_id: l.source_location_id,
           })),
         };
-        const { error } = await supabase.rpc("fn_branch_commit_loan", { p: payload });
-        if (error) throw error;
+        const res = await supabase.rpc("fn_branch_commit_loan", { p: payload });
+        if (res.error) throw callError(res);
+        dropFromCart(ownItems);
+        someDone = true;
       }
 
       // ── Create branch requests for approval-needed loan items ──
@@ -863,9 +934,8 @@ export default function BranchOperations() {
         }
 
         for (const [sourceId, items] of bySource.entries()) {
-          const { data: request, error: reqErr } = await supabase
-            .from("branch_requests")
-            .insert({
+          await sendRequest(
+            {
               to_location_id: branchLocationId,
               status: "sent",
               purpose: "loan",
@@ -879,23 +949,11 @@ export default function BranchOperations() {
                 due_date:          borrower.due_date            || null,
                 tx_note:           note                         || null,
               }),
-            })
-            .select("id")
-            .single();
-          if (reqErr) throw reqErr;
-
-          const { error: itemErr } = await supabase
-            .from("branch_request_items")
-            .insert(
-              items.map((item) => ({
-                request_id: request.id,
-                product_id: item.product_id,
-                source_location_id: sourceId,
-                requested_qty: item.qty,
-                status: "requested",
-              }))
-            );
-          if (itemErr) throw itemErr;
+            },
+            sourceId,
+            items
+          );
+          someDone = true;
         }
       }
 
@@ -908,6 +966,7 @@ export default function BranchOperations() {
         showOk(t("branchOperations.success.approvalRequestSent", { count: approvalItems.length }));
       }
 
+      unfinishedLoan.current = null;
       setCart([]);
       setNote("");
       setBorrower({
@@ -920,7 +979,11 @@ export default function BranchOperations() {
       // Refresh pending so the new request appears in the Pending tab immediately
       if (approvalItems.length > 0) loadLoanPendingRequests();
     } catch (e) {
-      setErr(e.message || String(e));
+      showCommitError(e, someDone);
+      if (someDone) {
+        unfinishedLoan.current = { groupId: loanGroupId, borrowerName: borrower.borrower_name };
+        loadLoanPendingRequests();
+      }
     } finally {
       setCommitting(false);
     }
@@ -1999,7 +2062,7 @@ return (
     {(err || ok) && (
       <div className="space-y-3">
         {err && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 whitespace-pre-line">
             {err}
           </div>
         )}

@@ -1022,7 +1022,9 @@
       "checkQuantities": "Iltimos, sonlarni tekshiring.",
       "borrowerAndQtyRequired": "Qarz oluvchi va sonlar majburiy.",
       "stockChanged": "Zaxira o’zgardi",
-      "stockItemIssue": "{{name}}: faqat {{available}} mavjud, {{qty}} so’ralgan"
+      "stockItemIssue": "{{name}}: faqat {{available}} mavjud, {{qty}} so’ralgan",
+      "noAnswer": "Serverdan javob kelmadi. Balki allaqachon saqlangandir: qayta bosishdan oldin tarixni tekshiring.",
+      "partSaved": "O‘tgani saqlandi va savatdan olib tashlandi. Faqat savatda qolgani yuborilmadi:"
     },
     "success": {
       "saleCommittedSimple": "Sotuv tasdiqlandi.",
