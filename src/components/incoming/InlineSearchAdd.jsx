@@ -214,7 +214,7 @@ export default function InlineSearchAdd({
         </div>
 
         {openList && suggestions.length > 0 && (
-          <ul className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow">
+          <ul className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow">
             {suggestions.map((p, idx) => {
               const catName = p.category_id
                 ? catById[p.category_id] || "Unknown category"

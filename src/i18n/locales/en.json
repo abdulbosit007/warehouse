@@ -1022,7 +1022,9 @@
       "checkQuantities": "Please check quantities.",
       "borrowerAndQtyRequired": "Borrower and quantities are required.",
       "stockChanged": "Stock changed",
-      "stockItemIssue": "{{name}}: only {{available}} available, requested {{qty}}"
+      "stockItemIssue": "{{name}}: only {{available}} available, requested {{qty}}",
+      "noAnswer": "No answer from the server. It may already be saved: check the history before you press again.",
+      "partSaved": "What went through is saved and taken off the cart. Only what is still in the cart was not sent:"
     },
     "success": {
       "saleCommittedSimple": "Sale committed.",
