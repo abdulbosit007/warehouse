@@ -452,12 +452,29 @@ export default function BranchRequests() {
 /* -------------------------------------------------------------------------- */
 /*                          NEW REQUEST TAB                                    */
 /* -------------------------------------------------------------------------- */
+// "From the last incoming batch": what the seller chose and typed, kept in this
+// browser per branch, so leaving the tab or the page doesn't lose it.
+// { mode, origin, byBatch: { [batchId]: { [batchItemId]: qty } } }
+const incomingDraftKey = (locationId) => `branch_req_incoming:${locationId}`;
+const KEEP_BATCHES = 4; // typed numbers kept for the last few batches only
+
+function readIncomingDraft(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null") || {};
+  } catch {
+    return {};
+  }
+}
+
 function NewRequestTab({ location, showToast }) {
   const { setCheckDialog, confirmSetLines } = useSetCheck();
   const { t } = useTranslation();
+  const draftKey = incomingDraftKey(location.id);
 
   // Mode toggle: "search" (old flow) vs "incoming" (new flow)
-  const [mode, setMode] = useState("search");
+  const [mode, setMode] = useState(() =>
+    readIncomingDraft(draftKey).mode === "incoming" ? "incoming" : "search"
+  );
 
   // ── Search mode state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -472,7 +489,7 @@ function NewRequestTab({ location, showToast }) {
   const [locationQtys, setLocationQtys] = useState({});
 
   // ── Incoming mode state ──
-  const [selectedOrigin, setSelectedOrigin] = useState(null);
+  const [selectedOrigin, setSelectedOrigin] = useState(() => readIncomingDraft(draftKey).origin || null);
   const [batchInfo, setBatchInfo] = useState(null);
   const [batchItems, setBatchItems] = useState([]);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -480,6 +497,24 @@ function NewRequestTab({ location, showToast }) {
   const [allBatchStock, setAllBatchStock] = useState({});
   // Qty per batch item id
   const [incomingQtys, setIncomingQtys] = useState({});
+
+  // Save the mode, the origin and the numbers typed for the batch on screen
+  useEffect(() => {
+    const draft = readIncomingDraft(draftKey);
+    const next = { ...draft, mode, origin: selectedOrigin };
+    if (batchInfo?.id) {
+      const others = Object.entries(draft.byBatch || {}).filter(([id]) => id !== batchInfo.id);
+      next.byBatch = Object.fromEntries([
+        ...others.slice(-(KEEP_BATCHES - 1)),
+        [batchInfo.id, incomingQtys],
+      ]);
+    }
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(next));
+    } catch (e) {
+      console.error("Failed to save the request numbers", e);
+    }
+  }, [draftKey, mode, selectedOrigin, batchInfo, incomingQtys]);
 
   const [cart, setCart] = useState(() => {
     try {
@@ -644,6 +679,7 @@ function NewRequestTab({ location, showToast }) {
   // ── Incoming mode: load batch + stock for ALL items when origin changes ──
   useEffect(() => {
     if (mode !== "incoming" || !selectedOrigin) return;
+    let cancelled = false;
     setBatchLoading(true);
     setBatchItems([]);
     setBatchInfo(null);
@@ -652,9 +688,12 @@ function NewRequestTab({ location, showToast }) {
 
     (async () => {
       const { batch, items, error } = await getLatestClosedBatchItems(selectedOrigin);
+      if (cancelled) return;
       if (error) console.error("Load batch error:", error);
       setBatchInfo(batch);
       setBatchItems(items);
+      // the numbers typed earlier for this batch (a newer batch starts empty)
+      setIncomingQtys((batch && readIncomingDraft(draftKey).byBatch?.[batch.id]) || {});
 
       // Load stock for ALL items at once
       if (items.length > 0) {
@@ -687,13 +726,16 @@ function NewRequestTab({ location, showToast }) {
             const total = rows.reduce((s, r) => s + (r.quantity || 0), 0);
             stockBySku[sku] = { productId: pid, totalStock: total };
           });
-          setAllBatchStock(stockBySku);
+          if (!cancelled) setAllBatchStock(stockBySku);
         }
       }
 
-      setBatchLoading(false);
+      if (!cancelled) setBatchLoading(false);
     })();
-  }, [mode, selectedOrigin, warehouseLocations]);
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, selectedOrigin, warehouseLocations, draftKey]);
 
   // Build locationQtys from existing cart entries for a product
   function getCartQtysForProduct(productId) {
