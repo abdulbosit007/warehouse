@@ -367,7 +367,8 @@
       "inBatch": "{{name}} (shu partiyada)",
       "notYet": "yangi: qabul qilinganda bog‘lanadi",
       "sent": "+ jufti {{sku}}",
-      "hint": "Juftning SKU si (masalan, shu tumbaning rakovinasi). Ikkala mahsulot tizimda paydo bo‘lganda bog‘lanadi."
+      "hint": "Juftning SKU si (masalan, shu tumbaning rakovinasi). Ikkala mahsulot tizimda paydo bo‘lganda bog‘lanadi.",
+      "thisBatch": "shu partiyada"
     }
   },
   "ownerAuditDetail": {
