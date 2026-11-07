@@ -33,7 +33,10 @@
     "filterLinked": "Связаны",
     "filterUnlinked": "Не связаны",
     "tagPairOf": "пара для {{names}}",
-    "tagWithout": "пришёл без пары"
+    "tagWithout": "пришёл без пары",
+    "tagPairOfMany": "пара для {{count}} товаров",
+    "short": "не хватает {{count}}",
+    "shortLong": "Не хватает {{count}}: товарам на складах нужно больше, чем есть"
   },
   "common": {
     "loading": "Загрузка...",

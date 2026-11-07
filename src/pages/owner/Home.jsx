@@ -5,7 +5,7 @@ import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import SetSecondaryField from "../../components/SetSecondaryField";
-import { freeSecondaries, loadSets, saveProductSet } from "../../lib/productSets";
+import { freeSecondaries, loadPairTaskIds, loadSets, saveProductSet } from "../../lib/productSets";
 import {
   Package,
   Search,
@@ -33,19 +33,28 @@ const NO_CATEGORY = "__none__";
 // product that came without its pair. No tag = not linked yet.
 function PairTag({ pair, mains, without }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false); // the names of several main items, on tap
   if (!pair && !mains && !without) return null;
+  const many = !pair && mains?.length > 1;
+  const names = mains?.join(", ");
   const [style, text] = pair
     ? ["bg-indigo-50 text-indigo-700 border-indigo-200", `+ ${pair.name}`]
     : mains
-    ? ["bg-sky-50 text-sky-700 border-sky-200", t("productSet.tagPairOf", { names: mains.join(", ") })]
+    ? ["bg-sky-50 text-sky-700 border-sky-200",
+       many && !open
+         ? t("productSet.tagPairOfMany", { count: mains.length })
+         : t("productSet.tagPairOf", { names })]
     : ["bg-amber-50 text-amber-700 border-amber-200", t("productSet.tagWithout")];
   return (
     <span
-      className={`mt-1 flex w-fit max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${style}`}
-      title={text}
+      onClick={many ? () => setOpen((v) => !v) : undefined}
+      className={`mt-1 flex w-fit max-w-[16rem] items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${style} ${
+        many ? "cursor-pointer" : ""
+      }`}
+      title={names || text}
     >
       <Link2 className="h-3 w-3 shrink-0" />
-      <span className="truncate">{text}</span>
+      <span className={open ? "whitespace-normal" : "truncate"}>{text}</span>
     </span>
   );
 }
@@ -583,7 +592,7 @@ export default function OwnerHome() {
     }
 
     try {
-      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes, setsList] = await Promise.all([
+      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes, setsList, pairTasks] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -621,9 +630,10 @@ export default function OwnerHome() {
         // transfer is still 'pending' (waiting on the other items).
         supabase
           .from("stock_transfer_items")
-          .select("product_id, qty, status"),
+          .select("id, product_id, qty, status"),
 
         loadSets(),
+        loadPairTaskIds(),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -643,6 +653,7 @@ export default function OwnerHome() {
       }));
       const transferInTransit = (pendingTransfersRes.data || [])
         .filter((r) => (r.status || "pending") === "pending")
+        .filter((r) => !pairTasks.has(r.id)) // a pair travelling for a main item already counted
         .map((r) => ({ product_id: r.product_id, qty: r.qty || 0 }));
       setInDeliveryList([...branchInDelivery, ...transferInTransit]);
       setLocations(locationsRes.data || []);
@@ -1261,8 +1272,14 @@ export default function OwnerHome() {
                           {grandTotal}
                         </span>
                         {freeMap.has(product.id) && (
-                          <div className="mt-0.5 text-[11px] font-medium text-emerald-700 whitespace-nowrap">
-                            {t("productSet.free", { count: Math.max(0, freeMap.get(product.id)) })}
+                          <div
+                            className={`mt-0.5 text-[11px] font-medium whitespace-nowrap ${
+                              freeMap.get(product.id) < 0 ? "text-red-600" : "text-emerald-700"
+                            }`}
+                          >
+                            {freeMap.get(product.id) < 0
+                              ? t("productSet.short", { count: -freeMap.get(product.id) })
+                              : t("productSet.free", { count: freeMap.get(product.id) })}
                           </div>
                         )}
                       </td>
