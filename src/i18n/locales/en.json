@@ -367,7 +367,8 @@
       "inBatch": "{{name}} (this batch)",
       "notYet": "new: linked when it's accepted",
       "sent": "+ pair {{sku}}",
-      "hint": "The pair's SKU (e.g. the rakovina of this tumba). The two are linked when both products exist."
+      "hint": "The pair's SKU (e.g. the rakovina of this tumba). The two are linked when both products exist.",
+      "thisBatch": "this batch"
     }
   },
   "ownerAuditDetail": {

@@ -16,6 +16,18 @@ export async function loadSets() {
   return data || [];
 }
 
+// SKUs (lower case) that can't be someone's pair: a product that already has its
+// own pair, or one made "(без пары)"
+export async function loadUnpairableSkus() {
+  const { data, error } = await fetchAll(() =>
+    supabase.from("product_links").select("id, main:main_product_id ( sku ), bare:bare_product_id ( sku )")
+  );
+  if (error) return new Set();
+  return new Set(
+    (data || []).flatMap((r) => [r.main?.sku, r.bare?.sku]).filter(Boolean).map((s) => s.toLowerCase())
+  );
+}
+
 // The owner sets a tumba's rakovina (null removes it)
 export async function saveProductSet(mainId, secondaryId) {
   const { error } = await supabase.rpc("fn_set_product_set", {

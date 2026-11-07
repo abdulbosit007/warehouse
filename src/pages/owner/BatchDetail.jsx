@@ -19,6 +19,8 @@ import { DeliveryQty, DeliveryStatus, DeliveryHistory } from "../../components/i
 import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
+import PairSkuInput from "../../components/incoming/PairSkuInput";
+import { loadUnpairableSkus } from "../../lib/productSets";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -209,7 +211,7 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
 /* ─────────────────────────────────────────────────────────────────────────────
    DRAFT ROW COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-function DraftRow({ row, onDelete, categories, batchLines }) {
+function DraftRow({ row, onDelete, categories, batchLines, unpairable }) {
   const { t } = useTranslation();
 
   const [form, setForm] = useState({
@@ -324,22 +326,16 @@ function DraftRow({ row, onDelete, categories, batchLines }) {
       </td>
 
       <td className="px-4 py-3 max-md:min-w-[9rem]">
-        <input
+        <PairSkuInput
           value={form.pair_sku}
-          onChange={(e) => setForm((f) => ({ ...f, pair_sku: e.target.value }))}
-          list={`pair-skus-${row.id}`}
+          onChange={(sku) => setForm((f) => ({ ...f, pair_sku: sku }))}
+          ownSku={form.sku}
+          rowId={row.id}
+          batchLines={batchLines}
+          unpairable={unpairable}
           className={`${editableClass} font-mono`}
           placeholder={t("ownerBatchDetail.placeholders.pair")}
         />
-        <datalist id={`pair-skus-${row.id}`}>
-          {batchLines
-            .filter((l) => l.id !== row.id && l.sku)
-            .map((l) => (
-              <option key={l.id} value={l.sku}>
-                {l.product_name}
-              </option>
-            ))}
-        </datalist>
         {pairSku && (
           <p className={`mt-1 text-[11px] leading-tight ${pairInBatch || pairKnown ? "text-indigo-700" : "text-amber-700"}`}>
             {pairInBatch
@@ -380,6 +376,7 @@ export default function BatchDetail() {
   const [err, setErr] = useState("");
   const [sendErr, setSendErr] = useState("");
   const [reviewing, setReviewing] = useState(null);
+  const [unpairable, setUnpairable] = useState(() => new Set()); // SKUs that can't be a pair
 
   const isOpen = (batch?.status || "").toLowerCase() === "open";
 
@@ -422,6 +419,7 @@ export default function BatchDetail() {
       const { data: cats } = await getCategories();
       setCategories(cats || []);
     })();
+    loadUnpairableSkus().then(setUnpairable);
   }, []);
 
   const drafts = useMemo(() => items.filter((i) => i.status === "draft"), [items]);
@@ -689,7 +687,14 @@ export default function BatchDetail() {
 
               <tbody className="divide-y divide-neutral-100">
                 {drafts.map((row) => (
-                  <DraftRow key={row.id} row={row} onDelete={onDeleteDraft} categories={categories} batchLines={items} />
+                  <DraftRow
+                    key={row.id}
+                    row={row}
+                    onDelete={onDeleteDraft}
+                    categories={categories}
+                    batchLines={items}
+                    unpairable={unpairable}
+                  />
                 ))}
               </tbody>
             </table>
