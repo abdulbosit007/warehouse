@@ -787,8 +787,10 @@ export default function WarehouseHome() {
                       <td className="px-4 py-3 text-[15px] font-semibold text-neutral-900 max-md:px-3 max-md:whitespace-normal max-md:min-w-[10rem]">
                         {product.name || "—"}
                         {freeMap.has(product.id) && (
-                          <div className="text-xs font-medium text-emerald-700">
-                            {t("productSet.freeLong", { count: Math.max(0, freeMap.get(product.id)) })}
+                          <div className={`text-xs font-medium ${freeMap.get(product.id) < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                            {freeMap.get(product.id) < 0
+                              ? t("productSet.shortLong", { count: -freeMap.get(product.id) })
+                              : t("productSet.freeLong", { count: freeMap.get(product.id) })}
                           </div>
                         )}
                       </td>

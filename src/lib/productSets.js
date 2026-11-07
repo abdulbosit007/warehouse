@@ -63,6 +63,16 @@ async function warehouseStock(productIds, warehouseIds) {
   return rows;
 }
 
+// Ids of transfer lines that only carry a pair for a main item already on its way
+// (another warehouse's "Пара для: ..." task): not extra goods in delivery
+export async function loadPairTaskIds() {
+  const { data, error } = await fetchAll(() =>
+    supabase.from("set_moves").select("id, helper_item_id").not("helper_item_id", "is", null)
+  );
+  if (error) return new Set();
+  return new Set((data || []).map((r) => r.helper_item_id));
+}
+
 // Free rakovinas for pages that don't load all warehouses' stock themselves
 export async function loadFreeSecondaries() {
   try {

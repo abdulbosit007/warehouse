@@ -33,7 +33,10 @@
     "filterLinked": "Linked",
     "filterUnlinked": "Not linked",
     "tagPairOf": "pair of {{names}}",
-    "tagWithout": "came without its pair"
+    "tagWithout": "came without its pair",
+    "tagPairOfMany": "pair of {{count}} products",
+    "short": "missing {{count}}",
+    "shortLong": "Missing {{count}}: the warehouses' main items need more than there are"
   },
   "common": {
     "loading": "Loading...",

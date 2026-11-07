@@ -33,7 +33,10 @@
     "filterLinked": "Bog‘langan",
     "filterUnlinked": "Bog‘lanmagan",
     "tagPairOf": "{{names}} jufti",
-    "tagWithout": "juftsiz kelgan"
+    "tagWithout": "juftsiz kelgan",
+    "tagPairOfMany": "{{count}} ta mahsulot jufti",
+    "short": "{{count}} ta yetishmaydi",
+    "shortLong": "{{count}} ta yetishmaydi: omborlardagi mahsulotlarga bor sonidan ko‘proq kerak"
   },
   "common": {
     "loading": "Yuklanmoqda...",

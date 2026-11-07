@@ -36,6 +36,7 @@ import { Link } from "react-router-dom";
 import { DONE_ITEM_FILTER, closedRequestStatus, requestHasOpenLines, closeIfFinished } from "../../lib/saleRequestItems";
 import RequestTypeBadge from "../../components/RequestTypeBadge";
 import useSetCheck from "../../hooks/useSetCheck";
+import useFreeSecondaries from "../../hooks/useFreeSecondaries";
 import { requestHeaderClass } from "../../lib/requestType";
 
 // "YYYY-MM-DD" of a timestamp in local time (the Sale page's day)
@@ -468,6 +469,7 @@ function readIncomingDraft(key) {
 
 function NewRequestTab({ location, showToast }) {
   const { setCheckDialog, confirmSetLines } = useSetCheck();
+  const freeSecondaries = useFreeSecondaries();
   const { t } = useTranslation();
   const draftKey = incomingDraftKey(location.id);
 
@@ -1041,7 +1043,11 @@ function NewRequestTab({ location, showToast }) {
             <div className="max-h-[460px] overflow-y-auto divide-y divide-neutral-50">
               {availableBatchItems.map((item, idx) => {
                 const stockInfo = allBatchStock[item.sku];
-                const totalStock = stockInfo?.totalStock || 0;
+                // a pair item: only the free part (warehouse stock only here)
+                const free = freeSecondaries.get(stockInfo?.productId);
+                const totalStock = free === undefined
+                  ? stockInfo?.totalStock || 0
+                  : Math.min(stockInfo?.totalStock || 0, Math.max(0, free));
                 const currentQty = incomingQtys[item.id] || "";
                 const hasQty = parseInt(currentQty, 10) > 0;
                 return (
@@ -1061,8 +1067,13 @@ function NewRequestTab({ location, showToast }) {
                     </div>
                     <div className="text-center">
                       <span className="inline-flex items-center justify-center min-w-[2.5rem] rounded-md bg-emerald-50 text-emerald-700 text-sm font-semibold px-2 py-0.5">
-                        {totalStock}
+                        {stockInfo?.totalStock || 0}
                       </span>
+                      {free !== undefined && (
+                        <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                          {t("productSet.free", { count: Math.max(0, free) })}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <input
@@ -1251,6 +1262,12 @@ function NewRequestTab({ location, showToast }) {
                     .filter((loc) => (productStock[loc.id] || 0) > 0)
                     .map((loc) => {
                       const stock = productStock[loc.id] || 0;
+                      // a pair item from the warehouses: only the free part, all warehouses together
+                      const free = loc.kind === "warehouse" ? freeSecondaries.get(selectedProduct?.id) : undefined;
+                      const fromOtherWarehouses = warehouseLocations
+                        .filter((w) => w.id !== loc.id)
+                        .reduce((sum, w) => sum + (parseInt(locationQtys[w.id], 10) || 0), 0);
+                      const limit = free === undefined ? stock : Math.max(0, Math.min(stock, free - fromOtherWarehouses));
                       return (
                         <div key={loc.id} className="flex items-center justify-between p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                           <div className="flex-1 min-w-0">
@@ -1261,16 +1278,21 @@ function NewRequestTab({ location, showToast }) {
                             <p className="text-xs text-neutral-500">
                               {t("branchRequests.newRequest.available")}:{" "}
                               <span className="text-emerald-600 font-semibold">{stock}</span>
+                              {free !== undefined && (
+                                <span className="ml-1.5 font-semibold text-emerald-700">
+                                  · {t("productSet.free", { count: Math.max(0, free) })}
+                                </span>
+                              )}
                             </p>
                           </div>
                           <input
                             type="number"
                             min="0"
-                            max={stock}
+                            max={limit}
                             value={locationQtys[loc.id] || ""}
                             placeholder={t("branchRequests.common.qty")}
                             onChange={(e) => {
-                              const val = Math.min(stock, Math.max(0, parseInt(e.target.value, 10) || 0));
+                              const val = Math.min(limit, Math.max(0, parseInt(e.target.value, 10) || 0));
                               setLocationQtys((prev) => ({ ...prev, [loc.id]: val || "" }));
                             }}
                             className="w-20 rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"

@@ -33,7 +33,10 @@
     "filterLinked": "Боғланган",
     "filterUnlinked": "Боғланмаган",
     "tagPairOf": "{{names}} жуфти",
-    "tagWithout": "жуфтсиз келган"
+    "tagWithout": "жуфтсиз келган",
+    "tagPairOfMany": "{{count}} та маҳсулот жуфти",
+    "short": "{{count}} та етишмайди",
+    "shortLong": "{{count}} та етишмайди: омборлардаги маҳсулотларга бор сонидан кўпроқ керак"
   },
   "common": {
     "loading": "Юкланмоқда...",

@@ -14,6 +14,7 @@ import { isItemDone, DONE_ITEM_FILTER, closedRequestStatus } from "../../lib/sal
 import Blocked from "../../components/Blocked";
 import ReturnDestModal from "../../components/ReturnDestModal";
 import useSetCheck from "../../hooks/useSetCheck";
+import useFreeSecondaries from "../../hooks/useFreeSecondaries";
 
 // tab sections
 import SaleSection from "../../components/ops/SaleSection";
@@ -92,6 +93,7 @@ export default function BranchOperations() {
   const [catalog, setCatalog] = useState([]); // [{product_id,name,sku,category,display_price,sources,branchQty,overallQty}]
   const [branchLocationId, setBranchLocationId] = useState(null);
   const { setCheckDialog, confirmSetLines } = useSetCheck();
+  const freeSecondaries = useFreeSecondaries();
   const [loading, setLoading] = useState(true);
   const [committing, setCommitting] = useState(false);
   const [err, setErr] = useState("");
@@ -2197,6 +2199,7 @@ return (
       <QuantityInputModal
         row={sourcePicker.row}
         sources={sourcePicker.sources}
+        free={freeSecondaries.get(sourcePicker.row.product_id)}
         onConfirm={(selections) => {
           if (sourcePicker.resendItem) {
             // Resend → create the request directly, dated to the original day.
@@ -2228,11 +2231,22 @@ return (
    input. Confirm adds all filled locations to cart as separate line items.
    Locations other than own branch show an "Approval needed" badge.
 ───────────────────────────────────────────────────────────────────────────── */
-function QuantityInputModal({ row, sources, onConfirm, onClose }) {
+function QuantityInputModal({ row, sources, free, onConfirm, onClose }) {
   const { t } = useTranslation();
   const [qtys, setQtys] = useState(
     () => Object.fromEntries(sources.map((s) => [s.locationId, ""]))
   );
+
+  // Product set: a pair item from the warehouses only up to the free part, all
+  // warehouses together (the rest goes with their main items)
+  const limited = (src) => free !== undefined && src.kind === "warehouse";
+  const limitOf = (src) => {
+    if (!limited(src)) return src.qty;
+    const fromOthers = sources
+      .filter((s) => s.locationId !== src.locationId && limited(s))
+      .reduce((sum, s) => sum + (parseInt(qtys[s.locationId]) || 0), 0);
+    return Math.max(0, Math.min(src.qty, free - fromOthers));
+  };
 
   const setQty = (locationId, value, max) => {
     if (value === "" || value === "0") {
@@ -2319,6 +2333,11 @@ function QuantityInputModal({ row, sources, onConfirm, onClose }) {
                   }`}>
                     {src.qty} {t("branchOperations.modal.available")}
                   </span>
+                  {limited(src) && (
+                    <span className="ml-1.5 text-xs font-semibold text-emerald-700">
+                      · {t("productSet.free", { count: Math.max(0, free) })}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -2326,10 +2345,10 @@ function QuantityInputModal({ row, sources, onConfirm, onClose }) {
               <input
                 type="number"
                 min={0}
-                max={src.qty}
+                max={limitOf(src)}
                 value={qtys[src.locationId]}
                 placeholder="0"
-                onChange={(e) => setQty(src.locationId, e.target.value, src.qty)}
+                onChange={(e) => setQty(src.locationId, e.target.value, limitOf(src))}
                 className={`w-16 rounded-lg border px-2 py-1.5 text-sm text-center font-medium focus:outline-none focus:ring-2 ${
                   src.isOwn
                     ? "border-emerald-300 focus:ring-emerald-500 bg-white"
