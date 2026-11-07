@@ -89,6 +89,7 @@ export async function updateDraftItem(itemId, patch) {
   if ("product_name" in patch) clean.product_name = patch.product_name ?? null;
   if ("sku" in patch) clean.sku = patch.sku ?? null;
   if ("category_id" in patch) clean.category_id = patch.category_id ?? null;
+  if ("pair_sku" in patch) clean.pair_sku = patch.pair_sku ?? null; // the pair's SKU (INCOMING_PAIRS.sql)
 
   if ("quantity" in patch) {
     clean.quantity =

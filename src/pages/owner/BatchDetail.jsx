@@ -13,6 +13,7 @@ import {
   ownerResendRejected,
   ownerApproveNoSuchProduct,
   groupDeliveries,
+  findProductBySKU,
 } from "../../lib/incoming";
 import { DeliveryQty, DeliveryStatus, DeliveryHistory } from "../../components/incoming/IncomingParts";
 import useCurrentUser from "../../hooks/useCurrentUser";
@@ -208,7 +209,7 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
 /* ─────────────────────────────────────────────────────────────────────────────
    DRAFT ROW COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-function DraftRow({ row, onDelete, categories }) {
+function DraftRow({ row, onDelete, categories, batchLines }) {
   const { t } = useTranslation();
 
   const [form, setForm] = useState({
@@ -216,6 +217,7 @@ function DraftRow({ row, onDelete, categories }) {
     sku: row.sku ?? "",
     category_id: row.category_id ?? "",
     quantity: row.quantity ?? "",
+    pair_sku: row.pair_sku ?? "",
   });
 
   useEffect(() => {
@@ -224,8 +226,27 @@ function DraftRow({ row, onDelete, categories }) {
       sku: row.sku ?? "",
       category_id: row.category_id ?? "",
       quantity: row.quantity ?? "",
+      pair_sku: row.pair_sku ?? "",
     });
-  }, [row.id, row.product_name, row.sku, row.category_id, row.quantity]);
+  }, [row.id, row.product_name, row.sku, row.category_id, row.quantity, row.pair_sku]);
+
+  // Product pairs: what the typed pair SKU is — another line of this batch, a
+  // product that exists, or neither yet (linked when it's accepted)
+  const pairSku = form.pair_sku.trim();
+  const pairInBatch = pairSku
+    ? batchLines.find((l) => l.id !== row.id && (l.sku || "").toLowerCase() === pairSku.toLowerCase())
+    : null;
+  const [pairProduct, setPairProduct] = useState(null); // { sku, name } | null
+  useDebouncedEffect(
+    () => {
+      if (!pairSku || pairInBatch) return;
+      findProductBySKU(pairSku).then(({ data }) => setPairProduct(data ? { sku: pairSku, name: data.name } : null));
+    },
+    [pairSku],
+    400
+  );
+  const pairKnown = pairProduct?.sku === pairSku ? pairProduct : null;
+  const pairSent = useRef(false);
 
   useDebouncedEffect(
     () => {
@@ -237,6 +258,11 @@ function DraftRow({ row, onDelete, categories }) {
         category_id: form.category_id || null,
         quantity: qty,
       };
+      // only when a pair is (or was) set, so a line saves even before INCOMING_PAIRS.sql
+      if (form.pair_sku.trim() || row.pair_sku || pairSent.current) {
+        payload.pair_sku = form.pair_sku.trim() || null;
+        pairSent.current = true; // clearing it later must reach the database too
+      }
 
       updateDraftItem(row.id, payload).catch((e) =>
         console.error("updateDraftItem error", { itemId: row.id, error: e })
@@ -295,6 +321,34 @@ function DraftRow({ row, onDelete, categories }) {
           }`}
           placeholder={t("ownerBatchDetail.placeholders.qty")}
         />
+      </td>
+
+      <td className="px-4 py-3 max-md:min-w-[9rem]">
+        <input
+          value={form.pair_sku}
+          onChange={(e) => setForm((f) => ({ ...f, pair_sku: e.target.value }))}
+          list={`pair-skus-${row.id}`}
+          className={`${editableClass} font-mono`}
+          placeholder={t("ownerBatchDetail.placeholders.pair")}
+        />
+        <datalist id={`pair-skus-${row.id}`}>
+          {batchLines
+            .filter((l) => l.id !== row.id && l.sku)
+            .map((l) => (
+              <option key={l.id} value={l.sku}>
+                {l.product_name}
+              </option>
+            ))}
+        </datalist>
+        {pairSku && (
+          <p className={`mt-1 text-[11px] leading-tight ${pairInBatch || pairKnown ? "text-indigo-700" : "text-amber-700"}`}>
+            {pairInBatch
+              ? t("ownerBatchDetail.pair.inBatch", { name: pairInBatch.product_name || "—" })
+              : pairKnown
+              ? pairKnown.name
+              : t("ownerBatchDetail.pair.notYet")}
+          </p>
+        )}
       </td>
 
       <td className="px-4 py-3 text-right">
@@ -626,13 +680,16 @@ export default function BatchDetail() {
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                     {t("ownerBatchDetail.table.qty")}
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white" title={t("ownerBatchDetail.pair.hint")}>
+                    {t("ownerBatchDetail.table.pair")}
+                  </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white w-16" />
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-neutral-100">
                 {drafts.map((row) => (
-                  <DraftRow key={row.id} row={row} onDelete={onDeleteDraft} categories={categories} />
+                  <DraftRow key={row.id} row={row} onDelete={onDeleteDraft} categories={categories} batchLines={items} />
                 ))}
               </tbody>
             </table>
@@ -685,6 +742,11 @@ export default function BatchDetail() {
                             <ChevronDown className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
                             {g.root.product_name || <span className="text-neutral-400">—</span>}
                           </span>
+                          {g.root.pair_sku && (
+                            <div className="ml-5 text-[11px] text-indigo-700">
+                              {t("ownerBatchDetail.pair.sent", { sku: g.root.pair_sku })}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-sm font-mono text-neutral-600">{g.root.sku || "—"}</span>

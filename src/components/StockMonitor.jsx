@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
-import { loadLocation, loadTransitHistory } from "../lib/stockMonitor";
+import { loadLocation, loadProductDocs, loadTransitHistory } from "../lib/stockMonitor";
 import { BUCKETS } from "../lib/stockMonitorRules";
 import { loadWaitingDeliveries, OLD_AFTER_DAYS } from "../lib/waitingDeliveries";
 import useLiveRefresh from "../hooks/useLiveRefresh";
@@ -37,15 +37,20 @@ function problemBuckets(p) {
   }
   if (p.problems.transitOff) out.add("in_transit");
   if (p.problems.loanOff) out.add("loaned");
-  if (p.problems.auditDiff) out.add("available");
   return out;
 }
-const problemKeys = (p) => CARDS.filter((k) => p.problems[k]);
+// what's wrong (an audit correction is only a note: the audit is the starting point)
+const problemKeys = (p) => CARDS.filter((k) => k !== "auditDiff" && p.problems[k]);
 
 const locLabel = (l) => l?.location_name || l?.name || "—";
 const fmtTs = (ts) => new Date(ts).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
 const fmtDate = (ts) => new Date(ts).toLocaleDateString();
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+// Kept while the app is open: a location opened before shows at once (then refreshes
+// quietly), and a document read once is never read again (documents don't change).
+const lastLoaded = new Map(); // locationId → loadLocation() result
+const docCache = new Map(); // ref_id → document
 
 export default function StockMonitor() {
   const { t } = useTranslation();
@@ -53,7 +58,8 @@ export default function StockMonitor() {
 
   const [locations, setLocations] = useState([]);
   const [locationId, setLocationId] = useState("");
-  const [data, setData] = useState(null); // { analysis, lastAudit, docs, users }
+  const [data, setData] = useState(null); // { analysis, lastAudit, users }
+  const [docs, setDocs] = useState(() => new Map(docCache)); // the papers behind log lines
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -93,6 +99,7 @@ export default function StockMonitor() {
     try {
       const result = await loadLocation(locationId);
       if (seq !== loadSeq.current) return; // another location was picked meanwhile
+      lastLoaded.set(locationId, result);
       setData(result);
       setError("");
     } catch (e) {
@@ -104,10 +111,11 @@ export default function StockMonitor() {
   }
 
   useEffect(() => {
-    setData(null);
+    const cached = lastLoaded.get(locationId);
+    setData(cached || null);
     setCardFilter(null);
     setSelectedPid(null);
-    load();
+    load(!!cached); // seen before: show it now, refresh quietly
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId]);
 
@@ -177,6 +185,23 @@ export default function StockMonitor() {
 
   useEffect(() => setShowEarlier(false), [selectedPid, bucket]);
 
+  // the papers behind the selected product's lines (only ones not read yet)
+  useEffect(() => {
+    if (!selected) return;
+    const lines = BUCKETS.flatMap((k) => [...selected.buckets[k].lines, ...selected.buckets[k].earlier]);
+    let alive = true;
+    loadProductDocs(lines, docCache)
+      .then((found) => {
+        if (!found.size) return;
+        for (const [k, v] of found) docCache.set(k, v);
+        if (alive) setDocs(new Map(docCache));
+      })
+      .catch((e) => console.error("[StockMonitor] documents", e)); // lines then show without names
+    return () => {
+      alive = false;
+    };
+  }, [selected]);
+
   /* ── one log line in plain words ──────────────────────────────────────── */
   function lineText(line) {
     const coarse = () => tm(`reasons.${line.reason}`, { defaultValue: line.reason });
@@ -184,7 +209,9 @@ export default function StockMonitor() {
     if (!line.checked) return tm(`line.${line.reason}`, { defaultValue: coarse(), other: "—" });
     // the coarse reason hints which function made the change
     if (line.noDoc) return `${tm("line.noDoc")} · ${coarse()}`;
-    const d = data?.docs.get(line.ref_id) || {};
+    // its paper is still loading (read only for the product being looked at)
+    if (line.ref_id && !docs.has(line.ref_id)) return tm(`line.${line.reason}`, { defaultValue: coarse(), other: "…" });
+    const d = docs.get(line.ref_id) || {};
     const here = locationId;
     const otherOf = (a, b) => locName(a === here ? b : a); // the location that isn't this one
     switch (line.reason) {
@@ -219,10 +246,16 @@ export default function StockMonitor() {
     }
   }
 
-  // request lines made from the Sale page: say it was a sale / loan request
+  // request lines made from the Sale page: say it was a sale / loan request; a pair
+  // item moved on its main item's paper: say which one
   function lineTag(line) {
-    if (!line.checked || line.noDoc || !line.reason?.startsWith("request_")) return null;
-    const purpose = data?.docs.get(line.ref_id)?.purpose;
+    if (!line.checked || line.noDoc) return null;
+    const doc = docs.get(line.ref_id);
+    if (doc?.productId && doc.productId !== line.product_id) {
+      return { text: tm("line.pairWith", { name: doc.productName || "—" }), style: "bg-indigo-50 text-indigo-700" };
+    }
+    if (!line.reason?.startsWith("request_")) return null;
+    const purpose = doc?.purpose;
     return PURPOSE_TAG[purpose] ? { text: tm(`waiting.kind.${purpose}`), style: PURPOSE_TAG[purpose] } : null;
   }
 
@@ -371,7 +404,10 @@ export default function StockMonitor() {
                             {p.problemCount === 1 ? tm(`cards.${problemKeys(p)[0]}`) : p.problemCount}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-emerald-600">{tm("status.ok")}</span>
+                          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-600">
+                            <Check className="w-3 h-3 shrink-0" />
+                            {tm("status.ok")}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -521,10 +557,10 @@ export function Statement({ locationId, product, bucket, setBucket, showEarlier,
         </div>
       </div>
 
-      {/* what's wrong with this product, in words */}
-      {product.problemCount > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {problemKeys(product).map((k) => (
+      {/* what's wrong with this product, in words; or OK. The audit's correction is a note. */}
+      <div className="flex flex-wrap gap-2">
+        {product.problemCount > 0 ? (
+          problemKeys(product).map((k) => (
             <span
               key={k}
               title={tm(`hints.${k}`)}
@@ -532,9 +568,21 @@ export function Statement({ locationId, product, bucket, setBucket, showEarlier,
             >
               <AlertTriangle className="w-3 h-3" /> {tm(`cards.${k}`)}
             </span>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+            <Check className="w-3 h-3" /> {tm("status.allGood")}
+          </span>
+        )}
+        {product.problems.auditDiff !== 0 && (
+          <span
+            title={tm("hints.auditDiff")}
+            className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-medium text-neutral-600"
+          >
+            {tm("auditNote", { diff: signed(product.problems.auditDiff) })}
+          </span>
+        )}
+      </div>
 
       {/* the answer first: start + changes = now */}
       <div className="grid grid-cols-3 gap-2">

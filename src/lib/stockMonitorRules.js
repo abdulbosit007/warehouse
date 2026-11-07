@@ -129,9 +129,10 @@ export function analyzeLocation(raw) {
       loanOff: loanNow !== loanExp,
       auditDiff,
     };
+    // the audit is the starting point: what it corrected is a note, not a problem
     const problemCount =
       (noDoc ? 1 : 0) + (statementOff ? 1 : 0) + (problems.transitOff ? 1 : 0) +
-      (problems.loanOff ? 1 : 0) + (auditDiff ? 1 : 0);
+      (problems.loanOff ? 1 : 0);
 
     // hide products with nothing in stock, no activity since the opening and no problem
     const anyStock = BUCKETS.some((s) => (stockNow[s] || 0) !== 0);
