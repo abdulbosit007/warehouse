@@ -317,13 +317,15 @@
       "sku": "SKU",
       "category": "Category",
       "qty": "Qty",
-      "status": "Status"
+      "status": "Status",
+      "pair": "Pair"
     },
     "placeholders": {
       "productName": "Product name",
       "sku": "SKU",
       "selectCategory": "Select category…",
-      "qty": "Qty"
+      "qty": "Qty",
+      "pair": "Pair SKU"
     },
     "actions": {
       "delete": "Delete",
@@ -360,6 +362,12 @@
     "errors": {
       "fetchDraftFailed": "Failed to fetch draft items.",
       "fixBeforeSending": "Fix these draft row(s) before sending:"
+    },
+    "pair": {
+      "inBatch": "{{name}} (this batch)",
+      "notYet": "new: linked when it's accepted",
+      "sent": "+ pair {{sku}}",
+      "hint": "The pair's SKU (e.g. the rakovina of this tumba). The two are linked when both products exist."
     }
   },
   "ownerAuditDetail": {

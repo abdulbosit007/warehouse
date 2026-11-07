@@ -317,13 +317,15 @@
       "sku": "SKU",
       "category": "Kategoriya",
       "qty": "Soni",
-      "status": "Holat"
+      "status": "Holat",
+      "pair": "Jufti"
     },
     "placeholders": {
       "productName": "Mahsulot nomi",
       "sku": "SKU",
       "selectCategory": "Kategoriya tanlang…",
-      "qty": "Soni"
+      "qty": "Soni",
+      "pair": "Juft SKU"
     },
     "actions": {
       "delete": "O‘chirish",
@@ -360,6 +362,12 @@
     "errors": {
       "fetchDraftFailed": "Qoralama pozitsiyalarni olishda xatolik.",
       "fixBeforeSending": "Yuborishdan oldin quyidagi qatorlarni to‘g‘rilang:"
+    },
+    "pair": {
+      "inBatch": "{{name}} (shu partiyada)",
+      "notYet": "yangi: qabul qilinganda bog‘lanadi",
+      "sent": "+ jufti {{sku}}",
+      "hint": "Juftning SKU si (masalan, shu tumbaning rakovinasi). Ikkala mahsulot tizimda paydo bo‘lganda bog‘lanadi."
     }
   },
   "ownerAuditDetail": {
