@@ -1785,18 +1785,19 @@
         "noDoc": "No document",
         "transitOff": "In transit off",
         "loanOff": "On loan off",
-        "auditDiff": "Audit differences",
+        "auditDiff": "Corrected by audit",
         "statementOff": "Doesn't add up"
       },
       "hints": {
         "noDoc": "Stock changed, but no app function recorded why.",
         "transitOff": "In-transit stock doesn't equal the open requests and transfers to this location.",
         "loanOff": "On-loan stock doesn't equal the loans still open here.",
-        "auditDiff": "The last audit's count differed from the system number.",
+        "auditDiff": "The last audit corrected these products' stock: the shelf count differed from the system. The audit is their starting point, so this is a note, not a problem.",
         "statementOff": "The stock log doesn't end at the real stock: something changed it outside the log."
       },
       "status": {
-        "ok": "ok"
+        "ok": "OK",
+        "allGood": "OK: everything since the start adds up"
       },
       "bucket": {
         "available": "Available",
@@ -1846,7 +1847,8 @@
         "transit_fix": "Stuck in-transit cleanup (nothing real behind it)",
         "transit_fix_undo": "Stuck in-transit cleanup undone",
         "product_merge": "Duplicate product merged into this one",
-        "product_merge_undo": "Product merge undone"
+        "product_merge_undo": "Product merge undone",
+        "pairWith": "with {{name}}"
       },
       "reasons": {
         "stock_in": "stock in",
@@ -1931,7 +1933,8 @@
         "never": "never been at this location",
         "quiet": "no stock and no changes here since the opening",
         "noMatch": "No product matches “{{q}}”"
-      }
+      },
+      "auditNote": "Audit corrected: {{diff}}"
     },
     "summary": {
       "transactions": "Transactions",
