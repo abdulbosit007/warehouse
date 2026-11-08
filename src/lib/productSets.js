@@ -16,16 +16,30 @@ export async function loadSets() {
   return data || [];
 }
 
-// SKUs (lower case) that can't be someone's pair: a product that already has its
-// own pair, or one made "(без пары)"
-export async function loadUnpairableSkus() {
+// For incoming lines, by SKU (lower case):
+//   unpairable = SKUs that can't be someone's pair: a product that already has its
+//                own pair, or one made "(без пары)"
+//   pairOfSku  = main item's SKU -> its pair { id, sku, name }
+export async function loadPairInfo() {
   const { data, error } = await fetchAll(() =>
-    supabase.from("product_links").select("id, main:main_product_id ( sku ), bare:bare_product_id ( sku )")
+    supabase
+      .from("product_links")
+      .select("id, main:main_product_id ( sku ), pair:secondary_product_id ( id, sku, name ), bare:bare_product_id ( sku )")
   );
-  if (error) return new Set();
-  return new Set(
-    (data || []).flatMap((r) => [r.main?.sku, r.bare?.sku]).filter(Boolean).map((s) => s.toLowerCase())
-  );
+  if (error) return { unpairable: new Set(), pairOfSku: new Map() };
+  const rows = data || [];
+  return {
+    unpairable: new Set(rows.flatMap((r) => [r.main?.sku, r.bare?.sku]).filter(Boolean).map((s) => s.toLowerCase())),
+    pairOfSku: new Map(rows.filter((r) => r.main?.sku && r.pair).map((r) => [r.main.sku.toLowerCase(), r.pair])),
+  };
+}
+
+// Pairs held for main items still on the way in incoming batches (INCOMING_HOLD.sql):
+// Map pair product id -> how many. Empty before that SQL is run.
+export async function loadIncomingHeld() {
+  const { data, error } = await supabase.rpc("fn_set_incoming_held");
+  if (error) return new Map();
+  return new Map((data || []).map((r) => [r.product_id, r.qty || 0]));
 }
 
 // The owner sets a tumba's rakovina (null removes it)
@@ -38,11 +52,12 @@ export async function saveProductSet(mainId, secondaryId) {
 }
 
 /**
- * Free rakovinas, per rakovina: warehouse rakovinas minus warehouse tumbas that
- * need it (can be below 0). stock = rows { product_id, location_id, quantity } of
- * available stock; warehouseIds = Set of warehouse location ids.
+ * Free pairs, per pair item: warehouse pairs minus warehouse main items that need
+ * it, minus pairs held for main items still on the way (can be below 0).
+ * stock = rows { product_id, location_id, quantity } of available stock;
+ * warehouseIds = Set of warehouse location ids; held = loadIncomingHeld().
  */
-export function freeSecondaries(sets, stock, warehouseIds) {
+export function freeSecondaries(sets, stock, warehouseIds, held = new Map()) {
   const inWarehouses = new Map();
   for (const row of stock) {
     if (!warehouseIds.has(row.location_id)) continue;
@@ -53,6 +68,10 @@ export function freeSecondaries(sets, stock, warehouseIds) {
     const sec = s.secondary_product_id;
     if (!free.has(sec)) free.set(sec, inWarehouses.get(sec) || 0);
     free.set(sec, free.get(sec) - (inWarehouses.get(s.main_product_id) || 0));
+  }
+  for (const [sec, qty] of held) {
+    if (!free.has(sec)) free.set(sec, inWarehouses.get(sec) || 0); // main item not linked yet
+    free.set(sec, free.get(sec) - qty);
   }
   return free;
 }
@@ -85,15 +104,23 @@ export async function loadPairTaskIds() {
   return new Set((data || []).map((r) => r.helper_item_id));
 }
 
-// Free rakovinas for pages that don't load all warehouses' stock themselves
-export async function loadFreeSecondaries() {
+// Free pairs for pages that don't load all warehouses' stock themselves.
+// extraIds: products asked about that may not be a pair yet (free = their warehouse stock)
+export async function loadFreeSecondaries(extraIds = []) {
   try {
-    const sets = await loadSets();
-    if (sets.length === 0) return new Map();
+    const [sets, held] = await Promise.all([loadSets(), loadIncomingHeld()]);
+    if (sets.length === 0 && held.size === 0 && extraIds.length === 0) return new Map();
     const { data: locations } = await supabase.from("locations").select("id, kind");
     const warehouseIds = (locations || []).filter((l) => l.kind === "warehouse").map((l) => l.id);
-    const stock = await warehouseStock(sets.flatMap((s) => [s.main_product_id, s.secondary_product_id]), warehouseIds);
-    return freeSecondaries(sets, stock, new Set(warehouseIds));
+    const stock = await warehouseStock(
+      [...sets.flatMap((s) => [s.main_product_id, s.secondary_product_id]), ...held.keys(), ...extraIds],
+      warehouseIds
+    );
+    const free = freeSecondaries(sets, stock, new Set(warehouseIds), held);
+    for (const id of extraIds) {
+      if (!free.has(id)) free.set(id, stock.filter((r) => r.product_id === id).reduce((s, r) => s + (r.quantity || 0), 0));
+    }
+    return free;
   } catch (e) {
     console.warn("free rakovinas not loaded", e);
     return new Map();
@@ -115,18 +142,19 @@ export async function checkSetLines(lines, toLocationId) {
     const fromWarehouse = lines.filter((l) => kindOf.get(l.sourceLocationId) === "warehouse" && l.qty > 0);
     if (fromWarehouse.length === 0) return empty;
 
-    const sets = await loadSets();
+    const [sets, held] = await Promise.all([loadSets(), loadIncomingHeld()]);
     const secondaryOf = new Map(sets.map((s) => [s.main_product_id, s.secondary_product_id]));
-    const isSecondary = new Set(sets.map((s) => s.secondary_product_id));
+    // pair items: linked ones, and ones held for main items on the way
+    const isSecondary = new Set([...sets.map((s) => s.secondary_product_id), ...held.keys()]);
     const touched = fromWarehouse.filter((l) => secondaryOf.has(l.productId) || isSecondary.has(l.productId));
     if (touched.length === 0) return empty;
 
     const warehouseIds = (locations || []).filter((l) => l.kind === "warehouse").map((l) => l.id);
     const stock = await warehouseStock(
-      sets.flatMap((s) => [s.main_product_id, s.secondary_product_id]),
+      [...sets.flatMap((s) => [s.main_product_id, s.secondary_product_id]), ...held.keys()],
       warehouseIds
     );
-    const free = freeSecondaries(sets, stock, new Set(warehouseIds));
+    const free = freeSecondaries(sets, stock, new Set(warehouseIds), held);
     const left = new Map(); // rakovinas still in the warehouses, as these lines go out
     for (const row of stock) left.set(row.product_id, (left.get(row.product_id) || 0) + row.quantity);
 

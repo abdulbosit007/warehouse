@@ -368,7 +368,9 @@
       "notYet": "new: linked when it's accepted",
       "sent": "+ pair {{sku}}",
       "hint": "The pair's SKU (e.g. the rakovina of this tumba). The two are linked when both products exist.",
-      "thisBatch": "this batch"
+      "thisBatch": "this batch",
+      "linked": "pair: {{name}}",
+      "short": "only {{free}} free, {{count}} short"
     }
   },
   "ownerAuditDetail": {

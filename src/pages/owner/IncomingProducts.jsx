@@ -240,47 +240,15 @@ export default function IncomingBatches() {
     match: (c) => c.new?.status !== "draft", // skip saves while drafts are being typed
   });
 
-  const hasOpenBatchForOrigin = useCallback(
-    (origin) => {
-      return rows.some((batch) => {
-        const isOpen = (batch.status || "").toLowerCase() === "open";
-        const sameOrigin = (batch.origin || "").toLowerCase() === origin.toLowerCase();
-        if (!isOpen || !sameOrigin) return false;
-
-        const hasUnfinished =
-          (batch.sent_count || 0) > 0 ||
-          (batch.rejected_count || 0) > 0 ||
-          (batch.draft_count || 0) > 0;
-
-        const isEmpty =
-          (batch.approved_count || 0) === 0 &&
-          (batch.sent_count || 0) === 0 &&
-          (batch.rejected_count || 0) === 0 &&
-          (batch.draft_count || 0) === 0;
-
-        return hasUnfinished || isEmpty;
-      });
-    },
-    [rows]
-  );
-
   const handleCreateClick = () => {
     setErr("");
     setModalOpen(true);
   };
 
+  // A new batch can be made any time, even while others of the same origin are
+  // still open (their lines keep arriving). Finished open ones are closed.
   const handleSelectOrigin = async (origin) => {
     try {
-      if (hasOpenBatchForOrigin(origin)) {
-        setErr(
-          t("ownerIncomingBatches.errors.cannotCreateNew", {
-            origin: t(`ownerIncomingBatches.origins.${origin}`),
-          })
-        );
-        setModalOpen(false);
-        return;
-      }
-
       setModalOpen(false);
 
       const openBatchSameOrigin = rows.find(
@@ -318,8 +286,14 @@ export default function IncomingBatches() {
       
       await deleteBatch(b.id);
       
-      // After deleting, find the most recent closed batch of the same origin and reopen it
-      const previousClosedBatch = rows
+      // After deleting the origin's last open batch, reopen its most recent closed one
+      const otherOpen = rows.some(
+        (batch) =>
+          batch.id !== b.id &&
+          (batch.origin || "").toLowerCase() === deletedOrigin &&
+          (batch.status || "").toLowerCase() === "open"
+      );
+      const previousClosedBatch = otherOpen ? null : rows
         .filter(
           (batch) =>
             batch.id !== b.id && // Not the deleted batch
@@ -596,10 +570,6 @@ export default function IncomingBatches() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSelect={handleSelectOrigin}
-        disabledOrigins={[
-          ...(hasOpenBatchForOrigin("chinese") ? ["chinese"] : []),
-          ...(hasOpenBatchForOrigin("uzbek") ? ["uzbek"] : []),
-        ]}
       />
     </div>
   );

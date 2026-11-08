@@ -20,7 +20,7 @@ import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh, { rowIs } from "../../hooks/useLiveRefresh";
 import InlineSearchAdd from "../../components/incoming/InlineSearchAdd";
 import PairSkuInput from "../../components/incoming/PairSkuInput";
-import { loadUnpairableSkus } from "../../lib/productSets";
+import { loadFreeSecondaries, loadPairInfo } from "../../lib/productSets";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -211,7 +211,7 @@ function OwnerReviewModal({ item, onClose, onAcceptFix, onApproveRemoval, onRese
 /* ─────────────────────────────────────────────────────────────────────────────
    DRAFT ROW COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
-function DraftRow({ row, onDelete, categories, batchLines, unpairable }) {
+function DraftRow({ row, onDelete, categories, batchLines, unpairable, pairOfSku, pairFree }) {
   const { t } = useTranslation();
 
   const [form, setForm] = useState({
@@ -238,16 +238,53 @@ function DraftRow({ row, onDelete, categories, batchLines, unpairable }) {
   const pairInBatch = pairSku
     ? batchLines.find((l) => l.id !== row.id && (l.sku || "").toLowerCase() === pairSku.toLowerCase())
     : null;
-  const [pairProduct, setPairProduct] = useState(null); // { sku, name } | null
+  const [pairProduct, setPairProduct] = useState(null); // { id, sku, name } | null
   useDebouncedEffect(
     () => {
       if (!pairSku || pairInBatch) return;
-      findProductBySKU(pairSku).then(({ data }) => setPairProduct(data ? { sku: pairSku, name: data.name } : null));
+      findProductBySKU(pairSku).then(({ data }) =>
+        setPairProduct(data ? { id: data.id, sku: pairSku, name: data.name } : null)
+      );
     },
     [pairSku],
     400
   );
   const pairKnown = pairProduct?.sku === pairSku ? pairProduct : null;
+
+  // Pairs in the warehouses for this line (INCOMING_HOLD.sql holds them once the batch
+  // is sent): the main item's own pair, or else the existing product typed as its pair
+  const lower = (s) => (s || "").trim().toLowerCase();
+  const linkedPair = pairOfSku.get(lower(form.sku)) || null;
+  const stockPair =
+    linkedPair || (pairKnown && !pairInBatch && !unpairable.has(lower(pairKnown.sku)) ? pairKnown : null);
+  const [extraFree, setExtraFree] = useState(null); // { id, free } for a pair not counted yet
+  useEffect(() => {
+    if (!stockPair || pairFree.has(stockPair.id)) return;
+    let alive = true;
+    loadFreeSecondaries([stockPair.id]).then((m) => alive && setExtraFree({ id: stockPair.id, free: m.get(stockPair.id) ?? 0 }));
+    return () => {
+      alive = false;
+    };
+  }, [stockPair?.id, pairFree]); // eslint-disable-line react-hooks/exhaustive-deps
+  const free = !stockPair
+    ? null
+    : pairFree.has(stockPair.id)
+    ? pairFree.get(stockPair.id)
+    : extraFree?.id === stockPair.id
+    ? extraFree.free
+    : null;
+  // what this batch's draft lines need from them: this line, other lines with the
+  // same pair, less the same pairs coming in this batch
+  const pairNeed = (() => {
+    if (!stockPair || free == null) return 0;
+    const key = lower(stockPair.sku);
+    const pairOfLine = (l) => lower(pairOfSku.get(lower(l.sku))?.sku || l.pair_sku);
+    const drafts = batchLines.filter((l) => l.id !== row.id && l.status === "draft");
+    const others = drafts.filter((l) => pairOfLine(l) === key).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+    const coming = drafts.filter((l) => lower(l.sku) === key).reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+    return (Number(form.quantity) || 0) + others - coming;
+  })();
+  const pairShort = free != null && pairNeed > 0 ? pairNeed - free : 0;
   const pairSent = useRef(false);
 
   useDebouncedEffect(
@@ -336,13 +373,26 @@ function DraftRow({ row, onDelete, categories, batchLines, unpairable }) {
           className={`${editableClass} font-mono`}
           placeholder={t("ownerBatchDetail.placeholders.pair")}
         />
-        {pairSku && (
+        {pairSku ? (
           <p className={`mt-1 text-[11px] leading-tight ${pairInBatch || pairKnown ? "text-indigo-700" : "text-amber-700"}`}>
             {pairInBatch
               ? t("ownerBatchDetail.pair.inBatch", { name: pairInBatch.product_name || "—" })
               : pairKnown
               ? pairKnown.name
               : t("ownerBatchDetail.pair.notYet")}
+          </p>
+        ) : (
+          linkedPair && (
+            <p className="mt-1 text-[11px] leading-tight text-indigo-700">
+              {t("ownerBatchDetail.pair.linked", { name: linkedPair.name || linkedPair.sku })}
+            </p>
+          )
+        )}
+        {free != null && pairNeed > 0 && (
+          <p className={`mt-0.5 text-[11px] font-medium leading-tight ${pairShort > 0 ? "text-red-600" : "text-emerald-700"}`}>
+            {pairShort > 0
+              ? t("ownerBatchDetail.pair.short", { free: Math.max(0, free), count: pairShort })
+              : t("productSet.free", { count: free })}
           </p>
         )}
       </td>
@@ -377,6 +427,8 @@ export default function BatchDetail() {
   const [sendErr, setSendErr] = useState("");
   const [reviewing, setReviewing] = useState(null);
   const [unpairable, setUnpairable] = useState(() => new Set()); // SKUs that can't be a pair
+  const [pairOfSku, setPairOfSku] = useState(() => new Map()); // main item SKU -> its pair
+  const [pairFree, setPairFree] = useState(() => new Map()); // free pairs in the warehouses
 
   const isOpen = (batch?.status || "").toLowerCase() === "open";
 
@@ -419,8 +471,16 @@ export default function BatchDetail() {
       const { data: cats } = await getCategories();
       setCategories(cats || []);
     })();
-    loadUnpairableSkus().then(setUnpairable);
+    loadPairInfo().then((info) => {
+      setUnpairable(info.unpairable);
+      setPairOfSku(info.pairOfSku);
+    });
   }, []);
+  // free pairs: again when lines are sent or arrive (holds change)
+  const waitingKey = items.filter((i) => i.status !== "draft").map((i) => i.id + i.status).join();
+  useEffect(() => {
+    loadFreeSecondaries().then(setPairFree);
+  }, [waitingKey]);
 
   const drafts = useMemo(() => items.filter((i) => i.status === "draft"), [items]);
   // sent / approved / rejected lines, and the same as deliveries (a line and the
@@ -694,6 +754,8 @@ export default function BatchDetail() {
                     categories={categories}
                     batchLines={items}
                     unpairable={unpairable}
+                    pairOfSku={pairOfSku}
+                    pairFree={pairFree}
                   />
                 ))}
               </tbody>
