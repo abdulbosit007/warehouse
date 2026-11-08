@@ -5,7 +5,7 @@ import useCurrentUser from "../../hooks/useCurrentUser";
 import useLiveRefresh from "../../hooks/useLiveRefresh";
 import { useTranslation } from "react-i18next";
 import SetSecondaryField from "../../components/SetSecondaryField";
-import { freeSecondaries, loadPairTaskIds, loadSets, saveProductSet } from "../../lib/productSets";
+import { freeSecondaries, loadIncomingHeld, loadPairTaskIds, loadSets, saveProductSet } from "../../lib/productSets";
 import {
   Package,
   Search,
@@ -546,6 +546,7 @@ export default function OwnerHome() {
   const [productList, setProductList] = useState([]);
   const [inDeliveryList, setInDeliveryList] = useState([]); // Items currently in delivery
   const [sets, setSets] = useState([]); // tumba -> its rakovina
+  const [held, setHeld] = useState(() => new Map()); // pairs held for main items still on the way
   const [locations, setLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -592,7 +593,7 @@ export default function OwnerHome() {
     }
 
     try {
-      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes, setsList, pairTasks] = await Promise.all([
+      const [productsRes, listRes, locationsRes, categoriesRes, inDeliveryRes, pendingTransfersRes, setsList, pairTasks, heldMap] = await Promise.all([
         fetchAll(() =>
           supabase
             .from("products")
@@ -634,6 +635,7 @@ export default function OwnerHome() {
 
         loadSets(),
         loadPairTaskIds(),
+        loadIncomingHeld(),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -646,6 +648,7 @@ export default function OwnerHome() {
       setProducts(productsRes.data || []);
       setProductList(listRes.data || []);
       setSets(setsList);
+      setHeld(heldMap);
       // Combine branch-request approved items + pending stock transfer items
       const branchInDelivery = (inDeliveryRes.data || []).map((r) => ({
         product_id: r.product_id,
@@ -732,8 +735,9 @@ export default function OwnerHome() {
 
   // product set: pair items the warehouses' main items don't need
   const freeMap = useMemo(
-    () => freeSecondaries(sets, productList, new Set(locations.filter((l) => l.kind === "warehouse").map((l) => l.id))),
-    [sets, productList, locations]
+    () =>
+      freeSecondaries(sets, productList, new Set(locations.filter((l) => l.kind === "warehouse").map((l) => l.id)), held),
+    [sets, productList, locations, held]
   );
 
   // Table base set — depends on the scope toggle. "in_stock" = products with
