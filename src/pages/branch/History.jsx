@@ -32,6 +32,11 @@ import "react-day-picker/dist/style.css";
 
 const nf = new Intl.NumberFormat();
 
+// A loan "return" that was really a sale: exactly the notes written by
+// convertLoanToSale / sellAllLoanItems. A typed return note containing "sold"
+// (e.g. "not sold, damaged") is a real return.
+const isLoanSoldNote = (note) => note === "Sold (money received)" || note === "Sold (all items)";
+
 const CART_KEY = "branch_ops_cart";
 
 // The cart saved in this browser. Every tab of the app shares it.
@@ -441,10 +446,7 @@ export default function BranchOperations() {
       if (!out.has(pid)) out.set(pid, new Map());
       const m = out.get(pid);
       
-      // Check if this was a "sold" transaction based on note
-      // Exactly the notes written by convertLoanToSale / sellAllLoanItems below. A typed
-      // return note containing "sold" (e.g. "not sold, damaged") is a real return.
-      const isSold = r.note === "Sold (money received)" || r.note === "Sold (all items)";
+      const isSold = isLoanSoldNote(r.note);
       
       for (const it of r.items || []) {
         const k = it.product_id;
@@ -480,20 +482,19 @@ export default function BranchOperations() {
   async function getFirstSaleYear(productId) {
     try {
       const loc = await getBranchLocation();
+      // the branch's first sale holding this product (sorting the sales themselves:
+      // a sort on an embedded table doesn't order the rows around it)
       const { data, error } = await supabase
-        .from("transaction_items")
-        .select("tx:transactions ( created_at, location_id, status, type )")
-        .eq("product_id", productId)
-        .eq("tx.type", "sale")
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .order("created_at", { ascending: true, foreignTable: "transactions" })
+        .from("transactions")
+        .select("created_at, transaction_items!inner ( product_id )")
+        .eq("transaction_items.product_id", productId)
+        .eq("type", "sale")
+        .eq("status", "committed")
+        .eq("location_id", loc.id)
+        .order("created_at", { ascending: true })
         .limit(1);
       if (error) throw error;
-      const first = (data || []).find((r) => r.tx);
-      if (first && first.tx?.created_at) {
-        return new Date(first.tx.created_at).getFullYear();
-      }
+      if (data?.[0]?.created_at) return Number(ymd(data[0].created_at).slice(0, 4));
       return new Date().getFullYear();
     } catch {
       return new Date().getFullYear();
@@ -504,35 +505,65 @@ export default function BranchOperations() {
     try {
       const loc = await getBranchLocation();
       const yr = year || new Date().getFullYear();
-      const sinceISO = `${yr}-01-01T00:00:00.000Z`;
-      const untilISO = `${yr + 1}-01-01T00:00:00.000Z`;
+      // the year in Tashkent time, like the days in the list
+      const sinceISO = new Date(`${yr}-01-01T00:00:00+05:00`).toISOString();
+      const untilISO = new Date(`${yr + 1}-01-01T00:00:00+05:00`).toISOString();
 
-      const { data: rows, error } = await supabase
-        .from("transaction_items")
-        .select(
-          `id, product_id, qty,
-           tx:transactions ( id, type, status, created_at, note, location_id )`
-        )
-        .eq("product_id", productId)
-        .in("tx.type", ["sale", "sale_return"])
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .gte("tx.created_at", sinceISO)
-        .lt("tx.created_at", untilISO)
-        .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(1000);
+      // !inner: only lines of this branch's sales / returns of the year come back
+      // (without it every line of the product in the company is read, and a
+      // limit cut them off), read in pages so none are missed
+      const { data: rows, error } = await fetchAll(() =>
+        supabase
+          .from("transaction_items")
+          .select(
+            `id, product_id, qty,
+             source_location:source_location_id ( id, location_name ),
+             tx:transactions!inner ( id, type, status, created_at, note, location_id )`
+          )
+          .eq("product_id", productId)
+          .in("tx.type", ["sale", "sale_return"])
+          .eq("tx.status", "committed")
+          .eq("tx.location_id", loc.id)
+          .gte("tx.created_at", sinceISO)
+          .lt("tx.created_at", untilISO)
+      );
       if (error) throw error;
 
-      return (rows || [])
-        .filter((r) => r.tx)
-        .map((r) => ({
-          id: r.id,
-          day: ymd(r.tx.created_at),
-          type: r.tx.type,
-          qty: r.qty,
-          note: r.tx.note || "",
-        }))
-        .sort((a, b) => (a.day < b.day ? 1 : -1));
+      // One row per sale / return (its lines of this product together)
+      const byTx = new Map();
+      for (const r of rows || []) {
+        if (!r.tx) continue;
+        const row = byTx.get(r.tx.id);
+        if (row) row.qty += r.qty;
+        else
+          byTx.set(r.tx.id, {
+            id: r.id,
+            tx_id: r.tx.id,
+            created_at: r.tx.created_at,
+            day: ymd(r.tx.created_at),
+            type: r.tx.type,
+            qty: r.qty,
+            note: r.tx.note || "",
+            source_location: r.source_location || null,
+          });
+      }
+      const list = [...byTx.values()];
+
+      // What each sale still has to return (in parts: one request per 100 sales)
+      const saleIds = list.filter((r) => r.type === "sale").map((r) => r.tx_id);
+      const returned = new Map();
+      for (let i = 0; i < saleIds.length; i += 100) {
+        for (const [txId, sums] of await fetchReturnedSums(saleIds.slice(i, i + 100))) {
+          returned.set(txId, sums);
+        }
+      }
+      for (const row of list) {
+        if (row.type !== "sale") continue;
+        const done = returned.get(row.tx_id)?.get(productId)?.total || 0;
+        row.remaining = Math.max(0, row.qty - done);
+      }
+
+      return list.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     } catch (e) {
       log("searchSaleProductHistory error", e.message || String(e));
       return [];
@@ -557,20 +588,19 @@ export default function BranchOperations() {
   async function getFirstLoanYear(productId) {
     try {
       const loc = await getBranchLocation();
+      // the branch's first loan holding this product (sorting the loans themselves:
+      // a sort on an embedded table doesn't order the rows around it)
       const { data, error } = await supabase
-        .from("transaction_items")
-        .select("tx:transactions ( created_at, location_id, status, type )")
-        .eq("product_id", productId)
-        .eq("tx.type", "loan")
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .order("created_at", { ascending: true, foreignTable: "transactions" })
+        .from("transactions")
+        .select("created_at, transaction_items!inner ( product_id )")
+        .eq("transaction_items.product_id", productId)
+        .eq("type", "loan")
+        .eq("status", "committed")
+        .eq("location_id", loc.id)
+        .order("created_at", { ascending: true })
         .limit(1);
       if (error) throw error;
-      const first = (data || []).find((r) => r.tx);
-      if (first && first.tx?.created_at) {
-        return new Date(first.tx.created_at).getFullYear();
-      }
+      if (data?.[0]?.created_at) return Number(ymd(data[0].created_at).slice(0, 4));
       return new Date().getFullYear();
     } catch {
       return new Date().getFullYear();
@@ -581,23 +611,27 @@ export default function BranchOperations() {
     try {
       const loc = await getBranchLocation();
       const yr = year || new Date().getFullYear();
-      const sinceISO = `${yr}-01-01T00:00:00.000Z`;
-      const untilISO = `${yr + 1}-01-01T00:00:00.000Z`;
+      // the year in Tashkent time, like the days in the list
+      const sinceISO = new Date(`${yr}-01-01T00:00:00+05:00`).toISOString();
+      const untilISO = new Date(`${yr + 1}-01-01T00:00:00+05:00`).toISOString();
 
-      const { data: rows, error } = await supabase
-        .from("transaction_items")
-        .select(
-          `id, product_id, qty,
-           tx:transactions ( id, type, status, created_at, note, borrower_name, parent_tx_id, location_id )`
-        )
-        .eq("product_id", productId)
-        .in("tx.type", ["loan", "loan_return"])
-        .eq("tx.status", "committed")
-        .eq("tx.location_id", loc.id)
-        .gte("tx.created_at", sinceISO)
-        .lt("tx.created_at", untilISO)
-        .order("created_at", { ascending: false, foreignTable: "transactions" })
-        .limit(1000);
+      // !inner: only lines of this branch's loans / loan returns of the year come
+      // back (without it every line of the product in the company is read, and a
+      // limit cut them off), read in pages so none are missed
+      const { data: rows, error } = await fetchAll(() =>
+        supabase
+          .from("transaction_items")
+          .select(
+            `id, product_id, qty,
+             tx:transactions!inner ( id, type, status, created_at, note, borrower_name, parent_tx_id, location_id )`
+          )
+          .eq("product_id", productId)
+          .in("tx.type", ["loan", "loan_return"])
+          .eq("tx.status", "committed")
+          .eq("tx.location_id", loc.id)
+          .gte("tx.created_at", sinceISO)
+          .lt("tx.created_at", untilISO)
+      );
       if (error) throw error;
 
       const filtered = (rows || []).filter((r) => r.tx);
@@ -608,39 +642,72 @@ export default function BranchOperations() {
         .map((r) => r.tx.id);
 
       // Fetch return transactions for these loans
-      let returnMap = new Map(); // loanTxId -> { totalReturned, lastReturnDate }
-      if (loanTxIds.length > 0) {
-        const { data: returns } = await supabase
-          .from("transactions")
-          .select(
-            `id, parent_tx_id, created_at, note,
-             items:transaction_items ( product_id, qty )`
-          )
-          .eq("type", "loan_return")
-          .eq("status", "committed")
-          .in("parent_tx_id", [...new Set(loanTxIds)])
-          .limit(2000);
-
-        for (const ret of (returns || [])) {
-          const pid = ret.parent_tx_id;
-          if (!pid) continue;
-          for (const it of (ret.items || [])) {
-            if (it.product_id !== productId) continue;
-            const existing = returnMap.get(pid) || { totalReturned: 0, lastReturnDate: null };
-            existing.totalReturned += (it.qty || 0);
-            const retDate = ret.created_at;
-            if (!existing.lastReturnDate || retDate > existing.lastReturnDate) {
-              existing.lastReturnDate = retDate;
-            }
-            returnMap.set(pid, existing);
-          }
+      const returnMap = new Map(); // loanTxId -> { totalReturned, back, sold, lastReturnDate, events }
+      // (in parts of 100 loans, to keep each request short; each part read in pages)
+      const uniqueLoanIds = [...new Set(loanTxIds)];
+      const returns = [];
+      for (let i = 0; i < uniqueLoanIds.length; i += 100) {
+        const { data, error: retErr } = await fetchAll(() =>
+          supabase
+            .from("transactions")
+            .select(
+              `id, parent_tx_id, created_at, note,
+               items:transaction_items ( product_id, qty )`
+            )
+            .eq("type", "loan_return")
+            .eq("status", "committed")
+            .in("parent_tx_id", uniqueLoanIds.slice(i, i + 100))
+        );
+        if (retErr) {
+          // as before: the loans still show, only their returned state may be missing
+          log("loan returns not loaded", retErr.message || String(retErr));
+          break;
         }
+        returns.push(...(data || []));
+      }
+      for (const ret of returns) {
+        const pid = ret.parent_tx_id;
+        if (!pid) continue;
+        for (const it of (ret.items || [])) {
+          if (it.product_id !== productId) continue;
+          const existing = returnMap.get(pid) || { totalReturned: 0, back: 0, sold: 0, lastReturnDate: null, events: [] };
+          const sold = isLoanSoldNote(ret.note);
+          existing.totalReturned += (it.qty || 0);
+          if (sold) existing.sold += it.qty || 0;
+          else existing.back += it.qty || 0;
+          existing.events.push({ created_at: ret.created_at, day: ymd(ret.created_at), qty: it.qty || 0, sold });
+          const retDate = ret.created_at;
+          if (!existing.lastReturnDate || retDate > existing.lastReturnDate) {
+            existing.lastReturnDate = retDate;
+          }
+          returnMap.set(pid, existing);
+        }
+      }
+
+      // A return / sale line shows whose loan it closed: the borrower of its loan.
+      // Of a loan in this list it opens under that loan, so it isn't a line of its own.
+      const listedLoans = new Set(loanTxIds);
+      const borrowerOf = new Map(
+        filtered.filter((r) => r.tx.type === "loan").map((r) => [r.tx.id, r.tx.borrower_name || ""])
+      );
+      const otherLoans = [...new Set(
+        filtered
+          .filter((r) => r.tx.type === "loan_return" && r.tx.parent_tx_id && !borrowerOf.has(r.tx.parent_tx_id))
+          .map((r) => r.tx.parent_tx_id)
+      )];
+      for (let i = 0; i < otherLoans.length; i += 100) {
+        const { data, error: loanErr } = await supabase
+          .from("transactions")
+          .select("id, borrower_name")
+          .in("id", otherLoans.slice(i, i + 100));
+        if (loanErr) break; // only the name is missing then
+        for (const loan of data || []) borrowerOf.set(loan.id, loan.borrower_name || "");
       }
 
       return filtered
         .map((r) => {
           const isLoan = r.tx.type === "loan";
-          const retInfo = isLoan ? (returnMap.get(r.tx.id) || { totalReturned: 0, lastReturnDate: null }) : null;
+          const retInfo = isLoan ? (returnMap.get(r.tx.id) || { totalReturned: 0, back: 0, sold: 0, lastReturnDate: null, events: [] }) : null;
           let status = null;
           let returnDate = null;
 
@@ -662,13 +729,21 @@ export default function BranchOperations() {
             day: ymd(r.tx.created_at),
             type: r.tx.type,
             qty: r.qty,
-            borrower_name: r.tx.borrower_name || "",
+            borrower_name: isLoan ? r.tx.borrower_name || "" : borrowerOf.get(r.tx.parent_tx_id) || "",
             status,
             returnDate,
             returned: retInfo ? retInfo.totalReturned : 0,
+            // of a loan: how much came back and how much was sold (paid for)
+            returned_back: retInfo ? retInfo.back : 0,
+            sold_qty: retInfo ? retInfo.sold : 0,
+            events: retInfo ? [...retInfo.events].sort((a, b) => (a.created_at < b.created_at ? -1 : 1)) : [],
+            parent_listed: !isLoan && listedLoans.has(r.tx.parent_tx_id),
+            // a loan_return line that was a sale (money received), not goods back
+            sold: !isLoan && isLoanSoldNote(r.tx.note),
+            created_at: r.tx.created_at,
           };
         })
-        .sort((a, b) => (a.day < b.day ? 1 : -1));
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); // newest first, also within a day
     } catch (e) {
       log("searchLoanProductHistory error", e.message || String(e));
       return [];
@@ -1568,21 +1643,24 @@ export default function BranchOperations() {
     }
   }
 
-  function markLoanReturned(loan, item, qty) {
-    if (qty <= 0 || qty > item.remaining) return;
+  // The quantity is typed once, in the location window (up to what is still out)
+  function markLoanReturned(loan, item) {
+    if (!(item.remaining > 0)) return;
     const returnItem = {
       product_id: item.product_id,
       name: item.product?.name || item.name || "",
       sku: item.product?.sku || item.sku || "",
-      qty,
+      qty: item.remaining, // the most that can come back
       return_kind: "loan_return",
       parent_tx_id: item.tx_id || loan.id,
     };
     setRetDestModal({
       items: [returnItem],
-      onConfirm: async (destinations, retNote) => {
+      onConfirm: async (destinations, retNote, totals) => {
+        const qty = totals.get(item.product_id) || 0;
+        if (qty <= 0) return;
         try {
-          await processReturnWithDestinations([returnItem], destinations, retNote);
+          await processReturnWithDestinations([{ ...returnItem, qty }], destinations, retNote);
           setRetDestModal(null);
           showOk(t("branchOperations.success.returnedItems", { qty }));
           loadActiveLoans();

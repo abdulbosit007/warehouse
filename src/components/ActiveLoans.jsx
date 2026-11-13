@@ -65,6 +65,11 @@ export default function ActiveLoans({
   };
 
   const openActionModal = (loan, item, type) => {
+    // a return asks its quantity in the location window, not here as well
+    if (type === "return") {
+      onMarkReturned?.(loan, item);
+      return;
+    }
     setActionModal({ loan, item, type });
     setActionQty(1);
     setActionNote("");

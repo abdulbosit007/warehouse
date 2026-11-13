@@ -33,8 +33,6 @@ export default function SaleHistory({
   loadSaleMonthData,
 }) {
   const { t } = useTranslation();
-  const [returnModal, setReturnModal] = useState(null);
-  const [returnQty, setReturnQty] = useState(1);
   const [retDestModal, setRetDestModal] = useState(null); // { items, onConfirm }
   const [filterQuery, setFilterQuery] = useState("");
   const [displayMode, setDisplayMode] = useState(
@@ -87,6 +85,11 @@ export default function SaleHistory({
   // Debounced product search
   useEffect(() => {
     if (viewMode !== "product" || !searchProducts) return;
+    // the box holds the chosen product's name: nothing to suggest (typing clears the choice)
+    if (selectedProduct) {
+      setShowSuggestions(false);
+      return;
+    }
     const term = productQuery.trim();
     if (term.length < 2) {
       setProductSuggestions([]);
@@ -99,7 +102,7 @@ export default function SaleHistory({
       setShowSuggestions(true);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [productQuery, viewMode, searchProducts]);
+  }, [productQuery, viewMode, searchProducts, selectedProduct]);
 
   // Group all items by product_id — all committed sales (direct + transfer-accepted).
   // Transfer-accepted sales are now included in saleHistory directly, so no need
@@ -108,8 +111,29 @@ export default function SaleHistory({
   // table section below.
   // Each row also keeps where its units came from (byLoc): this branch's own
   // stock (no source = own stock) or the warehouse / branch a sale request took them from.
+  const locById = useMemo(() => new Map(allLocations.map((l) => [l.id, l])), [allLocations]);
+
+  // Adds sold units to a row's per-location split (no source = this branch's stock)
+  const addToLoc = (byLoc, sourceLocation, qty, returned, remaining) => {
+    const locId = sourceLocation?.id || branchLocationId || "own";
+    if (!byLoc.has(locId)) {
+      const loc = locById.get(locId);
+      byLoc.set(locId, {
+        id: locId,
+        name: sourceLocation?.location_name || loc?.location_name || "—",
+        isWarehouse: loc?.kind === "warehouse",
+        qty: 0,
+        returned: 0,
+        remaining: 0,
+      });
+    }
+    const part = byLoc.get(locId);
+    part.qty += qty;
+    part.returned += returned;
+    part.remaining += remaining;
+  };
+
   const groupedMap = useMemo(() => {
-    const locById = new Map(allLocations.map((l) => [l.id, l]));
     const map = new Map();
     for (const sale of saleHistory) {
       for (const item of sale.items || []) {
@@ -131,27 +155,62 @@ export default function SaleHistory({
         existing.returned += item.returned || 0;
         existing.remaining += item.remaining || 0;
         existing.sales.push({ sale, item });
-
-        const locId = item.source_location?.id || branchLocationId || "own";
-        if (!existing.byLoc.has(locId)) {
-          const loc = locById.get(locId);
-          existing.byLoc.set(locId, {
-            id: locId,
-            name: item.source_location?.location_name || loc?.location_name || "—",
-            isWarehouse: loc?.kind === "warehouse",
-            qty: 0,
-            returned: 0,
-            remaining: 0,
-          });
-        }
-        const part = existing.byLoc.get(locId);
-        part.qty += item.qty;
-        part.returned += item.returned || 0;
-        part.remaining += item.remaining || 0;
+        addToLoc(existing.byLoc, item.source_location, item.qty, item.returned || 0, item.remaining || 0);
       }
     }
     return map;
-  }, [saleHistory, allLocations, branchLocationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saleHistory, locById, branchLocationId]);
+
+  // By product: a day's sales as one row, like Overall (where they came from, what
+  // is left to return; Return splits across that day's sales, newest first), and
+  // the returns made on a day as their own row.
+  const productDays = useMemo(() => {
+    if (!selectedProduct) return [];
+    const days = new Map();
+    for (const row of productHistory) {
+      const key = `${row.day}:${row.type}`;
+      if (!days.has(key)) {
+        days.set(key, {
+          key,
+          day: row.day,
+          type: row.type,
+          product_id: selectedProduct.id,
+          name: selectedProduct.name,
+          sku: selectedProduct.sku,
+          qty: 0,
+          returned: 0,
+          remaining: 0,
+          sales: [],
+          byLoc: new Map(),
+        });
+      }
+      const day = days.get(key);
+      day.qty += row.qty;
+      if (row.type !== "sale") continue;
+      const remaining = row.remaining ?? 0;
+      const returned = row.qty - remaining;
+      day.returned += returned;
+      day.remaining += remaining;
+      day.sales.push({
+        sale: { id: row.tx_id, created_at: row.created_at },
+        item: { product_id: selectedProduct.id, name: selectedProduct.name, sku: selectedProduct.sku, qty: row.qty, returned, remaining },
+      });
+      addToLoc(day.byLoc, row.source_location, row.qty, returned, remaining);
+    }
+    // newest day first; on one day the sales row, then the returns row
+    return [...days.values()].sort((a, b) =>
+      a.day === b.day ? (a.type === "sale" ? -1 : 1) : a.day < b.day ? 1 : -1
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productHistory, selectedProduct, locById, branchLocationId]);
+  const [openDayRows, setOpenDayRows] = useState(new Set()); // by-product days showing the per-location split
+  const toggleDayRow = (key) =>
+    setOpenDayRows((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
   const toggleLocRow = (productId) =>
     setOpenLocRows((prev) => {
@@ -206,8 +265,7 @@ export default function SaleHistory({
 
   const handleReturnClick = (grouped) => {
     if (grouped.remaining <= 0) return;
-    setReturnModal({ grouped });
-    setReturnQty(1);
+    openReturn(grouped);
   };
 
   // Accept transfer with double-click guard
@@ -234,41 +292,33 @@ export default function SaleHistory({
       remaining: item.remaining,
       sales: [{ sale, item }],
     };
-    setReturnModal({ grouped });
-    setReturnQty(1);
+    openReturn(grouped);
   };
 
-  const handleReturnSubmit = () => {
-    if (!returnModal || returnQty <= 0 || returnQty > returnModal.grouped.remaining) return;
+  // The quantity is typed only once, in the location window (up to what is left
+  // to return); the return then splits across the row's sales, newest first.
+  const openReturn = (grouped) => {
     if (!commitSaleReturn) return;
-
-    const { grouped } = returnModal;
-
-    // Distribute return qty across multiple transactions (oldest first)
-    const plan = [];
-    let toReturn = returnQty;
-    for (const { sale, item } of grouped.sales) {
-      if (toReturn <= 0) break;
-      const canReturn = Math.min(item.remaining, toReturn);
-      if (canReturn <= 0) continue;
-      plan.push({ sale, item, qty: canReturn });
-      toReturn -= canReturn;
-    }
-
-    // Merge into ONE modal item so the location list appears only once
-    const productId = plan[0].item.product_id;
-    const totalQty = plan.reduce((s, p) => s + p.qty, 0);
-
     setRetDestModal({
       items: [{
-        product_id: productId,
+        product_id: grouped.product_id,
         name: grouped.name,
         sku: grouped.sku || "",
-        qty: totalQty,
+        qty: grouped.remaining, // the most that can be returned
         return_kind: "sale_return",
-        parent_tx_id: plan[0].sale.id,
       }],
-      onConfirm: async (destinations, retNote) => {
+      onConfirm: async (destinations, retNote, totals) => {
+        const plan = [];
+        let toReturn = totals.get(grouped.product_id) || 0;
+        for (const { sale, item } of grouped.sales) {
+          if (toReturn <= 0) break;
+          const canReturn = Math.min(item.remaining, toReturn);
+          if (canReturn <= 0) continue;
+          plan.push({ sale, item, qty: canReturn });
+          toReturn -= canReturn;
+        }
+        if (plan.length === 0) return;
+
         if (plan.length === 1) {
           // Single transaction — use regular commitSaleReturn
           const p = plan[0];
@@ -287,14 +337,15 @@ export default function SaleHistory({
           await onBatchSaleReturn(batchItems, destinations, retNote);
         }
         setRetDestModal(null);
+        // the by-product list shows what is left to return: load it again
+        if (selectedProduct) changeYear(selectedYear);
       },
     });
-
-    setReturnModal(null);
   };
 
   const handleSelectProduct = async (product, year) => {
     setShowSuggestions(false);
+    setProductSuggestions([]); // clicking the box again must not reopen the old list
     setSelectedProduct(product);
     setProductQuery(product.name || product.sku);
     const currentYear = new Date().getFullYear();
@@ -1195,7 +1246,7 @@ export default function SaleHistory({
                     </div>
                   </div>
 
-                  {/* Timeline */}
+                  {/* Timeline: sales by day (like Overall), returns by day */}
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-neutral-100 z-10">
                       <tr className="text-neutral-600 text-xs font-semibold uppercase">
@@ -1208,45 +1259,117 @@ export default function SaleHistory({
                         <th className="px-4 py-2.5 text-center">
                           {t("branchOperations.saleHistory.colQty")}
                         </th>
+                        <th className="px-4 py-2.5 text-center">
+                          {t("branchOperations.saleHistory.colReturned")}
+                        </th>
+                        <th className="px-4 py-2.5 text-center">
+                          {t("branchOperations.saleHistory.colRemaining")}
+                        </th>
+                        <th className="px-4 py-2.5" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
-                      {productHistory.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-emerald-50/30 transition-colors">
-                          <td className="px-4 py-2.5 whitespace-nowrap">
-                            <button
-                              onClick={() => {
-                                const d = new Date(row.day + "T12:00:00");
-                                setSelectedDay(d);
-                                loadSaleHistory(d);
-                                setHighlightProductId(selectedProduct?.id ?? null);
-                                setViewMode("date");
-                              }}
-                              className="text-emerald-600 hover:text-emerald-800 hover:underline font-medium transition-colors"
-                            >
-                              {row.day}
-                            </button>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              row.type === "sale"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-amber-100 text-amber-700"
-                            }`}>
-                              {row.type === "sale"
-                                ? t("branchOperations.saleHistory.typeSale")
-                                : t("branchOperations.saleHistory.typeReturn")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-center">
-                            <span className={`font-semibold ${
-                              row.type === "sale" ? "text-emerald-600" : "text-amber-600"
-                            }`}>
-                              {row.type === "sale" ? "" : "-"}{nf.format(row.qty)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {productDays.map((row) => {
+                        const isSale = row.type === "sale";
+                        const locs = Array.from(row.byLoc.values());
+                        const locsOpen = locs.length > 1 && openDayRows.has(row.key);
+                        return (
+                          <React.Fragment key={row.key}>
+                            <tr className="hover:bg-emerald-50/30 transition-colors">
+                              <td className="px-4 py-2.5 whitespace-nowrap">
+                                <button
+                                  onClick={() => {
+                                    const d = new Date(row.day + "T12:00:00");
+                                    setSelectedDay(d);
+                                    loadSaleHistory(d);
+                                    setHighlightProductId(selectedProduct?.id ?? null);
+                                    setViewMode("date");
+                                  }}
+                                  className="text-emerald-600 hover:text-emerald-800 hover:underline font-medium transition-colors"
+                                >
+                                  {row.day}
+                                </button>
+                                {isSale && (locs.length === 1 ? (
+                                  <div><LocationLabel loc={locs[0]} className="mt-0.5" /></div>
+                                ) : (
+                                  <div>
+                                    <button
+                                      onClick={() => toggleDayRow(row.key)}
+                                      aria-expanded={locsOpen}
+                                      className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200 hover:bg-blue-100 transition-colors"
+                                    >
+                                      <Warehouse className="w-3 h-3" />
+                                      {t("branchOperations.saleHistory.locationsCount", { count: locs.length })}
+                                      <ChevronDown className={`w-3 h-3 transition-transform ${locsOpen ? "rotate-180" : ""}`} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  isSale ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                }`}>
+                                  {isSale
+                                    ? t("branchOperations.saleHistory.typeSale")
+                                    : t("branchOperations.saleHistory.typeReturn")}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`font-semibold ${isSale ? "text-emerald-600" : "text-amber-600"}`}>
+                                  {isSale ? "" : "-"}{nf.format(row.qty)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {isSale && row.returned > 0 ? (
+                                  <span className="font-medium text-amber-600">{nf.format(row.returned)}</span>
+                                ) : (
+                                  <span className="text-neutral-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {isSale ? (
+                                  <span className="font-medium text-neutral-700">{nf.format(row.remaining)}</span>
+                                ) : (
+                                  <span className="text-neutral-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {isSale && row.remaining > 0 && commitSaleReturn && (
+                                  <button
+                                    onClick={() => handleReturnClick(row)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 transition-colors"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    {t("branchOperations.saleHistory.returnBtn")}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {locsOpen &&
+                              locs.map((loc) => (
+                                <tr key={`${row.key}-${loc.id}`} className="bg-blue-50/40 text-xs">
+                                  <td className="py-1.5 pl-8 pr-4" colSpan={2}>
+                                    <LocationLabel loc={loc} />
+                                  </td>
+                                  <td className="px-4 py-1.5 text-center font-semibold text-emerald-600">
+                                    {nf.format(loc.qty)}
+                                  </td>
+                                  <td className="px-4 py-1.5 text-center">
+                                    {loc.returned > 0 ? (
+                                      <span className="font-medium text-amber-600">{nf.format(loc.returned)}</span>
+                                    ) : (
+                                      <span className="text-neutral-300">—</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-1.5 text-center font-medium text-neutral-700">
+                                    {nf.format(loc.remaining)}
+                                  </td>
+                                  <td />
+                                </tr>
+                              ))}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1255,78 +1378,6 @@ export default function SaleHistory({
           </div>
         )}
       </div>
-
-      {/* Return Modal */}
-      {returnModal && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          onClick={() => setReturnModal(null)}
-        >
-          <div
-            className="max-md:max-h-[90vh] max-md:overflow-y-auto bg-white rounded-xl shadow-xl max-w-sm w-full p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-neutral-800">
-                {t("branchOperations.saleHistory.returnModalTitle")}
-              </h3>
-              <button
-                onClick={() => setReturnModal(null)}
-                className="text-neutral-400 hover:text-neutral-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
-              <div className="font-medium text-neutral-800">{returnModal.grouped.name}</div>
-              <div className="text-xs text-neutral-500">{returnModal.grouped.sku}</div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-neutral-600 mb-1.5">
-                {t("branchOperations.saleHistory.returnQtyLabel", {
-                  max: returnModal.grouped.remaining,
-                })}
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={returnQty === 0 ? '' : returnQty}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    setReturnQty(0);
-                  } else {
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num)) {
-                      setReturnQty(Math.min(Math.max(0, num), returnModal.grouped.remaining));
-                    }
-                  }
-                }}
-                className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setReturnModal(null)}
-                className="flex-1 py-2.5 rounded-xl border border-neutral-200 text-neutral-600 font-medium hover:bg-neutral-50 transition-colors"
-              >
-                {t("branchOperations.saleHistory.cancel")}
-              </button>
-              <button
-                onClick={handleReturnSubmit}
-                disabled={returnQty <= 0}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t("branchOperations.saleHistory.returnBtn")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Return Destination Modal — self-contained, no cross-component state */}
       {retDestModal && (
