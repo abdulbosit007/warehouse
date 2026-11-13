@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { DayPicker } from "react-day-picker";
-import { Calendar, Package, X, Search } from "lucide-react";
+import { Calendar, Package, X, Search, ChevronDown } from "lucide-react";
 import { ymd } from "../utils/dateHelpers";
 
 export default function LoanHistory({
@@ -29,6 +29,13 @@ export default function LoanHistory({
   const [productHistLoading, setProductHistLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [firstYear, setFirstYear] = useState(new Date().getFullYear());
+  const [openLoanRows, setOpenLoanRows] = useState(new Set()); // by-product loans showing their returns / sales
+  const toggleLoanRow = (id) =>
+    setOpenLoanRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const suggestRef = useRef(null);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
@@ -50,6 +57,11 @@ export default function LoanHistory({
   // Debounced product search
   useEffect(() => {
     if (viewMode !== "product" || !searchProducts) return;
+    // the box holds the chosen product's name: nothing to suggest (typing clears the choice)
+    if (selectedProduct) {
+      setShowSuggestions(false);
+      return;
+    }
     const term = productQuery.trim();
     if (term.length < 2) {
       setProductSuggestions([]);
@@ -62,7 +74,7 @@ export default function LoanHistory({
       setShowSuggestions(true);
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [productQuery, viewMode, searchProducts]);
+  }, [productQuery, viewMode, searchProducts, selectedProduct]);
 
   // Flatten all items from all loans into individual rows
   const flatItems = [];
@@ -101,6 +113,7 @@ export default function LoanHistory({
 
   const handleSelectProduct = async (product) => {
     setShowSuggestions(false);
+    setProductSuggestions([]); // clicking the box again must not reopen the old list
     setSelectedProduct(product);
     setProductQuery(product.name || product.sku);
     const currentYear = new Date().getFullYear();
@@ -408,21 +421,27 @@ export default function LoanHistory({
               ) : (
                 <div className="max-h-[500px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   {/* Summary Card */}
-                  <div className="px-4 py-3 bg-amber-50/50 border-b border-neutral-100 grid grid-cols-3 gap-3">
+                  <div className="px-4 py-3 bg-amber-50/50 border-b border-neutral-100 grid grid-cols-4 gap-3 max-md:gap-1.5">
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryLoaned")}</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5 max-md:text-[10px] max-md:normal-case [overflow-wrap:anywhere]">{t("branchOperations.loanHistory.summaryLoaned")}</div>
                       <div className="text-lg font-bold text-amber-600">
                         {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan" ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryReturned")}</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5 max-md:text-[10px] max-md:normal-case [overflow-wrap:anywhere]">{t("branchOperations.loanHistory.summaryReturned")}</div>
                       <div className="text-lg font-bold text-teal-600">
-                        {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan_return" ? r.qty : 0), 0))}
+                        {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan_return" && !r.sold ? r.qty : 0), 0))}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5">{t("branchOperations.loanHistory.summaryTransactions")}</div>
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5 max-md:text-[10px] max-md:normal-case [overflow-wrap:anywhere]">{t("branchOperations.loanHistory.summarySold")}</div>
+                      <div className="text-lg font-bold text-emerald-600">
+                        {nf.format(productHistory.reduce((s, r) => s + (r.type === "loan_return" && r.sold ? r.qty : 0), 0))}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-neutral-500 uppercase font-medium mb-0.5 max-md:text-[10px] max-md:normal-case [overflow-wrap:anywhere]">{t("branchOperations.loanHistory.summaryTransactions")}</div>
                       <div className="text-lg font-bold text-neutral-700">
                         {productHistory.length}
                       </div>
@@ -438,75 +457,124 @@ export default function LoanHistory({
                         <th className="px-3 py-2.5 text-center">{t("branchOperations.loanHistory.colQty")}</th>
                         <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colBorrower")}</th>
                         <th className="px-3 py-2.5 text-center">{t("branchOperations.loanHistory.colStatus")}</th>
-                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colReturned")}</th>
+                        <th className="px-3 py-2.5 text-left">{t("branchOperations.loanHistory.colOutcome")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100">
-                      {productHistory.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
-                          <td className="px-3 py-2.5 whitespace-nowrap">
-                            <button
-                              onClick={() => {
-                                const d = new Date(row.day + "T12:00:00");
-                                setSelectedDay(d);
-                                loadLoanHistory(d);
-                                setViewMode("date");
-                              }}
-                              className="text-amber-600 hover:text-amber-800 hover:underline font-medium transition-colors"
-                            >
-                              {row.day}
-                            </button>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              row.type === "loan"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-teal-100 text-teal-700"
-                            }`}>
-                              {row.type === "loan"
-                                ? t("branchOperations.loanHistory.typeLoan")
-                                : t("branchOperations.loanHistory.typeReturn")}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className={`font-semibold ${
-                              row.type === "loan" ? "text-amber-600" : "text-teal-600"
-                            }`}>
-                              {row.type === "loan" ? "" : "-"}{nf.format(row.qty)}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-neutral-500 text-sm">
-                            {row.borrower_name || "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            {row.type === "loan" && row.status && (
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                row.status === "closed"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : row.status === "partial"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-red-100 text-red-600"
-                              }`}>
-                                {row.status === "closed"
-                                  ? t("branchOperations.loanHistory.statusClosed")
-                                  : row.status === "partial"
-                                    ? `${Math.round((row.returned / row.qty) * 100)}%`
-                                    : t("branchOperations.loanHistory.statusActive")}
-                              </span>
-                            )}
-                            {row.type === "loan_return" && (
-                              <span className="text-neutral-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm">
-                            {row.returnDate ? (
-                              <span className="text-teal-600 font-medium">{row.returnDate}</span>
-                            ) : (
-                              <span className="text-neutral-300">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {/* a loan's returns / sales open under it; a return of a loan from
+                          another year has no loan here, so it stays a line of its own */}
+                      {productHistory
+                        .filter((row) => row.type === "loan" || !row.parent_listed)
+                        .map((row) => {
+                          const isLoan = row.type === "loan";
+                          const events = row.events || [];
+                          const open = isLoan && events.length > 0 && openLoanRows.has(row.id);
+                          const done = isLoan && row.returned >= row.qty;
+                          return (
+                            <React.Fragment key={row.id}>
+                              <tr
+                                onClick={events.length > 0 && isLoan ? () => toggleLoanRow(row.id) : undefined}
+                                aria-expanded={events.length > 0 && isLoan ? open : undefined}
+                                className={`hover:bg-amber-50/30 transition-colors ${
+                                  events.length > 0 && isLoan ? "cursor-pointer" : ""
+                                } ${open ? "bg-amber-50/40" : ""}`}
+                              >
+                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // the date opens that day, not the dropdown
+                                      const d = new Date(row.day + "T12:00:00");
+                                      setSelectedDay(d);
+                                      loadLoanHistory(d);
+                                      setViewMode("date");
+                                    }}
+                                    className="text-amber-600 hover:text-amber-800 hover:underline font-medium transition-colors"
+                                  >
+                                    {row.day}
+                                  </button>
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                    isLoan
+                                      ? "bg-amber-100 text-amber-700"
+                                      : row.sold
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-teal-100 text-teal-700"
+                                  }`}>
+                                    {isLoan
+                                      ? t("branchOperations.loanHistory.typeLoan")
+                                      : row.sold
+                                        ? t("branchOperations.loanHistory.typeSold")
+                                        : t("branchOperations.loanHistory.typeReturn")}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className={`font-semibold ${
+                                    isLoan ? "text-amber-600" : row.sold ? "text-emerald-600" : "text-teal-600"
+                                  }`}>
+                                    {nf.format(row.qty)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-neutral-500 text-sm">
+                                  {row.borrower_name || "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  {isLoan && row.status ? (
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                      row.status === "closed"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : row.status === "partial"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-red-100 text-red-600"
+                                    }`}>
+                                      {row.status === "closed"
+                                        ? t("branchOperations.loanHistory.statusDone")
+                                        : row.status === "partial"
+                                          ? `${Math.round((row.returned / row.qty) * 100)}%`
+                                          : t("branchOperations.loanHistory.statusActive")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-neutral-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-sm">
+                                  {!isLoan ? (
+                                    <span className="text-neutral-300">—</span>
+                                  ) : events.length > 0 ? (
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className={`text-xs font-semibold ${done ? "text-emerald-700" : "text-amber-700"}`}>
+                                        {nf.format(row.returned)}/{nf.format(row.qty)}
+                                      </span>
+                                      {/* the whole row opens it; the arrow only shows it can */}
+                                      <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold text-neutral-500">0/{nf.format(row.qty)}</span>
+                                  )}
+                                </td>
+                              </tr>
+                              {open &&
+                                events.map((ev, i) => (
+                                  <tr key={`${row.id}-${i}`} className="bg-neutral-50/80 text-xs">
+                                    <td className="py-1.5 pl-8 pr-3 whitespace-nowrap text-neutral-600">{ev.day}</td>
+                                    <td className="px-3 py-1.5">
+                                      <span className={`font-medium px-2 py-0.5 rounded-full ${
+                                        ev.sold ? "bg-emerald-100 text-emerald-700" : "bg-teal-100 text-teal-700"
+                                      }`}>
+                                        {ev.sold
+                                          ? t("branchOperations.loanHistory.typeSold")
+                                          : t("branchOperations.loanHistory.typeReturn")}
+                                      </span>
+                                    </td>
+                                    <td className={`px-3 py-1.5 text-center font-semibold ${ev.sold ? "text-emerald-600" : "text-teal-600"}`}>
+                                      {nf.format(ev.qty)}
+                                    </td>
+                                    <td colSpan={3} />
+                                  </tr>
+                                ))}
+                            </React.Fragment>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
