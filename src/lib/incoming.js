@@ -476,5 +476,24 @@ export async function getLatestClosedBatchItems(origin) {
 
   if (itemsErr) return { batch, items: [], error: itemsErr };
 
-  return { batch, items: items || [], error: null };
+  // One card per product: a delivery that came in parts (or got "+N" later) has
+  // several approved lines with the same SKU. The card keeps its first line's id.
+  const bySku = new Map();
+  for (const it of items || []) {
+    const card = bySku.get(it.sku);
+    if (card) card.quantity = (card.quantity || 0) + (it.quantity || 0);
+    else bySku.set(it.sku, { ...it });
+  }
+  const cards = [...bySku.values()];
+
+  // The product's current name (the owner may have renamed it since delivery)
+  const skus = cards.map((c) => c.sku).filter(Boolean);
+  if (skus.length > 0) {
+    const { data: prods } = await supabase.from("products").select("sku, name").in("sku", skus);
+    const nameOf = new Map((prods || []).map((p) => [p.sku, p.name]));
+    for (const c of cards) c.product_name = nameOf.get(c.sku) || c.product_name;
+  }
+  cards.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
+
+  return { batch, items: cards, error: null };
 }
